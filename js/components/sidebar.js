@@ -1,0 +1,275 @@
+/**
+ * sidebar.js
+ * Sidebar rendering functions for projects, context menus, and tags filtering.
+ */
+
+/**
+ * Sets up persistent section collapse handlers for Projects, Google Calendars, and Tags headers.
+ */
+function setupSidebarSectionCollapses() {
+  const sections = [
+    { headerId: 'header-projects', listId: 'sidebar-projects', key: 'projects' },
+    { headerId: 'header-gcal', listId: 'gcal-list', key: 'gcal' },
+    { headerId: 'header-tags', listId: 'sidebar-tags', key: 'tags' }
+  ];
+
+  const collapsed = state.settings.collapsedCategories || [];
+
+  sections.forEach(({ headerId, listId, key }) => {
+    const header = document.getElementById(headerId);
+    const list = document.getElementById(listId);
+    if (!header || !list) return;
+
+    const arrow = header.querySelector('.collapse-arrow');
+    const isCollapsed = collapsed.includes(key);
+
+    if (isCollapsed) {
+      list.classList.add('collapsed');
+      if (arrow) arrow.classList.add('collapsed');
+    } else {
+      list.classList.remove('collapsed');
+      if (arrow) arrow.classList.remove('collapsed');
+    }
+
+    if (!header.dataset.collapseListener) {
+      header.dataset.collapseListener = 'true';
+      header.addEventListener('click', async (e) => {
+        if (e.target.closest('button')) return; // Ignore add/refresh buttons
+        let current = state.settings.collapsedCategories || [];
+        if (current.includes(key)) {
+          current = current.filter(k => k !== key);
+          list.classList.remove('collapsed');
+          if (arrow) arrow.classList.remove('collapsed');
+        } else {
+          current.push(key);
+          list.classList.add('collapsed');
+          if (arrow) arrow.classList.add('collapsed');
+        }
+        state.settings.collapsedCategories = current;
+        await window.api.saveSettings(state.settings);
+      });
+    }
+  });
+}
+
+/**
+ * Renders top-level projects and sub-lists in the sidebar based on active profile mode.
+ */
+function renderSidebarProjects() {
+  setupSidebarSectionCollapses();
+
+  const container = document.getElementById('sidebar-projects');
+  if (!container) return;
+
+  const modeProjects = state.activeMode === 'all'
+    ? state.projects
+    : state.projects.filter(p => !p.profileId || p.profileId === state.activeMode);
+
+  const topLevel = modeProjects.filter(p => !p.parentProjectId);
+  const collapsedProjects = state.settings.collapsedProjects || [];
+
+  let html = '';
+  topLevel.forEach(p => {
+    const subProjects = modeProjects.filter(sub => sub.parentProjectId === p.id);
+    const count = state.tasks.filter(t => t.projectId === p.id && !t.completed).length;
+    const hasSub = subProjects.length > 0;
+    const isCollapsed = collapsedProjects.includes(p.id);
+
+    html += `
+      <div class="sidebar-list-item project-item ${state.filterProject === p.id ? 'active' : ''}" data-filter-project="${p.id}" data-project-id="${p.id}" style="position:relative; padding-right:50px;">
+        ${hasSub ? `
+          <button class="project-collapse-btn" data-toggle-project="${p.id}" title="Toggle sub-lists" style="background:none;border:none;padding:0;margin-right:4px;cursor:pointer;color:var(--text-tertiary);display:flex;align-items:center;">
+            <svg class="collapse-arrow ${isCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px;transition:transform 0.2s;">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        ` : `<span style="width:16px;"></span>`}
+        <span class="dot" style="background:${p.color}"></span>
+        <span>${escHtml(p.name)}</span>
+        <span class="count">${count}</span>
+        
+        <div class="project-actions" style="position:absolute; right:8px; display:flex; gap:4px;">
+          <button class="btn-icon-sm add-list-btn" data-parent-id="${p.id}" title="Add List" style="opacity:0.5;">+</button>
+        </div>
+      </div>
+    `;
+
+    if (hasSub && !isCollapsed) {
+      subProjects.forEach(sub => {
+        const subCount = state.tasks.filter(t => t.projectId === sub.id && !t.completed).length;
+        html += `
+          <div class="sidebar-list-item project-item ${state.filterProject === sub.id ? 'active' : ''}" data-filter-project="${sub.id}" data-project-id="${sub.id}" style="padding-left:22px; position:relative; padding-right:32px;">
+            <span class="dot" style="background:${sub.color}; width:6px; height:6px;"></span>
+            <span style="font-size:12px;">${escHtml(sub.name)}</span>
+            <span class="count">${subCount}</span>
+          </div>
+        `;
+      });
+    }
+  });
+
+  container.innerHTML = html;
+
+  // Toggle sub-projects collapse
+  container.querySelectorAll('[data-toggle-project]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const projId = btn.dataset.toggleProject;
+      let collapsed = state.settings.collapsedProjects || [];
+      if (collapsed.includes(projId)) {
+        collapsed = collapsed.filter(id => id !== projId);
+      } else {
+        collapsed.push(projId);
+      }
+      state.settings.collapsedProjects = collapsed;
+      await window.api.saveSettings(state.settings);
+      renderSidebarProjects();
+    });
+  });
+
+  // Project filter click
+  container.querySelectorAll('[data-filter-project]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.project-actions') || e.target.closest('.project-collapse-btn')) return;
+      const projId = el.dataset.filterProject;
+      if (state.filterProject === projId && state.currentView === 'project') {
+        state.filterProject = null;
+        state.currentView = 'tasks';
+        const navTasks = document.getElementById('nav-tasks');
+        if (navTasks) {
+          document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+          navTasks.classList.add('active');
+        }
+      } else {
+        state.filterProject = projId;
+        state.currentView = 'project';
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      }
+      renderSidebarProjects();
+      renderView();
+    });
+  });
+
+  // Add List button
+  container.querySelectorAll('.add-list-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showProjectModal(btn.dataset.parentId);
+    });
+  });
+
+  // Project right-click context menu
+  container.querySelectorAll('.project-item').forEach(item => {
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const projId = item.dataset.projectId;
+      showContextMenu(e.clientX, e.clientY, projId);
+    });
+  });
+}
+
+/**
+ * Displays a right-click context menu for project deletion.
+ * @param {number} x - Mouse X position.
+ * @param {number} y - Mouse Y position.
+ * @param {string} projectId - Project ID to operate on.
+ */
+function showContextMenu(x, y, projectId) {
+  const menu = document.getElementById('context-menu');
+  if (!menu) return;
+  
+  menu.innerHTML = `
+    <div class="context-menu-item danger" id="context-delete-project">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      Delete Project
+    </div>
+  `;
+  
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.classList.remove('hidden');
+  
+  document.getElementById('context-delete-project').addEventListener('click', async () => {
+    menu.classList.add('hidden');
+    const isList = !!state.projects.find(p => p.id === projectId)?.parentProjectId;
+    const idsToDelete = [projectId, ...state.projects.filter(p => p.parentProjectId === projectId).map(p => p.id)];
+    
+    const html = `
+      <div style="padding:var(--sp-md);text-align:center;">
+        <h2 style="font-size:16px;margin-bottom:8px;">${isList ? 'Delete List?' : 'Delete Project?'}</h2>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+          ${isList ? 'Delete this list and move its tasks to uncategorized?' : 'Delete this project (and its lists) and move all its tasks to uncategorized?'}
+        </p>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button id="modal-cancel-delete" style="padding:6px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text-primary);cursor:pointer;">Cancel</button>
+          <button id="modal-confirm-delete" style="padding:6px 16px;border-radius:var(--radius-sm);background:var(--danger);color:white;border:none;cursor:pointer;">Delete</button>
+        </div>
+      </div>
+    `;
+    openModal(html);
+    
+    document.getElementById('modal-cancel-delete').addEventListener('click', closeModal);
+    document.getElementById('modal-confirm-delete').addEventListener('click', async () => {
+      state.projects = state.projects.filter(p => !idsToDelete.includes(p.id));
+      state.tasks.forEach(t => {
+        if (idsToDelete.includes(t.projectId)) t.projectId = null;
+      });
+      await window.api.saveProjects(state.projects);
+      await window.api.saveTasks(state.tasks);
+      if (idsToDelete.includes(state.filterProject)) state.filterProject = null;
+      renderSidebarProjects();
+      renderView();
+      closeModal();
+    });
+  });
+  
+  const closeMenu = (e) => {
+    if (!menu.contains(e.target)) {
+      menu.classList.add('hidden');
+      document.removeEventListener('click', closeMenu);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+/**
+ * Renders active tag chips in the sidebar for tag-based filtering.
+ */
+function renderSidebarTags() {
+  const container = document.getElementById('sidebar-tags');
+  const section = document.getElementById('tags-sidebar-section');
+  if (!container || !section) return;
+
+  const tags = getAllTags();
+  if (tags.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  container.innerHTML = tags.map(tag => {
+    const count = state.tasks.filter(t => t.tags.includes(tag) && !t.completed).length;
+    const isChecked = state.filterTag === tag;
+    return `
+      <div class="gcal-item" data-sidebar-tag="${tag}">
+        <input type="checkbox" class="gcal-checkbox" style="pointer-events: none;" ${isChecked ? 'checked' : ''}>
+        <span class="gcal-name">${tag}</span>
+        <span style="font-size: 10px; color: var(--text-tertiary); margin-left: auto;">${count}</span>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-sidebar-tag]').forEach(el => {
+    el.addEventListener('click', () => {
+      const tag = el.dataset.sidebarTag;
+      state.filterTag = state.filterTag === tag ? null : tag;
+      state.currentView = 'tasks';
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      const navTasks = document.getElementById('nav-tasks');
+      if (navTasks) navTasks.classList.add('active');
+      renderSidebarTags();
+      renderView();
+    });
+  });
+}

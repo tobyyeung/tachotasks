@@ -1,0 +1,546 @@
+// ===== MODALS =====
+function showTaskModal(taskId) {
+  let task = null;
+  let isArchived = false;
+  if (taskId) {
+    task = state.tasks.find(t => t.id === taskId);
+    if (!task) {
+      task = state.archivedTasks.find(t => t.id === taskId);
+      if (task) isArchived = true;
+    }
+  }
+  const isNew = !task;
+  const ro = isArchived ? 'disabled' : '';
+
+  const activeProjId = task ? task.projectId : (state.filterProject || null);
+  const projectOptions = state.projects.map(p =>
+    `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`
+  ).join('');
+
+  const currentTags = task ? task.tags.join(', ') : '';
+  const priorities = ['P1', 'P2', 'P3', 'None'];
+
+  const html = `
+    <div class="modal-header">
+      <h2>${isNew ? 'New Task' : 'Edit Task'}</h2>
+      <button class="modal-close" id="modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" id="modal-title" value="${escAttr(task ? task.title : '')}" placeholder="What needs to be done?" autofocus ${ro} />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="modal-desc" placeholder="Add details…" ${ro}>${task ? escHtml(task.description) : ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <div class="priority-selector">
+          ${priorities.map(p => {
+            const pKey = p === 'None' ? '' : p;
+            const pClass = p !== 'None' ? p.toLowerCase() : 'none';
+            const selected = (task ? task.priority : null) === (pKey || null) ? 'selected' : '';
+            if (!task && p === 'None') return `<button class="priority-option ${pClass} selected" data-priority="">${p}</button>`;
+            return `<button class="priority-option ${pClass} ${selected}" data-priority="${pKey}">${p}</button>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Planned Date</label>
+          <input class="form-input" id="modal-planned-date" type="date" value="${task && task.plannedDate ? task.plannedDate : ''}" ${ro} />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input class="form-input" id="modal-due-date" type="date" value="${task && task.dueDate ? task.dueDate : ''}" ${ro} />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Due Time</label>
+          <input class="form-input" id="modal-due-time" type="time" value="${task && task.dueTime ? task.dueTime : ''}" ${ro} />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project</label>
+          <select class="form-select" id="modal-project" ${ro}>
+            <option value="">No project</option>
+            ${projectOptions}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <input class="form-input" id="modal-tags" value="${escAttr(currentTags)}" placeholder="@deep_work, @errands" ${ro} />
+      </div>
+    </div>
+    <div class="modal-footer">
+      ${!isNew ? '<button class="btn-danger" id="modal-delete-btn">Delete</button>' : ''}
+      <div style="flex:1"></div>
+      <button class="btn-secondary" id="modal-cancel-btn">Close</button>
+      ${!isArchived ? `<button class="btn-primary" id="modal-save-btn">${isNew ? 'Add Task' : 'Save'}</button>` : ''}
+    </div>
+  `;
+
+  openDraggablePopup(html, 'task-popup');
+
+  // Priority selector logic
+  if (!isArchived) {
+    document.querySelectorAll('.priority-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.priority-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+  } else {
+    document.querySelectorAll('.priority-option').forEach(btn => {
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.7';
+    });
+  }
+
+  // Save
+  const saveBtn = document.getElementById('modal-save-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+    const title = document.getElementById('modal-title').value.trim();
+    if (!title) { showToast('Title is required', 'error'); return; }
+
+    const selectedPriority = document.querySelector('.priority-option.selected').dataset.priority || null;
+    const tagsInput = document.getElementById('modal-tags').value;
+    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    const data = {
+      title,
+      description: document.getElementById('modal-desc').value,
+      priority: selectedPriority,
+      plannedDate: document.getElementById('modal-planned-date').value || null,
+      dueDate: document.getElementById('modal-due-date').value || null,
+      dueTime: document.getElementById('modal-due-time').value || null,
+      projectId: document.getElementById('modal-project').value || null,
+      tags
+    };
+
+    if (isNew) {
+      const newTask = {
+        id: generateId(),
+        ...data,
+        parentTaskId: null,
+        recurring: null,
+        completed: false,
+        completedAt: null,
+        createdAt: new Date().toISOString(),
+        profileId: getActiveProfileId()
+      };
+      state.tasks.push(newTask);
+    } else {
+      if (!task.profileId || task.profileId === 'all') {
+        task.profileId = getActiveProfileId();
+      }
+      Object.assign(task, data);
+    }
+
+    await saveTasks();
+    closeModal();
+    renderView();
+    renderSidebarTags();
+    showToast(isNew ? 'Task created!' : 'Task updated!', 'success');
+  });
+  }
+
+  // Delete
+  const delBtn = document.getElementById('modal-delete-btn');
+  if (delBtn) {
+    delBtn.addEventListener('click', () => deleteTask(taskId));
+  }
+
+  // Cancel / Close
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+}
+
+function showProjectModal(parentId = null) {
+  const html = `
+    <div class="modal-header">
+      <h2>${parentId ? 'New List' : 'New Project'}</h2>
+      <button class="modal-close" id="modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Project Name</label>
+        <input class="form-input" id="modal-proj-name" placeholder="e.g. Work, Personal" autofocus />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="color-picker">
+          ${['#5cb8ff', '#00d4aa', '#b47aff', '#ff5c5c', '#ffb347', '#ff6bcb', '#48dbfb', '#ffd93d'].map(c =>
+            `<div class="color-swatch" data-color="${c}" style="width:32px;height:32px;border-radius:50%;background:${c};cursor:pointer;border:3px solid transparent;transition:all 0.15s ease;"></div>`
+          ).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+      <button class="btn-primary" id="modal-save-btn">Create</button>
+    </div>
+  `;
+
+  openModal(html);
+
+  let selectedColor = '#5cb8ff';
+  document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.style.borderColor = 'transparent');
+      swatch.style.borderColor = 'white';
+      selectedColor = swatch.dataset.color;
+    });
+  });
+  // Select first by default
+  document.querySelector('.color-swatch').style.borderColor = 'white';
+
+  document.getElementById('modal-save-btn').addEventListener('click', async () => {
+    const name = document.getElementById('modal-proj-name').value.trim();
+    if (!name) { showToast('Name is required', 'error'); return; }
+    state.projects.push({
+      id: 'proj-' + generateId(),
+      name,
+      color: selectedColor,
+      parentProjectId: parentId,
+      profileId: getActiveProfileId()
+    });
+    await window.api.saveProjects(state.projects);
+    closeModal();
+    renderSidebarProjects();
+    showToast('Project created!', 'success');
+  });
+
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+}
+
+function showReminderModal() {
+  const html = `
+    <div class="modal-header">
+      <h2>New Reminder</h2>
+      <button class="modal-close" id="modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Reminder Name</label>
+        <input class="form-input" id="modal-reminder-name" placeholder="e.g. Call Mom, Doctor appointment" autofocus />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="modal-reminder-date" type="date" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+      <button class="btn-primary" id="modal-save-btn">Add Reminder</button>
+    </div>
+  `;
+
+  openModal(html);
+
+  document.getElementById('modal-save-btn').addEventListener('click', async () => {
+    const personName = document.getElementById('modal-reminder-name').value.trim();
+    const date = document.getElementById('modal-reminder-date').value;
+
+    if (!personName || !date) { showToast('Name and date are required', 'error'); return; }
+
+    state.reminders.push({
+      id: 'rem-' + generateId(),
+      personName,
+      date,
+      profileId: getActiveProfileId()
+    });
+
+    await window.api.saveReminders(state.reminders);
+    closeModal();
+    showToast('Reminder added!', 'success');
+    renderView();
+  });
+
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+}
+
+function openModal(html) {
+  const overlay = document.getElementById('modal-overlay');
+  const container = document.getElementById('modal-container');
+  container.innerHTML = html;
+  overlay.classList.remove('hidden');
+
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal();
+  });
+
+  // Close on Escape
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('modal-container').innerHTML = '';
+  
+  // Also close any popups
+  document.querySelectorAll('.draggable-popup').forEach(el => el.remove());
+}
+
+function openDraggablePopup(html, popupId) {
+  // Remove existing
+  const existing = document.getElementById(popupId);
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.id = popupId;
+  popup.className = 'draggable-popup';
+  popup.innerHTML = html;
+  
+  // Apply initial styles for floating panel
+  Object.assign(popup.style, {
+    position: 'fixed',
+    top: '100px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '400px',
+    background: 'var(--bg-glass)',
+    backdropFilter: 'blur(16px)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+    zIndex: '9999',
+    display: 'flex',
+    flexDirection: 'column'
+  });
+
+  document.body.appendChild(popup);
+
+  // Make draggable
+  const header = popup.querySelector('.modal-header');
+  if (header) {
+    header.style.cursor = 'grab';
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    header.addEventListener('mousedown', (e) => {
+      // Don't drag if clicking close button
+      if (e.target.closest('.modal-close')) return;
+      isDragging = true;
+      header.style.cursor = 'grabbing';
+      startX = e.clientX;
+      startY = e.clientY;
+      
+      const rect = popup.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      popup.style.transform = 'none'; // Remove translateX
+      popup.style.left = initialLeft + 'px';
+      popup.style.top = initialTop + 'px';
+      
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      popup.style.left = (initialLeft + dx) + 'px';
+      popup.style.top = (initialTop + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      header.style.cursor = 'grab';
+    });
+  }
+
+  // Close on Escape
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      popup.remove();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+function openInspector(html) {
+  const inspector = document.getElementById('task-inspector');
+  const main = document.getElementById('main');
+  const content = document.getElementById('inspector-content');
+  if (!inspector || !main || !content) return;
+  
+  content.innerHTML = html;
+  inspector.classList.add('open');
+  main.classList.add('inspector-open');
+}
+
+function closeInspector() {
+  const inspector = document.getElementById('task-inspector');
+  const main = document.getElementById('main');
+  const content = document.getElementById('inspector-content');
+  if (!inspector || !main || !content) return;
+  
+  inspector.classList.remove('open');
+  main.classList.remove('inspector-open');
+  setTimeout(() => {
+    if (!inspector.classList.contains('open')) {
+      content.innerHTML = '';
+    }
+  }, 250);
+}
+
+function showEventPopover(eventId, eventType, triggerEl) {
+  let event = null;
+  if (eventType === 'gcal_event') {
+    event = state.gcalEvents.find(e => e.id === eventId);
+  } else {
+    event = state.events.find(e => e.id === eventId);
+  }
+  
+  if (!event) return;
+
+  const popover = document.getElementById('event-popover');
+  if (!popover) return;
+
+  let meetLink = event.hangoutLink || '';
+  let loc = event.location || '';
+  
+  // Extract Zoom/Webex/Teams from description if no hangoutLink is provided
+  const meetMatch = (event.description || '').match(/(https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:zoom\.us|webex\.com|teams\.microsoft\.com|meet\.google\.com)[^\s"<>]*)/i);
+  if (!meetLink && meetMatch) {
+    meetLink = meetMatch[1];
+  }
+  
+  let cleanDesc = '';
+  if (event.description) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = event.description.replace(/<br\s*[\/]?>/gi, '\n');
+    cleanDesc = tmp.textContent || tmp.innerText || '';
+    if (meetLink) {
+      cleanDesc = cleanDesc.replace(meetLink, '');
+    }
+    if (loc && cleanDesc.startsWith(loc)) {
+      cleanDesc = cleanDesc.substring(loc.length).trim();
+    }
+    if (cleanDesc.includes('Changes made to the title, description, or attachments will not be saved')) {
+      cleanDesc = '';
+    }
+  }
+
+  const html = `
+    <div class="popover-header">
+      <div style="flex:1"></div>
+      ${event.htmlLink ? `<a href="${event.htmlLink}" class="popover-action external-link" title="Open in Google Calendar">🔗</a>` : ''}
+      <button class="popover-action" id="popover-close-btn" title="Close">✕</button>
+    </div>
+    <div class="popover-body">
+      <div class="popover-row">
+        <div class="popover-icon" style="color: ${event.color || 'var(--accent)'}">●</div>
+        <div class="popover-content">
+          <h3>${escHtml(event.title)}</h3>
+          <div class="popover-text">
+            ${event.date} • ${event.startTime ? formatTime12(event.startTime) + ' – ' + formatTime12(event.endTime) : 'All Day'}
+          </div>
+        </div>
+      </div>
+      ${meetLink ? `
+        <div class="popover-row">
+          <div class="popover-icon" style="color:var(--text-tertiary);">🎥</div>
+          <div class="popover-content">
+            <div class="popover-text">
+              <a href="${meetLink}" class="external-link" style="color:var(--accent);text-decoration:none;word-break:break-all;">Join Video Call</a>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      ${loc ? `
+        <div class="popover-row">
+          <div class="popover-icon" style="color:var(--text-tertiary);">📍</div>
+          <div class="popover-content">
+            <div class="popover-text">
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}" class="external-link" style="color:var(--accent);text-decoration:none;">${escHtml(loc)}</a>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      ${cleanDesc.trim() ? `
+        <div class="popover-row">
+          <div class="popover-icon" style="color:var(--text-tertiary);">📝</div>
+          <div class="popover-content">
+            <div class="popover-text" style="white-space:pre-wrap;max-height:150px;overflow-y:auto;">${escHtml(cleanDesc.trim())}</div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  popover.innerHTML = html;
+  
+  // Calculate position
+  const rect = triggerEl.getBoundingClientRect();
+  const popoverWidth = 350;
+  
+  // Try to place it to the right of the event
+  let left = rect.right + 10;
+  if (left + popoverWidth > window.innerWidth) {
+    // If it overflows right, place it to the left
+    left = rect.left - popoverWidth - 10;
+  }
+  
+  let top = rect.top;
+  // Make sure it doesn't overflow bottom
+  const popoverHeight = popover.offsetHeight || 200; // estimated
+  if (top + popoverHeight > window.innerHeight) {
+    top = window.innerHeight - popoverHeight - 20;
+  }
+  if (top < 0) top = 20;
+
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+  popover.classList.remove('hidden');
+  
+  document.getElementById('popover-close-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    popover.classList.add('hidden');
+  });
+
+  // Global click listener to close popover if clicking outside
+  const outsideClickListener = (e) => {
+    if (!popover.contains(e.target) && !triggerEl.contains(e.target)) {
+      popover.classList.add('hidden');
+      document.removeEventListener('click', outsideClickListener);
+    }
+  };
+  
+  // Remove existing listeners if any, by attaching a new one
+  document.removeEventListener('click', window._popoverOutsideClickListener);
+  window._popoverOutsideClickListener = outsideClickListener;
+  document.addEventListener('click', outsideClickListener);
+}
+
+
+// ===== TOAST NOTIFICATIONS =====
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icon = type === 'success' ? '✓' : '✕';
+  toast.innerHTML = `<span class="toast-icon">${icon}</span> ${escHtml(message)}`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(50px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
