@@ -29,15 +29,12 @@ function renderReminders() {
       const rDate = new Date(r.date);
       const diff = Math.ceil((rDate - new Date(getTodayStr())) / 86400000);
       let daysText = diff === 0 ? 'Today' : (diff === 1 ? 'Tomorrow' : (diff < 0 ? 'Past' : `In ${diff} days`));
-      
+
       return `
         <div class="task-item" style="display:flex; justify-content:space-between; align-items:center; cursor:default;">
           <div style="display:flex; align-items:center; gap:16px;">
-            <div style="width:24px;height:24px;color:var(--accent);display:flex;align-items:center;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:20px;height:20px;">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
+            <div style="width:24px;height:24px;display:flex;align-items:center;">
+              <img src="assets/icons/Bell.png" alt="Reminder" style="width:24px;height:24px;object-fit:contain;" />
             </div>
             <div>
               <div style="font-size:15px; font-weight:500;">${escHtml(r.personName)}</div>
@@ -54,7 +51,7 @@ function renderReminders() {
   } else {
     html += `<div class="empty-state"><div class="empty-icon" style="width:48px;height:48px;margin:0 auto 16px;color:var(--text-tertiary);">${icons.party}</div><div class="empty-text">No reminders set. Add reminders to stay on track!</div></div>`;
   }
-  
+
   html += `
       </div>
     </div>

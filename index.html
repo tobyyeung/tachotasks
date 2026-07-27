@@ -18,18 +18,13 @@
     <!-- ===== SIDEBAR ===== -->
     <aside id="sidebar">
       <div class="sidebar-header">
-        <div class="logo-icon"><img src="assets/logo.png" alt="Tacho Tasks Logo" /></div>
+        <div class="logo-icon"><img src="assets/brand/logo.png" alt="Tacho Tasks Logo" /></div>
         <span class="logo-text">Tacho Tasks</span>
         <div style="flex:1"></div>
         <button class="icon-btn" id="header-settings-btn" title="Settings"
           style="width: 24px; height: 24px; color: var(--text-secondary); flex-shrink: 0; margin-right: 0px; padding: 0; border: none; background: none; cursor: pointer;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width: 100%; height: 100%; display: block;">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path
-              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
-            </path>
-          </svg>
+          <img src="assets/icons/Settings.png" alt="Settings"
+            style="width: 100%; height: 100%; object-fit: contain; display: block;" />
         </button>
       </div>
 
@@ -43,49 +38,23 @@
 
       <nav class="sidebar-nav" id="sidebar-nav">
         <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
+          <img class="nav-icon" src="assets/icons/Dashboard.png" alt="Dashboard" style="width:22px;height:22px;object-fit:contain;" />
           <span>Dashboard</span>
         </button>
         <button class="nav-item" data-view="tasks" id="nav-tasks">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 11l3 3L22 4" />
-            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-          </svg>
+          <img class="nav-icon" src="assets/icons/Task.png" alt="Tasks" style="width:22px;height:22px;object-fit:contain;" />
           <span>Tasks</span>
         </button>
         <button class="nav-item" data-view="calendar" id="nav-calendar">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
+          <img class="nav-icon" src="assets/icons/Calendar.png" alt="Calendar" style="width:22px;height:22px;object-fit:contain;" />
           <span>Calendar</span>
         </button>
         <button class="nav-item" data-view="reminders" id="nav-reminders">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
+          <img class="nav-icon" src="assets/icons/Bell.png" alt="Reminders" style="width:22px;height:22px;object-fit:contain;" />
           <span>Reminders</span>
         </button>
         <button class="nav-item" data-view="planner" id="nav-planner">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-            <line x1="3" y1="9" x2="12" y2="9" />
-            <line x1="12" y1="15" x2="21" y2="15" />
-          </svg>
+          <img class="nav-icon" src="assets/icons/Planner.png" alt="Planner" style="width:22px;height:22px;object-fit:contain;" />
           <span>Weekly Planner</span>
         </button>
       </nav>
@@ -95,10 +64,8 @@
       <!-- Categories & Projects -->
       <div class="sidebar-section">
         <div class="sidebar-section-header" id="header-projects" style="cursor: pointer;">
-          <svg class="collapse-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" style="width:14px;height:14px;transition:transform 0.2s;margin-right:4px;">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+          <img class="collapse-arrow" src="assets/icons/Down.png" alt="Toggle"
+            style="width:18px;height:18px;object-fit:contain;transition:transform 0.2s;margin-right:4px;" />
           <span>Projects</span>
           <button class="sidebar-add-btn" id="add-project-btn" title="Add project"
             onclick="event.stopPropagation()">+</button>
@@ -111,18 +78,12 @@
       <!-- Google Calendars (Hidden unless signed in) -->
       <div id="gcal-sidebar-section" class="sidebar-section hidden">
         <div class="sidebar-section-header" id="header-gcal" style="cursor: pointer;">
-          <svg class="collapse-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" style="width:14px;height:14px;transition:transform 0.2s;margin-right:4px;">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+          <img class="collapse-arrow" src="assets/icons/Down.png" alt="Toggle"
+            style="width:18px;height:18px;object-fit:contain;transition:transform 0.2s;margin-right:4px;" />
           <span>Google Calendars</span>
           <button id="refresh-gcals-btn" class="icon-btn" title="Refresh Calendars"
-            style="width: 20px; height: 20px; margin-left: auto;" onclick="event.stopPropagation()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
+            style="width: 22px; height: 22px; margin-left: auto;" onclick="event.stopPropagation()">
+            <img src="assets/icons/Refresh.png" alt="Refresh" style="width:100%;height:100%;object-fit:contain;" />
           </button>
         </div>
         <div id="gcal-list" class="sidebar-list gcal-list">
@@ -133,10 +94,8 @@
       <!-- Tags -->
       <div class="sidebar-section" id="tags-sidebar-section" style="display:none;">
         <div class="sidebar-section-header" id="header-tags" style="cursor: pointer;">
-          <svg class="collapse-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" style="width:14px;height:14px;transition:transform 0.2s;margin-right:4px;">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+          <img class="collapse-arrow" src="assets/icons/Down.png" alt="Toggle"
+            style="width:18px;height:18px;object-fit:contain;transition:transform 0.2s;margin-right:4px;" />
           <span>Tags</span>
         </div>
         <div id="sidebar-tags" class="sidebar-list"></div>
@@ -151,12 +110,8 @@
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div id="user-name" class="user-name">Name</div>
                 <button id="sign-out-btn" class="icon-btn" title="Sign Out"
-                  style="width:20px;height:20px;margin-top:-6px;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
+                  style="width:22px;height:22px;margin-top:-6px;">
+                  <img src="assets/icons/Sign out.png" alt="Sign Out" style="width:100%;height:100%;object-fit:contain;" />
                 </button>
               </div>
               <div id="user-email" class="user-email" style="font-size:11px;color:var(--text-tertiary);"></div>
@@ -166,21 +121,13 @@
           <div class="account-actions">
             <button class="nav-item" data-view="archive" id="nav-archive"
               style="margin-top:4px;width:100%;justify-content:flex-start;padding:8px;font-size:13px;border-radius:var(--radius-md);">
-              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:8px;">
-                <polyline points="21 8 21 21 3 21 3 8"></polyline>
-                <rect x="1" y="3" width="22" height="5"></rect>
-                <line x1="10" y1="12" x2="14" y2="12"></line>
-              </svg>
+              <img class="nav-icon" src="assets/icons/Archive.png" alt="Archive" style="width:20px;height:20px;object-fit:contain;margin-right:8px;" />
               <span>Archive</span>
             </button>
           </div>
 
           <button id="sign-in-btn" class="sign-in-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
+            <img src="assets/icons/Add.png" alt="Sign in" style="width:20px;height:20px;object-fit:contain;margin-right:6px;" />
             Sign in with Google
           </button>
           <div id="sync-status" class="sync-status"></div>
@@ -192,11 +139,8 @@
     <main id="main">
       <div id="view-container"></div>
       <div id="quick-add-bar">
-        <div class="quick-add-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+        <div class="quick-add-icon" style="width:32px;height:32px;">
+          <img src="assets/icons/Add.png" alt="Add" style="width:22px;height:22px;object-fit:contain;" />
         </div>
         <input type="text" id="quick-add-input"
           placeholder="Add a task… try: &quot;Review docs tomorrow at 3pm p1 @deep_work&quot;" autocomplete="off" />
@@ -225,15 +169,12 @@
   <div id="login-overlay" class="login-overlay hidden">
     <div class="login-card">
       <div class="login-logo">
-        <img src="assets/logo.png" alt="Tacho Tasks" style="width:64px;height:64px;" />
+        <img src="assets/brand/logo.png" alt="Tacho Tasks" style="width:64px;height:64px;" />
       </div>
       <h1 style="font-size:24px;font-weight:700;color:var(--text-primary);margin:16px 0 8px;">Tacho Tasks</h1>
       <p style="color:var(--text-secondary);font-size:14px;margin-bottom:32px;">Sign in to get started</p>
       <button id="login-overlay-btn" class="sign-in-btn" style="max-width:280px;margin:0 auto;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 8v8M8 12h8" />
-        </svg>
+        <img src="assets/icons/Add.png" alt="Sign in" style="width:20px;height:20px;object-fit:contain;margin-right:6px;" />
         Sign in with Google
       </button>
     </div>
@@ -242,9 +183,12 @@
   <!-- Context Menu -->
   <div id="context-menu" class="context-menu hidden"></div>
 
+  <script src="js/browser-api.js"></script>
   <script src="js/state.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/components/date-selector.js"></script>
+  <script src="js/components/task-menu.js"></script>
   <script src="js/components/modals.js"></script>
   <script src="js/components/sidebar.js"></script>
   <script src="js/views/dashboard.js"></script>

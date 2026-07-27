@@ -60,7 +60,6 @@ function renderPlanner() {
         <div class="planner-task-card" draggable="true" data-task-id="${t.id}">
           <div class="kanban-card-title">${escHtml(t.title)}</div>
           <div class="kanban-card-meta">
-            ${t.priority ? `<span class="priority-badge ${pClass}">${t.priority}</span>` : ''}
             ${t.tags.map(tag => `<span class="tag-pill">${tag}</span>`).join('')}
           </div>
         </div>

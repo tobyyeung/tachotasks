@@ -141,7 +141,7 @@ const TASK_KEY_ORDER = [
 ];
 
 const PROJECT_KEY_ORDER = ['id', 'name', 'color', 'parentProjectId', 'profileId'];
-const PROFILE_KEY_ORDER = ['id', 'name', 'icon', 'image'];
+const PROFILE_KEY_ORDER = ['id', 'name', 'image'];
 const REMINDER_KEY_ORDER = ['id', 'personName', 'date', 'type', 'profileId'];
 const CALENDAR_KEY_ORDER = ['id', 'summary', 'color', 'primary'];
 const SECTION_KEY_ORDER = ['id', 'name', 'profileId'];
@@ -171,6 +171,9 @@ function sortItem(item, keyName) {
     delete item.scheduledEndTime;
     delete item.scheduledDate;
     delete item.isInbox;
+    delete item.completionTimeout;
+    delete item.isCompleting;
+    delete item.timeoutId;
     return sortObjectKeys(item, TASK_KEY_ORDER);
   }
   if (keyName === 'projects') return sortObjectKeys(item, PROJECT_KEY_ORDER);

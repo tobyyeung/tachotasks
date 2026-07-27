@@ -1,7 +1,7 @@
 // ===== INITIALIZATION =====
 async function init() {
   // Load all data from store
-  state.tasks = await window.api.getTasks();
+  state.tasks = ensureTaskSchema(await window.api.getTasks());
   state.projects = await window.api.getProjects();
   state.events = [];
   state.reminders = await window.api.getReminders();
@@ -21,14 +21,32 @@ async function init() {
     state.settings.activeGcalIds.forEach(id => state.fetchedGcalIds.add(id));
   }
 
+  const defaultProfileImages = {
+    'all': 'assets/brand/logo.png',
+    'profile-personal': 'assets/profiles/personal.png',
+    'profile-work': 'assets/profiles/work.png',
+    'profile-school': 'assets/profiles/school.png'
+  };
+
   if (!state.profiles || state.profiles.length === 0) {
     state.profiles = [
-      { id: 'all', name: 'All', icon: 'All' },
-      { id: 'profile-work', name: 'Work', icon: 'W' },
-      { id: 'profile-personal', name: 'Personal', icon: 'P' },
-      { id: 'profile-school', name: 'School', icon: 'S' }
+      { id: 'all', name: 'All', icon: '', image: 'assets/brand/logo.png' },
+      { id: 'profile-personal', name: 'Personal', icon: '', image: 'assets/profiles/personal.png' },
+      { id: 'profile-work', name: 'Work', icon: '', image: 'assets/profiles/work.png' },
+      { id: 'profile-school', name: 'School', icon: '', image: 'assets/profiles/school.png' }
     ];
     await window.api.saveProfiles(state.profiles);
+  } else {
+    let profilesChanged = false;
+    state.profiles.forEach(p => {
+      if (!p.image && defaultProfileImages[p.id]) {
+        p.image = defaultProfileImages[p.id];
+        profilesChanged = true;
+      }
+    });
+    if (profilesChanged) {
+      await window.api.saveProfiles(state.profiles);
+    }
   }
 
   // Ensure defaultProfileId is set and migrate any unprofiled items
@@ -67,6 +85,7 @@ async function init() {
 
   // Auto-refresh calendars and cloud sync every 10 minutes (600,000 ms)
   setInterval(async () => {
+    if (state.settings.devMode || window.IS_BROWSER) return;
     if (state.activeGcalIds.length > 0) {
       await reloadGoogleEvents(true);
     }
@@ -100,14 +119,17 @@ function setupNavigation() {
     
     btn.addEventListener('click', async () => {
       const view = btn.dataset.view;
-      if (view === state.currentView) return;
+      if (view !== 'project') {
+        state.filterProject = null;
+      }
+      if (view === state.currentView && view !== 'project') return;
       state.currentView = view;
-      
       state.settings.currentView = view;
       window.api.saveSettings(state.settings);
       
       document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      renderSidebarProjects();
       renderView();
     });
   });
@@ -116,6 +138,7 @@ function setupNavigation() {
   if (headerSettingsBtn) {
     headerSettingsBtn.addEventListener('click', () => {
       if (state.currentView === 'settings') return;
+      state.filterProject = null;
       state.currentView = 'settings';
       state.settings.currentView = 'settings';
       window.api.saveSettings(state.settings);
@@ -134,11 +157,20 @@ function setupModeSwitcher() {
   // Restore active mode from settings
   state.activeMode = state.settings.activeMode || 'all';
   
-  switcher.innerHTML = (state.profiles || []).map(p => `
-    <button class="mode-btn ${p.id === state.activeMode ? 'active' : ''}" data-mode="${p.id}" title="${escHtml(p.name).replace(/"/g, '&quot;')}">
-      ${p.image ? `<img src="${p.image}" style="width:20px;height:20px;border-radius:4px;object-fit:cover;">` : escHtml(p.icon)}
-    </button>
-  `).join('');
+  switcher.innerHTML = (state.profiles || []).map(p => {
+    let pImg = p.image;
+    if (!pImg) {
+      if (p.id === 'all') pImg = 'assets/brand/logo.png';
+      else if (p.id.includes('work')) pImg = 'assets/profiles/work.png';
+      else if (p.id.includes('school')) pImg = 'assets/profiles/school.png';
+      else pImg = 'assets/profiles/personal.png';
+    }
+    return `
+      <button class="mode-btn ${p.id === state.activeMode ? 'active' : ''}" data-mode="${p.id}" title="${escHtml(p.name).replace(/"/g, '&quot;')}">
+        <img src="${pImg}" alt="${escAttr(p.name)}" class="custom-emoji" style="margin-right:0;font-size:16px;" />
+      </button>
+    `;
+  }).join('');
 
   switcher.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -156,7 +188,7 @@ function setupModeSwitcher() {
       // If currently in a project view, check if the project belongs to the selected mode
       if (state.currentView === 'project' && state.filterProject) {
         const proj = state.projects.find(p => p.id === state.filterProject);
-        if (proj && mode !== 'all' && proj.profileId && proj.profileId !== mode) {
+        if (!proj || (mode !== 'all' && proj.profileId && proj.profileId !== mode)) {
           state.currentView = 'tasks';
           state.filterProject = null;
         }
@@ -177,6 +209,10 @@ function setupAuth() {
   const userProfile = document.getElementById('user-profile');
   
   if (!signInBtn || !signOutBtn) return;
+
+  if (state.settings.devMode || window.IS_BROWSER) {
+    hideLoginOverlay();
+  }
 
   // Listen for auth state changes from main process
   window.api.onAuthStateChanged(async (user) => {
@@ -287,7 +323,7 @@ function setupAuth() {
       } catch (err) {
         console.error(err);
         showToast('Sign in failed: ' + err.message, 'error');
-        loginOverlayBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg> Sign in with Google';
+        loginOverlayBtn.innerHTML = '<img src="assets/icons/Add.png" alt="Sign in" style="width:16px;height:16px;object-fit:contain;margin-right:6px;" /> Sign in with Google';
       }
     });
   }
@@ -311,7 +347,7 @@ function setupAuth() {
     } catch (err) {
       console.error(err);
       showToast('Sign in failed: ' + err.message, 'error');
-      signInBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg> Sign in with Google';
+      signInBtn.innerHTML = '<img src="assets/icons/Add.png" alt="Sign in" style="width:16px;height:16px;object-fit:contain;margin-right:6px;" /> Sign in with Google';
     }
   });
 
@@ -328,6 +364,10 @@ function setupAuth() {
 }
 
 function showLoginOverlay() {
+  if (state.settings.devMode || window.IS_BROWSER) {
+    hideLoginOverlay();
+    return;
+  }
   const overlay = document.getElementById('login-overlay');
   if (overlay) overlay.classList.remove('hidden');
 }
@@ -363,8 +403,16 @@ function setSyncStatus(status) {
   }
 }
 
+function ensureTaskSchema(tasks) {
+  if (!Array.isArray(tasks)) return [];
+  return tasks.map(t => ({
+    ...t,
+    plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
+  }));
+}
+
 async function refreshDataFromStore() {
-  state.tasks = await window.api.getTasks() || [];
+  state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
   state.projects = await window.api.getProjects() || [];
   state.events = await window.api.getEvents() || [];
   state.reminders = await window.api.getReminders() || [];
@@ -412,6 +460,12 @@ async function refreshDataFromStore() {
 async function loadGoogleCalendars() {
   const listContainer = document.getElementById('gcal-list');
   if (!listContainer) return;
+  
+  if (state.settings.devMode || window.IS_BROWSER) {
+    console.log('[Dev Mode] Skipping Google Calendar network sync');
+    renderSidebarGcals();
+    return;
+  }
   
   try {
     const calendars = await window.api.getGCalCalendars();
@@ -897,6 +951,52 @@ function attachViewListeners() {
     el.addEventListener('click', () => showTaskModal(el.dataset.taskEdit));
   });
 
+  // Task card dragstart & dragend
+  document.querySelectorAll('.task-item-card[data-task-id]').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', card.dataset.taskId);
+      e.dataTransfer.effectAllowed = 'move';
+      card.style.opacity = '0.4';
+    });
+
+    card.addEventListener('dragend', () => {
+      card.style.opacity = '1';
+      document.querySelectorAll('.task-section').forEach(s => s.classList.remove('drag-over'));
+    });
+  });
+
+  // Section drop zones
+  document.querySelectorAll('.task-section[data-section-drop]').forEach(sectionEl => {
+    sectionEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      sectionEl.classList.add('drag-over');
+    });
+
+    sectionEl.addEventListener('dragleave', () => {
+      sectionEl.classList.remove('drag-over');
+    });
+
+    sectionEl.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      sectionEl.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/plain');
+      const targetSectionId = sectionEl.dataset.sectionDrop;
+
+      if (!taskId) return;
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const newSectionId = targetSectionId === 'unsectioned' ? null : targetSectionId;
+      if (task.sectionId !== newSectionId) {
+        task.sectionId = newSectionId;
+        await saveTasks();
+        renderView();
+        showToast('Task moved to section', 'success');
+      }
+    });
+  });
+
   // Itinerary item click
   document.querySelectorAll('.itinerary-item[data-task-id]').forEach(el => {
     el.addEventListener('click', () => showTaskModal(el.dataset.taskId));
@@ -958,6 +1058,51 @@ function attachViewListeners() {
     });
   });
 
+  // Inline Add Task for Section
+  document.querySelectorAll('.add-task-inline-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const secId = btn.dataset.addTaskSection;
+      const html = `
+        <div style="padding:var(--sp-md);">
+          <h2 style="font-size:16px;margin-bottom:12px;">Add Task</h2>
+          <input type="text" id="modal-inline-task-title" class="inbox-input" placeholder="Task name..." style="width:100%;margin-bottom:16px;" autofocus />
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="modal-cancel-inline-task" style="padding:6px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text-primary);cursor:pointer;">Cancel</button>
+            <button id="modal-confirm-inline-task" style="padding:6px 16px;border-radius:var(--radius-sm);background:var(--accent);color:white;border:none;cursor:pointer;">Add Task</button>
+          </div>
+        </div>
+      `;
+      openModal(html);
+
+      const submit = async () => {
+        const title = document.getElementById('modal-inline-task-title').value.trim();
+        if (title) {
+          const newTask = {
+            id: 'task-' + generateId(),
+            title,
+            completed: false,
+            createdAt: new Date().toISOString(),
+            sectionId: secId !== 'unsectioned' ? secId : null,
+            projectId: state.filterProject || null,
+            profileId: getActiveProfileId(),
+            tags: [],
+            priority: null
+          };
+          state.tasks.unshift(newTask);
+          await window.api.saveTasks(state.tasks);
+          renderView();
+          closeModal();
+        }
+      };
+
+      document.getElementById('modal-cancel-inline-task').addEventListener('click', closeModal);
+      document.getElementById('modal-confirm-inline-task').addEventListener('click', submit);
+      document.getElementById('modal-inline-task-title').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submit();
+      });
+    });
+  });
+
   // Add Section
   document.querySelectorAll('.add-section-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -993,6 +1138,60 @@ function attachViewListeners() {
       document.getElementById('modal-section-name').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submit();
       });
+    });
+  });
+
+  // Add Project Section
+  document.querySelectorAll('.add-project-section-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const html = `
+        <div style="padding:var(--sp-md);">
+          <h2 style="font-size:16px;margin-bottom:12px;">Add Project Section</h2>
+          <input type="text" id="modal-section-name" class="inbox-input" placeholder="Section name..." style="width:100%;margin-bottom:16px;" autofocus />
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="modal-cancel-section" style="padding:6px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text-primary);cursor:pointer;">Cancel</button>
+            <button id="modal-confirm-section" style="padding:6px 16px;border-radius:var(--radius-sm);background:var(--accent);color:white;border:none;cursor:pointer;">Add</button>
+          </div>
+        </div>
+      `;
+      openModal(html);
+      
+      const submit = async () => {
+        const name = document.getElementById('modal-section-name').value.trim();
+        if (name && state.filterProject) {
+          if (!state.settings.projectSections) state.settings.projectSections = [];
+          state.settings.projectSections.push({
+            id: 'psec-' + generateId(),
+            projectId: state.filterProject,
+            name
+          });
+          await window.api.saveSettings(state.settings);
+          renderView();
+          closeModal();
+        }
+      };
+
+      document.getElementById('modal-cancel-section').addEventListener('click', closeModal);
+      document.getElementById('modal-confirm-section').addEventListener('click', submit);
+      document.getElementById('modal-section-name').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submit();
+      });
+    });
+  });
+
+  // Delete project section
+  document.querySelectorAll('.delete-project-section-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const secId = btn.dataset.projectSectionId;
+      if (!confirm('Delete this section? Tasks in it will be unsectioned.')) return;
+      state.settings.projectSections = (state.settings.projectSections || []).filter(s => s.id !== secId);
+      state.tasks.forEach(t => {
+        if (t.sectionId === secId) t.sectionId = null;
+      });
+      await saveTasks();
+      await window.api.saveSettings(state.settings);
+      renderView();
     });
   });
 
@@ -1130,12 +1329,10 @@ function attachViewListeners() {
   if (addProfileBtn) {
     addProfileBtn.addEventListener('click', async () => {
       const nameInput = document.getElementById('new-profile-name');
-      const iconInput = document.getElementById('new-profile-icon');
       const name = nameInput.value.trim();
-      const icon = iconInput.value.trim();
       if (!name) return showToast('Profile name required', 'error');
       
-      const newProfile = { id: 'profile-' + generateId(), name, icon };
+      const newProfile = { id: 'profile-' + generateId(), name, image: 'assets/profiles/personal.png' };
       state.profiles.push(newProfile);
       await window.api.saveProfiles(state.profiles);
       showToast('Profile added', 'success');
@@ -1156,10 +1353,7 @@ function attachViewListeners() {
           <label style="display:block;margin-bottom:4px;font-size:12px;color:var(--text-secondary);">Name</label>
           <input type="text" id="edit-profile-name" class="inbox-input" value="${escAttr(profile.name)}" style="width:100%;margin-bottom:12px;" />
           
-          <label style="display:block;margin-bottom:4px;font-size:12px;color:var(--text-secondary);">Icon (Emoji/Text)</label>
-          <input type="text" id="edit-profile-icon" class="inbox-input" value="${escAttr(profile.icon || '')}" style="width:100%;margin-bottom:12px;" />
-          
-          <label style="display:block;margin-bottom:4px;font-size:12px;color:var(--text-secondary);">Or Upload Image</label>
+          <label style="display:block;margin-bottom:4px;font-size:12px;color:var(--text-secondary);">Upload Profile Image</label>
           <input type="file" id="edit-profile-image" accept="image/*" style="margin-bottom:16px;width:100%;font-size:12px;" />
           ${profile.image ? `<img src="${profile.image}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;margin-bottom:16px;display:block;">` : ''}
 
@@ -1186,7 +1380,7 @@ function attachViewListeners() {
       document.getElementById('modal-cancel-profile').addEventListener('click', closeModal);
       document.getElementById('modal-save-profile').addEventListener('click', async () => {
         profile.name = document.getElementById('edit-profile-name').value.trim() || profile.name;
-        profile.icon = document.getElementById('edit-profile-icon').value.trim();
+        delete profile.icon;
         profile.image = newImageBase64;
         
         await window.api.saveProfiles(state.profiles);
@@ -1218,6 +1412,19 @@ function attachViewListeners() {
         renderSidebarProjects();
         renderView();
       }
+    });
+  });
+
+  // Settings: Priority Flag Colors
+  document.querySelectorAll('.setting-prio-color-select').forEach(select => {
+    select.addEventListener('change', async (e) => {
+      const p = e.target.dataset.priority;
+      const color = e.target.value;
+      if (!state.settings.priorityColors) state.settings.priorityColors = {};
+      state.settings.priorityColors[p] = color;
+      await window.api.saveSettings(state.settings);
+      showToast(`Priority ${p} flag color updated to ${color}`, 'info');
+      renderView();
     });
   });
 

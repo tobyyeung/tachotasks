@@ -13,150 +13,330 @@ function showTaskModal(taskId) {
   const ro = isArchived ? 'disabled' : '';
 
   const activeProjId = task ? task.projectId : (state.filterProject || null);
+  const locHtml = getTaskLocationHtml(task || { projectId: activeProjId });
+  const defaultProfId = (state.settings && state.settings.defaultProfileId) || 'profile-personal';
+  const profId = (task && task.profileId) || defaultProfId;
+  const prof = (state.profiles || []).find(p => p.id === profId);
+  const profName = prof ? prof.name : 'Personal';
+
   const projectOptions = state.projects.map(p =>
-    `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`
+    `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>📂 ${escHtml(p.name)}</option>`
   ).join('');
 
   const currentTags = task ? task.tags.join(', ') : '';
-  const priorities = ['P1', 'P2', 'P3', 'None'];
+  const currentPriority = task ? (task.priority || 'P4') : 'P4';
+
+  // Format creation timestamp
+  let createdText = 'New Task';
+  if (task && task.createdAt) {
+    try {
+      const cDate = new Date(task.createdAt);
+      createdText = 'Created ' + cDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + cDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch (e) {
+      createdText = 'Created recently';
+    }
+  }
 
   const html = `
-    <div class="modal-header">
-      <h2>${isNew ? 'New Task' : 'Edit Task'}</h2>
-      <button class="modal-close" id="modal-close-btn">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Title</label>
-        <input class="form-input" id="modal-title" value="${escAttr(task ? task.title : '')}" placeholder="What needs to be done?" autofocus ${ro} />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea class="form-textarea" id="modal-desc" placeholder="Add details…" ${ro}>${task ? escHtml(task.description) : ''}</textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Priority</label>
-        <div class="priority-selector">
-          ${priorities.map(p => {
-            const pKey = p === 'None' ? '' : p;
-            const pClass = p !== 'None' ? p.toLowerCase() : 'none';
-            const selected = (task ? task.priority : null) === (pKey || null) ? 'selected' : '';
-            if (!task && p === 'None') return `<button class="priority-option ${pClass} selected" data-priority="">${p}</button>`;
-            return `<button class="priority-option ${pClass} ${selected}" data-priority="${pKey}">${p}</button>`;
-          }).join('')}
+    <div class="task-modal-split">
+      <!-- Left Main Panel -->
+      <div class="task-modal-left">
+        <div class="task-modal-top-bar">
+          <div class="task-breadcrumb">
+            <span>${locHtml}</span>
+          </div>
+          <div class="task-top-actions">
+            <div class="more-options-wrapper" style="position:relative;">
+              <button class="task-action-btn" id="modal-more-options-btn" title="More options">•••</button>
+              
+              <!-- Options Dropdown Menu (•••) -->
+              <div id="task-options-menu" class="task-options-menu hidden">
+                <div class="task-options-header">${createdText}</div>
+                <div class="task-options-divider"></div>
+                ${!isNew ? `
+                  <button class="task-options-item" id="opt-duplicate-btn">
+                    <img src="assets/icons/Duplicate.png" alt="Duplicate" style="width:18px;height:18px;object-fit:contain;" />
+                    Duplicate Task
+                  </button>
+                  <div class="task-options-divider"></div>
+                  <button class="task-options-item danger" id="opt-delete-btn">
+                    <img src="assets/icons/Trash.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;" />
+                    Delete Task
+                  </button>
+                ` : `<div style="padding:4px 14px;font-size:12px;color:var(--text-tertiary);">Save task to enable options</div>`}
+              </div>
+            </div>
+
+            <button class="task-action-btn modal-close" id="modal-close-btn" title="Close">✕</button>
+          </div>
+        </div>
+
+        <div class="task-title-row">
+          <div class="task-circle-check" id="modal-toggle-check" title="Toggle completion">
+            ${task && task.completed ? '✓' : ''}
+          </div>
+          <input class="task-title-input" id="modal-title" value="${escAttr(task ? task.title : '')}" placeholder="Task name" autofocus ${ro} />
+        </div>
+
+        <div class="task-desc-container">
+          <div class="task-desc-icon">
+            <img src="assets/icons/Edit.png" alt="Desc" style="width:20px;height:20px;object-fit:contain;" />
+          </div>
+          <textarea class="task-desc-textarea" id="modal-desc" placeholder="Description" ${ro}>${task ? escHtml(task.description) : ''}</textarea>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Planned Date</label>
-          <input class="form-input" id="modal-planned-date" type="date" value="${task && task.plannedDate ? task.plannedDate : ''}" ${ro} />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Due Date</label>
-          <input class="form-input" id="modal-due-date" type="date" value="${task && task.dueDate ? task.dueDate : ''}" ${ro} />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Due Time</label>
-          <input class="form-input" id="modal-due-time" type="time" value="${task && task.dueTime ? task.dueTime : ''}" ${ro} />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Project</label>
-          <select class="form-select" id="modal-project" ${ro}>
-            <option value="">No project</option>
+
+      <!-- Right Metadata Sidebar -->
+      <div class="task-modal-right">
+        <div class="sidebar-property-row">
+          <label class="sidebar-property-label">Project</label>
+          <select class="sidebar-select-input" id="modal-project" ${ro}>
+            <option value="" ${!activeProjId ? 'selected' : ''}>${escHtml(profName)}</option>
             ${projectOptions}
           </select>
         </div>
+
+        <div class="sidebar-property-row">
+          <label class="sidebar-property-label">Due Date</label>
+          <div class="dt-trigger-capsule" id="modal-due-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;cursor:pointer;">
+            <span id="modal-due-dt-text" style="font-size:13px;${task && task.dueDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${task && task.dueDate ? formatDateShort(task.dueDate) + (task.dueTime ? ' at ' + formatTime12(task.dueTime) : '') : 'e.g. Jul 24, 9:30 AM'}</span>
+            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
+          </div>
+          <input type="hidden" id="modal-due-date" value="${task && task.dueDate ? task.dueDate : ''}" />
+          <input type="hidden" id="modal-due-time" value="${task && task.dueTime ? task.dueTime : ''}" />
+        </div>
+
+        <div class="sidebar-property-row">
+          <label class="sidebar-property-label">Planned Date</label>
+          <div class="dt-trigger-capsule" id="modal-planned-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;cursor:pointer;">
+            <span id="modal-planned-dt-text" style="font-size:13px;${task && task.plannedDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${task && task.plannedDate ? formatDateShort(task.plannedDate) + (task.plannedTime ? ' at ' + formatTime12(task.plannedTime) : '') : 'e.g. Jul 25, 2:00 PM'}</span>
+            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
+          </div>
+          <input type="hidden" id="modal-planned-date" value="${task && task.plannedDate ? task.plannedDate : ''}" />
+          <input type="hidden" id="modal-planned-time" value="${task && task.plannedTime ? task.plannedTime : ''}" />
+        </div>
+
+        <div class="sidebar-property-row">
+          <label class="sidebar-property-label">Priority</label>
+          <div class="priority-flag-selector">
+            ${['P1', 'P2', 'P3', 'P4'].map(p => {
+              const selected = currentPriority === p ? 'selected' : '';
+              const colorClass = getPriorityColorClass(p);
+              const flagSrc = p === 'P4' ? 'assets/icons/Flag.png' : 'assets/icons/Flag filled.png';
+              return `<button class="priority-flag-btn ${colorClass} ${selected}" data-priority="${p}" title="Priority ${p.replace('P', '')}">
+                <img src="${flagSrc}" alt="${p}" style="width:20px;height:20px;object-fit:contain;" />
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="sidebar-property-row">
+          <label class="sidebar-property-label">Labels / Tags</label>
+          <input class="sidebar-date-input" id="modal-tags" value="${escAttr(currentTags)}" placeholder="@deep_work, @errands" ${ro} />
+        </div>
+
+        <div style="flex:1"></div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+          <button class="btn-secondary" id="modal-cancel-btn" style="padding:6px 14px;font-size:12px;">Cancel</button>
+          ${!isArchived ? `<button class="btn-primary" id="modal-save-btn" style="padding:6px 16px;font-size:12px;">${isNew ? 'Add Task' : 'Save'}</button>` : ''}
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Tags</label>
-        <input class="form-input" id="modal-tags" value="${escAttr(currentTags)}" placeholder="@deep_work, @errands" ${ro} />
-      </div>
-    </div>
-    <div class="modal-footer">
-      ${!isNew ? '<button class="btn-danger" id="modal-delete-btn">Delete</button>' : ''}
-      <div style="flex:1"></div>
-      <button class="btn-secondary" id="modal-cancel-btn">Close</button>
-      ${!isArchived ? `<button class="btn-primary" id="modal-save-btn">${isNew ? 'Add Task' : 'Save'}</button>` : ''}
     </div>
   `;
 
   openDraggablePopup(html, 'task-popup');
 
-  // Priority selector logic
+  // Priority flag selector logic
   if (!isArchived) {
-    document.querySelectorAll('.priority-option').forEach(btn => {
+    document.querySelectorAll('.priority-flag-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.priority-option').forEach(b => b.classList.remove('selected'));
+        document.querySelectorAll('.priority-flag-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
       });
     });
-  } else {
-    document.querySelectorAll('.priority-option').forEach(btn => {
-      btn.style.pointerEvents = 'none';
-      btn.style.opacity = '0.7';
+  }
+
+  // DateTimePicker triggers
+  const duePickerBtn = document.getElementById('modal-due-dt-picker');
+  if (duePickerBtn && !isArchived) {
+    duePickerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isImgClick = !!(e.target && e.target.closest('img'));
+      const todayStr = toDateStr(new Date());
+      const curDate = isImgClick ? todayStr : document.getElementById('modal-due-date').value;
+      const curTime = document.getElementById('modal-due-time').value;
+      showDateSelector({
+        targetElement: duePickerBtn,
+        initialDate: curDate,
+        initialTime: curTime,
+        initialRepeat: task ? task.recurring : null,
+        onSelect: ({ date, time, repeat }) => {
+          document.getElementById('modal-due-date').value = date || '';
+          document.getElementById('modal-due-time').value = time || '';
+          if (task) task.recurring = repeat;
+          const textEl = document.getElementById('modal-due-dt-text');
+          if (textEl) {
+            textEl.textContent = date ? formatDateShort(date) + (time ? ' at ' + formatTime12(time) : '') : 'e.g. Jul 24, 9:30 AM';
+            textEl.style.color = date ? 'var(--text-primary)' : 'var(--text-tertiary)';
+          }
+        },
+        onClear: () => {
+          document.getElementById('modal-due-date').value = '';
+          document.getElementById('modal-due-time').value = '';
+          const textEl = document.getElementById('modal-due-dt-text');
+          if (textEl) {
+            textEl.textContent = 'e.g. Jul 24, 9:30 AM';
+            textEl.style.color = 'var(--text-tertiary)';
+          }
+        }
+      });
     });
   }
 
-  // Save
+  const plannedPickerBtn = document.getElementById('modal-planned-dt-picker');
+  if (plannedPickerBtn && !isArchived) {
+    plannedPickerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isImgClick = !!(e.target && e.target.closest('img'));
+      const todayStr = toDateStr(new Date());
+      const curDate = isImgClick ? todayStr : document.getElementById('modal-planned-date').value;
+      const curTime = document.getElementById('modal-planned-time').value;
+      showDateSelector({
+        targetElement: plannedPickerBtn,
+        initialDate: curDate,
+        initialTime: curTime,
+        initialRepeat: null,
+        onSelect: ({ date, time }) => {
+          document.getElementById('modal-planned-date').value = date || '';
+          document.getElementById('modal-planned-time').value = time || '';
+          const textEl = document.getElementById('modal-planned-dt-text');
+          if (textEl) {
+            textEl.textContent = date ? formatDateShort(date) + (time ? ' at ' + formatTime12(time) : '') : 'e.g. Jul 25, 2:00 PM';
+            textEl.style.color = date ? 'var(--text-primary)' : 'var(--text-tertiary)';
+          }
+        },
+        onClear: () => {
+          document.getElementById('modal-planned-date').value = '';
+          document.getElementById('modal-planned-time').value = '';
+          const textEl = document.getElementById('modal-planned-dt-text');
+          if (textEl) {
+            textEl.textContent = 'e.g. Jul 25, 2:00 PM';
+            textEl.style.color = 'var(--text-tertiary)';
+          }
+        }
+      });
+    });
+  }
+
+  // Toggle check inside modal
+  const checkBtn = document.getElementById('modal-toggle-check');
+  if (checkBtn && !isNew) {
+    checkBtn.addEventListener('click', async () => {
+      await toggleTask(taskId);
+      closeModal();
+    });
+  }
+
+  // Options menu (•••) toggle
+  const moreBtn = document.getElementById('modal-more-options-btn');
+  const optionsMenu = document.getElementById('task-options-menu');
+  if (moreBtn && optionsMenu) {
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      optionsMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!optionsMenu.contains(e.target) && e.target !== moreBtn) {
+        optionsMenu.classList.add('hidden');
+      }
+    });
+  }
+
+  // Duplicate task option
+  const dupBtn = document.getElementById('opt-duplicate-btn');
+  if (dupBtn && task) {
+    dupBtn.addEventListener('click', async () => {
+      const dupTask = {
+        ...task,
+        id: generateId(),
+        title: task.title + ' (Copy)',
+        createdAt: new Date().toISOString()
+      };
+      state.tasks.push(dupTask);
+      await saveTasks();
+      closeModal();
+      renderView();
+      showToast('Task duplicated!', 'success');
+    });
+  }
+
+  // Delete task option
+  const delBtn = document.getElementById('opt-delete-btn');
+  if (delBtn && task) {
+    delBtn.addEventListener('click', () => {
+      deleteTask(taskId);
+      closeModal();
+    });
+  }
+
+  // Save Task
   const saveBtn = document.getElementById('modal-save-btn');
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
-    const title = document.getElementById('modal-title').value.trim();
-    if (!title) { showToast('Title is required', 'error'); return; }
+      const title = document.getElementById('modal-title').value.trim();
+      if (!title) { showToast('Title is required', 'error'); return; }
 
-    const selectedPriority = document.querySelector('.priority-option.selected').dataset.priority || null;
-    const tagsInput = document.getElementById('modal-tags').value;
-    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const selectedPriorityBtn = document.querySelector('.priority-flag-btn.selected');
+      const selectedPriority = selectedPriorityBtn ? selectedPriorityBtn.dataset.priority : 'P4';
+      const tagsInput = document.getElementById('modal-tags').value;
+      const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-    const data = {
-      title,
-      description: document.getElementById('modal-desc').value,
-      priority: selectedPriority,
-      plannedDate: document.getElementById('modal-planned-date').value || null,
-      dueDate: document.getElementById('modal-due-date').value || null,
-      dueTime: document.getElementById('modal-due-time').value || null,
-      projectId: document.getElementById('modal-project').value || null,
-      tags
-    };
-
-    if (isNew) {
-      const newTask = {
-        id: generateId(),
-        ...data,
-        parentTaskId: null,
-        recurring: null,
-        completed: false,
-        completedAt: null,
-        createdAt: new Date().toISOString(),
-        profileId: getActiveProfileId()
+      const data = {
+        title,
+        description: document.getElementById('modal-desc').value,
+        priority: selectedPriority,
+        plannedDate: document.getElementById('modal-planned-date').value || null,
+        plannedTime: document.getElementById('modal-planned-time').value || null,
+        dueDate: document.getElementById('modal-due-date').value || null,
+        dueTime: document.getElementById('modal-due-time').value || null,
+        projectId: document.getElementById('modal-project').value || null,
+        tags
       };
-      state.tasks.push(newTask);
-    } else {
-      if (!task.profileId || task.profileId === 'all') {
-        task.profileId = getActiveProfileId();
+
+      if (isNew) {
+        const newTask = {
+          id: generateId(),
+          ...data,
+          parentTaskId: null,
+          recurring: null,
+          completed: false,
+          completedAt: null,
+          createdAt: new Date().toISOString(),
+          profileId: getActiveProfileId()
+        };
+        state.tasks.push(newTask);
+      } else {
+        if (!task.profileId || task.profileId === 'all') {
+          task.profileId = getActiveProfileId();
+        }
+        Object.assign(task, data);
       }
-      Object.assign(task, data);
-    }
 
-    await saveTasks();
-    closeModal();
-    renderView();
-    renderSidebarTags();
-    showToast(isNew ? 'Task created!' : 'Task updated!', 'success');
-  });
+      await saveTasks();
+      closeModal();
+      renderView();
+      renderSidebarTags();
+      showToast(isNew ? 'Task created!' : 'Task updated!', 'success');
+    });
   }
 
-  // Delete
-  const delBtn = document.getElementById('modal-delete-btn');
-  if (delBtn) {
-    delBtn.addEventListener('click', () => deleteTask(taskId));
-  }
-
-  // Cancel / Close
-  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
-  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+  // Close buttons
+  const cancelBtn = document.getElementById('modal-cancel-btn');
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  const closeBtn = document.getElementById('modal-close-btn');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
 }
 
 function showProjectModal(parentId = null) {
@@ -174,8 +354,8 @@ function showProjectModal(parentId = null) {
         <label class="form-label">Color</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="color-picker">
           ${['#5cb8ff', '#00d4aa', '#b47aff', '#ff5c5c', '#ffb347', '#ff6bcb', '#48dbfb', '#ffd93d'].map(c =>
-            `<div class="color-swatch" data-color="${c}" style="width:32px;height:32px;border-radius:50%;background:${c};cursor:pointer;border:3px solid transparent;transition:all 0.15s ease;"></div>`
-          ).join('')}
+    `<div class="color-swatch" data-color="${c}" style="width:32px;height:32px;border-radius:50%;background:${c};cursor:pointer;border:3px solid transparent;transition:all 0.15s ease;"></div>`
+  ).join('')}
         </div>
       </div>
     </div>
@@ -289,7 +469,7 @@ function openModal(html) {
 function closeModal() {
   document.getElementById('modal-overlay').classList.add('hidden');
   document.getElementById('modal-container').innerHTML = '';
-  
+
   // Also close any popups
   document.querySelectorAll('.draggable-popup').forEach(el => el.remove());
 }
@@ -303,19 +483,15 @@ function openDraggablePopup(html, popupId) {
   popup.id = popupId;
   popup.className = 'draggable-popup';
   popup.innerHTML = html;
-  
+
   // Apply initial styles for floating panel
   Object.assign(popup.style, {
     position: 'fixed',
-    top: '100px',
+    top: '70px',
     left: '50%',
     transform: 'translateX(-50%)',
-    width: '400px',
-    background: 'var(--bg-glass)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid var(--border)',
-    borderRadius: '12px',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+    width: 'max-content',
+    maxWidth: '94vw',
     zIndex: '9999',
     display: 'flex',
     flexDirection: 'column'
@@ -324,7 +500,7 @@ function openDraggablePopup(html, popupId) {
   document.body.appendChild(popup);
 
   // Make draggable
-  const header = popup.querySelector('.modal-header');
+  const header = popup.querySelector('.modal-header') || popup.querySelector('.task-modal-top-bar');
   if (header) {
     header.style.cursor = 'grab';
     let isDragging = false;
@@ -337,14 +513,14 @@ function openDraggablePopup(html, popupId) {
       header.style.cursor = 'grabbing';
       startX = e.clientX;
       startY = e.clientY;
-      
+
       const rect = popup.getBoundingClientRect();
       initialLeft = rect.left;
       initialTop = rect.top;
       popup.style.transform = 'none'; // Remove translateX
       popup.style.left = initialLeft + 'px';
       popup.style.top = initialTop + 'px';
-      
+
       e.preventDefault();
     });
 
@@ -377,7 +553,7 @@ function openInspector(html) {
   const main = document.getElementById('main');
   const content = document.getElementById('inspector-content');
   if (!inspector || !main || !content) return;
-  
+
   content.innerHTML = html;
   inspector.classList.add('open');
   main.classList.add('inspector-open');
@@ -388,7 +564,7 @@ function closeInspector() {
   const main = document.getElementById('main');
   const content = document.getElementById('inspector-content');
   if (!inspector || !main || !content) return;
-  
+
   inspector.classList.remove('open');
   main.classList.remove('inspector-open');
   setTimeout(() => {
@@ -405,7 +581,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
   } else {
     event = state.events.find(e => e.id === eventId);
   }
-  
+
   if (!event) return;
 
   const popover = document.getElementById('event-popover');
@@ -413,13 +589,13 @@ function showEventPopover(eventId, eventType, triggerEl) {
 
   let meetLink = event.hangoutLink || '';
   let loc = event.location || '';
-  
+
   // Extract Zoom/Webex/Teams from description if no hangoutLink is provided
   const meetMatch = (event.description || '').match(/(https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:zoom\.us|webex\.com|teams\.microsoft\.com|meet\.google\.com)[^\s"<>]*)/i);
   if (!meetLink && meetMatch) {
     meetLink = meetMatch[1];
   }
-  
+
   let cleanDesc = '';
   if (event.description) {
     const tmp = document.createElement('div');
@@ -484,18 +660,18 @@ function showEventPopover(eventId, eventType, triggerEl) {
   `;
 
   popover.innerHTML = html;
-  
+
   // Calculate position
   const rect = triggerEl.getBoundingClientRect();
   const popoverWidth = 350;
-  
+
   // Try to place it to the right of the event
   let left = rect.right + 10;
   if (left + popoverWidth > window.innerWidth) {
     // If it overflows right, place it to the left
     left = rect.left - popoverWidth - 10;
   }
-  
+
   let top = rect.top;
   // Make sure it doesn't overflow bottom
   const popoverHeight = popover.offsetHeight || 200; // estimated
@@ -507,7 +683,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
   popover.style.left = `${left}px`;
   popover.style.top = `${top}px`;
   popover.classList.remove('hidden');
-  
+
   document.getElementById('popover-close-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     popover.classList.add('hidden');
@@ -520,7 +696,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
       document.removeEventListener('click', outsideClickListener);
     }
   };
-  
+
   // Remove existing listeners if any, by attaching a new one
   document.removeEventListener('click', window._popoverOutsideClickListener);
   window._popoverOutsideClickListener = outsideClickListener;

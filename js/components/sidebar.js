@@ -79,9 +79,7 @@ function renderSidebarProjects() {
       <div class="sidebar-list-item project-item ${state.filterProject === p.id ? 'active' : ''}" data-filter-project="${p.id}" data-project-id="${p.id}" style="position:relative; padding-right:50px;">
         ${hasSub ? `
           <button class="project-collapse-btn" data-toggle-project="${p.id}" title="Toggle sub-lists" style="background:none;border:none;padding:0;margin-right:4px;cursor:pointer;color:var(--text-tertiary);display:flex;align-items:center;">
-            <svg class="collapse-arrow ${isCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px;transition:transform 0.2s;">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
+            <img class="collapse-arrow ${isCollapsed ? 'collapsed' : ''}" src="assets/icons/Down.png" alt="Toggle" style="width:14px;height:14px;transition:transform 0.2s;" />
           </button>
         ` : `<span style="width:16px;"></span>`}
         <span class="dot" style="background:${p.color}"></span>
@@ -177,23 +175,23 @@ function renderSidebarProjects() {
 function showContextMenu(x, y, projectId) {
   const menu = document.getElementById('context-menu');
   if (!menu) return;
-  
+
   menu.innerHTML = `
     <div class="context-menu-item danger" id="context-delete-project">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      <img src="assets/icons/Trash.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;margin-right:6px;" />
       Delete Project
     </div>
   `;
-  
+
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
   menu.classList.remove('hidden');
-  
+
   document.getElementById('context-delete-project').addEventListener('click', async () => {
     menu.classList.add('hidden');
     const isList = !!state.projects.find(p => p.id === projectId)?.parentProjectId;
     const idsToDelete = [projectId, ...state.projects.filter(p => p.parentProjectId === projectId).map(p => p.id)];
-    
+
     const html = `
       <div style="padding:var(--sp-md);text-align:center;">
         <h2 style="font-size:16px;margin-bottom:8px;">${isList ? 'Delete List?' : 'Delete Project?'}</h2>
@@ -207,7 +205,7 @@ function showContextMenu(x, y, projectId) {
       </div>
     `;
     openModal(html);
-    
+
     document.getElementById('modal-cancel-delete').addEventListener('click', closeModal);
     document.getElementById('modal-confirm-delete').addEventListener('click', async () => {
       state.projects = state.projects.filter(p => !idsToDelete.includes(p.id));
@@ -222,7 +220,7 @@ function showContextMenu(x, y, projectId) {
       closeModal();
     });
   });
-  
+
   const closeMenu = (e) => {
     if (!menu.contains(e.target)) {
       menu.classList.add('hidden');
@@ -245,9 +243,9 @@ function renderSidebarTags() {
     section.style.display = 'none';
     return;
   }
-  
+
   section.style.display = 'block';
-  
+
   container.innerHTML = tags.map(tag => {
     const count = state.tasks.filter(t => t.tags.includes(tag) && !t.completed).length;
     const isChecked = state.filterTag === tag;

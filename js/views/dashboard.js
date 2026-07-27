@@ -18,7 +18,7 @@ function renderDashboard() {
   const collapsed = state.settings.dashboardCollapsed || {};
   const getCollapseIcon = (id) => `
     <button class="icon-btn dashboard-collapse-btn" data-collapse-id="${id}" title="Toggle collapse" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary);">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;transition:transform 0.2s;transform:${collapsed[id] ? 'rotate(-90deg)' : 'none'}"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <img src="assets/icons/Down.png" alt="Toggle" style="width:14px;height:14px;object-fit:contain;transition:transform 0.2s;transform:${collapsed[id] ? 'rotate(-90deg)' : 'none'};" />
     </button>
   `;
 
@@ -73,7 +73,6 @@ function renderDashboard() {
               <div class="itinerary-title">${escHtml(item.title)}</div>
               <div class="itinerary-meta">
                 <span>Due ${formatTime12(item.dueTime)}${item.endTime && item.endTime !== item.dueTime ? ' – ' + formatTime12(item.endTime) : ''}</span>
-                ${item.priority ? `<span class="priority-badge ${item.priority.toLowerCase()}">${item.priority}</span>` : ''}
               </div>
             </div>
           </div>
@@ -170,8 +169,8 @@ function renderDashboard() {
               </div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <span class="card-count" style="font-size:var(--fs-sm);color:var(--text-tertiary);background:var(--bg-glass);padding:4px 10px;border-radius:var(--radius-full);">${itinerary.length} items${unscheduledToday.length > 0 ? ` · ${unscheduledToday.length} unscheduled` : ''}</span>
-                <button class="icon-btn" id="dash-cal-btn" style="color:var(--text-secondary);width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);cursor:pointer;" title="Go to Calendar">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <button class="icon-btn" id="dash-cal-btn" style="color:var(--text-secondary);width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);cursor:pointer;" title="Go to Calendar">
+                  <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
                 </button>
               </div>
             </div>

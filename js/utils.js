@@ -78,11 +78,31 @@ function getWeekStart(date) {
 }
 
 /**
+ * Safely parses a YYYY-MM-DD string or Date object into a local Date (00:00:00 local time).
+ * Prevents UTC timezone parsing offsets that shift dates back 1 day in western timezones.
+ * @param {string|Date} dateVal
+ * @returns {Date}
+ */
+function parseDateLocal(dateVal) {
+  if (!dateVal) return new Date();
+  if (dateVal instanceof Date) return dateVal;
+  if (typeof dateVal === 'string' && dateVal.includes('-')) {
+    const cleanStr = dateVal.split('T')[0];
+    const parts = cleanStr.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+  }
+  return new Date(dateVal);
+}
+
+/**
  * Formats date to long readable format (e.g. Monday, July 20, 2026).
- * @param {Date} d - Target Date.
+ * @param {string|Date} dateVal - Target Date or YYYY-MM-DD string.
  * @returns {string}
  */
-function formatDateFull(d) {
+function formatDateFull(dateVal) {
+  const d = parseDateLocal(dateVal);
   return d.toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
   });
@@ -90,10 +110,11 @@ function formatDateFull(d) {
 
 /**
  * Formats date to short format (e.g. Jul 20).
- * @param {Date} d - Target Date.
+ * @param {string|Date} dateVal - Target Date or YYYY-MM-DD string.
  * @returns {string}
  */
-function formatDateShort(d) {
+function formatDateShort(dateVal) {
+  const d = parseDateLocal(dateVal);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -138,17 +159,88 @@ function getDueLabel(task) {
 }
 
 /**
+ * Maps priority level string to flag color CSS class name.
+ * @param {string} priority - 'P1', 'P2', 'P3', 'P4'.
+ * @returns {string} CSS class name.
+ */
+function getPriorityColorClass(priority) {
+  if (priority === 'P4' || !priority) return 'flag-color-slate';
+  const custom = state.settings && state.settings.priorityColors && state.settings.priorityColors[priority];
+  if (custom) return `flag-color-${custom}`;
+  if (priority === 'P1') return 'flag-color-red';
+  if (priority === 'P2') return 'flag-color-orange';
+  if (priority === 'P3') return 'flag-color-blue';
+  return 'flag-color-slate';
+}
+
+/**
  * Maps priority level string to hex color code.
- * @param {string} priority - 'P1', 'P2', 'P3'.
- * @returns {string|null} Hex color code.
+ * @param {string} priority - 'P1', 'P2', 'P3', 'P4'.
+ * @returns {string} Hex color code.
  */
 function getPriorityColor(priority) {
-  switch (priority) {
-    case 'P1': return '#ff5c5c';
-    case 'P2': return '#ffb347';
-    case 'P3': return '#5cb8ff';
-    default: return null;
+  const colorMap = {
+    red: '#ff4757',
+    orange: '#ffa502',
+    yellow: '#ffd32a',
+    green: '#2ed573',
+    blue: '#1e90ff',
+    purple: '#9c88ff',
+    slate: '#a0a0a0'
+  };
+  if (priority === 'P4' || !priority) return colorMap.slate;
+  const custom = state.settings && state.settings.priorityColors && state.settings.priorityColors[priority];
+  if (custom && colorMap[custom]) return colorMap[custom];
+  if (priority === 'P1') return colorMap.red;
+  if (priority === 'P2') return colorMap.orange;
+  if (priority === 'P3') return colorMap.blue;
+  return colorMap.slate;
+}
+
+/**
+ * Returns formatted location HTML for a task:
+ * - If in project: Project Name (project color) / Section Name (gray)
+ * - If not in project: Profile Name (white) / Section Name (gray)
+ * @param {Object} task
+ * @returns {string} HTML string
+ */
+function getTaskLocationHtml(task) {
+  if (!task) return '';
+
+  if (task.projectId) {
+    const proj = (state.projects || []).find(p => p.id === task.projectId);
+    if (proj) {
+      let secName = 'Uncategorized';
+      if (task.sectionId && task.sectionId !== 'unsectioned' && proj.sections) {
+        const sec = proj.sections.find(s => s.id === task.sectionId);
+        if (sec) secName = sec.name;
+      }
+      return `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="color:${proj.color || 'var(--text-primary)'};font-weight:600;">● ${escHtml(proj.name)}</span><span style="color:var(--text-tertiary);"> / ${escHtml(secName)}</span></span>`;
+    }
   }
+
+  // Not in a project (Task under profile)
+  const defaultProfId = (state.settings && state.settings.defaultProfileId) || 'profile-personal';
+  const profId = task.profileId || defaultProfId;
+  const prof = (state.profiles || []).find(p => p.id === profId);
+  const profName = prof ? prof.name : 'Personal';
+
+  let profImg = (prof && prof.image) ? prof.image : null;
+  if (!profImg) {
+    const idLower = String(profId).toLowerCase();
+    const nameLower = String(profName).toLowerCase();
+    if (idLower.includes('work') || nameLower.includes('work')) profImg = 'assets/profiles/work.png';
+    else if (idLower.includes('school') || nameLower.includes('school')) profImg = 'assets/profiles/school.png';
+    else profImg = 'assets/profiles/personal.png';
+  }
+
+  let secName = 'Uncategorized';
+  if (task.sectionId && task.sectionId !== 'unsectioned' && state.settings && state.settings.taskSections) {
+    const sec = state.settings.taskSections.find(s => s.id === task.sectionId);
+    if (sec) secName = sec.name;
+  }
+
+  return `<img src="${profImg}" alt="${escAttr(profName)}" class="custom-emoji" /><span style="color:#ff6b00;font-weight:600;">${escHtml(profName)}</span><span style="color:var(--text-tertiary);"> / ${escHtml(secName)}</span>`;
 }
 
 /**

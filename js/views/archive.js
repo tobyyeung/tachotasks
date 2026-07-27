@@ -25,16 +25,15 @@ function renderArchive() {
 
 function renderTaskItem(task) {
   const project = state.projects.find(p => p.id === task.projectId);
-  const pClass = task.priority ? task.priority.toLowerCase() : '';
+  const pColor = getPriorityColor(task.priority);
   const dueLabel = getDueLabel(task);
 
   return `
     <div class="task-item ${task.completed || task.isCompleting ? 'completed' : ''}" data-task-id="${task.id}" draggable="true">
-      <div class="task-checkbox ${task.completed || task.isCompleting ? 'checked' : ''} ${pClass}" data-task-toggle="${task.id}"></div>
+      <div class="task-checkbox ${task.completed || task.isCompleting ? 'checked' : ''}" data-task-toggle="${task.id}" style="border-color:${pColor || 'var(--text-tertiary)'};${task.completed ? 'background:' + (pColor || 'var(--accent)') : ''}"></div>
       <div class="task-content" data-task-edit="${task.id}">
         <div class="task-title">${escHtml(task.title)}</div>
         <div class="task-meta">
-          ${task.priority ? `<span class="priority-badge ${pClass}">${task.priority}</span>` : ''}
           ${task.tags.map(tag => `<span class="tag-pill">${tag}</span>`).join('')}
           ${project ? `<span style="color:${project.color}">● ${escHtml(project.name)}</span>` : ''}
         </div>

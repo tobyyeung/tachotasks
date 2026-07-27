@@ -1,6 +1,6 @@
 // ===== TASKS VIEW =====
 function renderTasks() {
-  let modeTasks = getFilteredByMode(state.tasks);
+  let modeTasks = getFilteredByMode(state.tasks).filter(t => !t.projectId);
   let filtered = applyFilters(modeTasks);
 
   // Sorting
@@ -37,7 +37,7 @@ function renderTasks() {
         </div>
         <div class="sort-dropdown-wrapper">
           <button class="sort-dropdown-btn" id="tasks-sort-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            <img src="assets/icons/Sort.png" alt="Sort" style="width:18px;height:18px;object-fit:contain;" />
             Sort
           </button>
           <div class="sort-dropdown-panel hidden" id="tasks-sort-panel">
@@ -64,7 +64,7 @@ function renderTasks() {
   `;
 
   return `
-    <div class="tasks-view" style="height:100%; overflow-y:auto; padding-bottom:32px;">
+    <div class="tasks-view">
       <div class="view-header">
         <h1>Tasks</h1>
         <button class="btn-primary" id="add-task-btn" style="padding:8px 16px;font-size:13px;">+ New Task</button>
@@ -84,8 +84,8 @@ function renderTaskList(tasks) {
 
   // List view mode: just render all tasks directly
   if (state.tasksViewMode === 'list') {
-    html += visibleTasks.length > 0 
-      ? visibleTasks.map(t => renderTaskItem(t)).join('') 
+    html += visibleTasks.length > 0
+      ? visibleTasks.map(t => renderTaskItem(t)).join('')
       : '<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">No tasks here yet. Add one!</div></div>';
     html += '</div>';
     return html;
@@ -117,53 +117,103 @@ function renderTaskList(tasks) {
   });
 
   html += `
-    <div class="tasks-sections-wrapper" style="display:flex; gap:var(--sp-md); overflow-x:auto; padding-bottom:16px; min-height: 400px;">
+    <div class="tasks-sections-wrapper">
   `;
 
   // Render sections
   sections.forEach(sec => {
+    const secTasks = sectionedTasks[sec.id] || [];
+    const count = secTasks.length;
     html += `
-      <div class="task-section" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}" style="min-width:240px; width:240px; flex-shrink:0; background:var(--bg-glass); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--sp-md); display:flex; flex-direction:column;">
-        <div class="task-group-header" style="display:flex; justify-content:space-between; align-items:center; cursor:grab; margin-bottom:12px;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--text-tertiary);"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-            <span style="font-size:14px; font-weight:600; color:var(--text-primary); text-transform:none; letter-spacing:0;">${escHtml(sec.name)}</span>
+      <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}">
+        <div class="task-group-header">
+          <div class="section-title-wrap">
+            <span class="section-name">${escHtml(sec.name)}</span>
+            <span class="section-count">${count}</span>
           </div>
-          <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" style="font-size:12px;opacity:0.5;">✕</button>
+          <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Delete section" style="font-size:12px;opacity:0.4;">•••</button>
         </div>
-        <div class="task-section-list" style="flex:1; overflow-y:auto; min-height:20px; padding-bottom:8px;">
-          ${sectionedTasks[sec.id].length > 0 
-            ? sectionedTasks[sec.id].map(t => renderTaskItem(t)).join('')
-            : '<div style="font-size:12px;color:var(--text-tertiary);padding:8px;font-style:italic;">Drag tasks here</div>'}
+        <div class="task-section-list">
+          ${secTasks.map(t => renderTaskItem(t)).join('')}
         </div>
+        <button class="add-task-inline-btn" data-add-task-section="${sec.id}">
+          <span class="plus-icon">+</span> Add task
+        </button>
       </div>
     `;
   });
 
   // Render unsectioned tasks if not empty (or if no sections exist)
   if (unsectionedTasks.length > 0 || sections.length === 0) {
+    const count = unsectionedTasks.length;
     html += `
-      <div class="task-section" data-section-drop="unsectioned" style="min-width:240px; width:240px; flex-shrink:0; background:var(--bg-glass); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--sp-md); display:flex; flex-direction:column;">
-        <div class="task-group-header" style="margin-bottom:12px;">
-          <span style="font-size:14px; font-weight:600; color:var(--text-primary); text-transform:none; letter-spacing:0;">Uncategorized</span>
+      <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="unsectioned">
+        <div class="task-group-header">
+          <div class="section-title-wrap">
+            <span class="section-name">Uncategorized</span>
+            <span class="section-count">${count}</span>
+          </div>
+          <button class="icon-btn" style="font-size:12px;opacity:0.2;cursor:default;">•••</button>
         </div>
-        <div class="task-section-list" style="flex:1; overflow-y:auto; min-height:20px; padding-bottom:8px;">
-          ${unsectionedTasks.length > 0 
-            ? unsectionedTasks.map(t => renderTaskItem(t)).join('')
-            : '<div class="empty-state" style="padding:16px;"><div class="empty-text">No tasks yet.</div></div>'}
+        <div class="task-section-list">
+          ${unsectionedTasks.map(t => renderTaskItem(t)).join('')}
         </div>
+        <button class="add-task-inline-btn" data-add-task-section="unsectioned">
+          <span class="plus-icon">+</span> Add task
+        </button>
       </div>
     `;
   }
 
   // Always show Add Section button
   html += `
-    <button class="add-section-btn" style="min-width:150px; flex-shrink:0; border:2px dashed var(--border); border-radius:var(--radius-lg); background:transparent; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:500; font-size:14px; transition:all var(--t-fast);">
-      + Add Section
+    <button class="add-section-btn">
+      <img src="assets/icons/Add.png" alt="Add" style="width:18px;height:18px;object-fit:contain;" />
+      Add section
     </button>
   </div>`;
   return html;
 }
+
+function renderTaskItem(task) {
+  const pColor = getPriorityColor(task.priority);
+  const dueLabel = getDueLabel(task);
+  const proj = state.projects.find(p => p.id === task.projectId);
+
+  let plannedLabel = '';
+  if (task.plannedDate) {
+    const timeStr = task.plannedTime ? ' ' + formatTime12(task.plannedTime) : '';
+    plannedLabel = `<span class="task-date-pill planned" style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;" title="Planned Date & Time">📅 ${formatDateShort(new Date(task.plannedDate))}${timeStr}</span>`;
+  }
+
+  let dueHtml = '';
+  if (dueLabel) {
+    const dueTimeStr = task.dueTime ? ' ' + formatTime12(task.dueTime) : '';
+    dueHtml = `<span class="task-date-pill ${dueLabel.class}" style="font-size:11px;padding:2px 8px;border-radius:4px;" title="Due Date & Time">⏰ ${dueLabel.text}${dueTimeStr}</span>`;
+  }
+
+  const locHtml = getTaskLocationHtml(task);
+
+  return `
+    <div class="task-item-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}" draggable="true">
+      <div class="task-circle-check" data-task-toggle="${task.id}" style="width:20px;height:20px;border-radius:50%;border:2px solid ${pColor || 'var(--text-tertiary)'};color:${pColor || 'var(--text-primary)'};${task.completed ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="Priority ${task.priority ? task.priority.replace('P', '') : 'Default'}">
+        ${task.completed ? '✓' : ''}
+      </div>
+      <div style="flex:1;min-width:0;" data-task-edit="${task.id}">
+        <div style="font-size:14px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${escHtml(task.title)}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap;">
+          <span style="font-size:11px;">${locHtml}</span>
+          ${plannedLabel}
+          ${dueHtml}
+          ${task.tags.map(tag => `<span style="font-size:11px;color:var(--accent);">${escHtml(tag)}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 
 
 
