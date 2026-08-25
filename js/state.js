@@ -64,6 +64,6 @@ function getFilteredByMode(items) {
  * @returns {Array} Filtered Google Calendar events.
  */
 function getActiveGcalEvents() {
-  if (!state.settings.activeGcalIds) return [];
-  return state.gcalEvents.filter(e => state.settings.activeGcalIds.includes(e.calendarId));
+  const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
+  return state.gcalEvents.filter(e => activeIds.includes(e.calendarId));
 }

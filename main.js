@@ -24,7 +24,7 @@ const { signInWithGoogle } = require('./auth');
 const gcalService = require('./gcal-service');
 
 let cloudBgWindow = null;
-let currentBgUser = null;
+let currentBgUser = store.get('auth.user') || null;
 
 /**
  * Creates the hidden background window (`cloud-bg.html`) dedicated to Firebase Firestore synchronization.
@@ -44,10 +44,25 @@ function createCloudBgWindow() {
   });
 
   ipcMain.on('cloudBg:authStateChanged', (e, user) => {
-    currentBgUser = user;
+    if (user) {
+      currentBgUser = user;
+      // Persist user to disk for session recovery on next launch
+      store.set('auth.user', user);
+    } else {
+      // Only clear if we don't have stored credentials
+      const storedUser = store.get('auth.user');
+      const storedToken = store.get('auth.googleAccessToken');
+      if (storedUser && storedToken) {
+        // Keep the stored session alive
+        currentBgUser = storedUser;
+        user = storedUser;
+      } else {
+        currentBgUser = null;
+      }
+    }
     BrowserWindow.getAllWindows().forEach(win => {
       if (win !== cloudBgWindow && !win.isDestroyed()) {
-        win.webContents.send('auth:stateChanged', user);
+        win.webContents.send('auth:stateChanged', currentBgUser);
       }
     });
   });
@@ -228,9 +243,15 @@ ipcMain.handle('store:clearRaw', () => { store.clear(); return true; });
 
 ipcMain.handle('auth:signIn', async () => {
   try {
-    const { idToken, accessToken } = await signInWithGoogle();
+    const { idToken, accessToken, refreshToken, expiresIn, clientId } = await signInWithGoogle();
+    if (clientId) {
+      store.set('auth.clientId', clientId);
+    }
+    if (refreshToken) {
+      store.set('auth.refreshToken', refreshToken);
+    }
     if (cloudBgWindow && !cloudBgWindow.isDestroyed()) {
-      cloudBgWindow.webContents.send('cloudBg:signIn', idToken, accessToken);
+      cloudBgWindow.webContents.send('cloudBg:signIn', idToken, accessToken, refreshToken, expiresIn, clientId);
     }
     return { success: true };
   } catch (err) {
@@ -239,13 +260,20 @@ ipcMain.handle('auth:signIn', async () => {
 });
 
 ipcMain.handle('auth:signOut', async () => {
+  // Clear stored auth immediately so the authStateChanged guard doesn't resurrect the session
+  currentBgUser = null;
+  store.delete('auth.user');
+  store.delete('auth.googleAccessToken');
+  store.delete('auth.refreshToken');
+  store.delete('auth.clientId');
+  store.delete('auth.accessTokenExpiresAt');
   if (cloudBgWindow && !cloudBgWindow.isDestroyed()) {
     cloudBgWindow.webContents.send('cloudBg:signOut');
   }
   return { success: true };
 });
 
-ipcMain.handle('auth:getUser', () => currentBgUser);
+ipcMain.handle('auth:getUser', () => currentBgUser || store.get('auth.user') || null);
 
 ipcMain.handle('sync:pull', async () => {
   // If there are unsynced pending local changes, push them before pulling to prevent data loss

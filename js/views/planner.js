@@ -35,7 +35,8 @@ function renderPlanner() {
           <span style="font-size:11px;color:var(--text-tertiary)">${dayEvents.length + dayTasks.length} items</span>
         </div>
         ${[...dayEvents.map(e => {
-            const isGcal = state.settings.activeGcalIds && state.settings.activeGcalIds.includes(e.calendarId);
+            const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
+            const isGcal = activeIds.includes(e.calendarId);
             let calColor = e.color;
             if (isGcal && state.gcalCalendars) {
               const calData = state.gcalCalendars.find(c => c.id === e.calendarId);

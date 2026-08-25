@@ -17,7 +17,8 @@ async function init() {
   state.gcalCalendars = await window.api.getGcalCalendarsCache() || [];
   state.gcalEvents = await window.api.getGcalEventsCache() || [];
   // Since we loaded from cache, we assume they are already fetched for UI purposes temporarily
-  if (state.settings.activeGcalIds) {
+  if (Array.isArray(state.settings.activeGcalIds)) {
+    state.activeGcalIds = [...state.settings.activeGcalIds];
     state.settings.activeGcalIds.forEach(id => state.fetchedGcalIds.add(id));
   }
 
@@ -81,6 +82,7 @@ async function init() {
   renderView();
 
   // Load Google Calendars
+  setupRefreshButton();
   loadGoogleCalendars();
 
   // Auto-refresh calendars and cloud sync every 10 minutes (600,000 ms)
@@ -441,8 +443,8 @@ async function refreshDataFromStore() {
     window.api.saveReminders(state.reminders);
   }
 
-  if (state.settings.activeGcalIds) {
-    state.activeGcalIds = state.settings.activeGcalIds;
+  if (Array.isArray(state.settings.activeGcalIds)) {
+    state.activeGcalIds = [...state.settings.activeGcalIds];
   }
   
   renderSidebarProjects();
@@ -455,6 +457,28 @@ async function refreshDataFromStore() {
   } else {
     renderView();
   }
+}
+
+function setupRefreshButton() {
+  const refreshBtn = document.getElementById('refresh-gcals-btn');
+  if (!refreshBtn || refreshBtn.dataset.listener) return;
+  refreshBtn.dataset.listener = 'true';
+  refreshBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    refreshBtn.classList.remove('refreshing');
+    void refreshBtn.offsetWidth; // Force CSS reflow to restart animation on consecutive clicks
+    refreshBtn.classList.add('refreshing');
+
+    try {
+      await reloadGoogleEvents(true);
+    } catch (err) {
+      console.warn('Calendar refresh error:', err);
+    } finally {
+      setTimeout(() => {
+        refreshBtn.classList.remove('refreshing');
+      }, 1200);
+    }
+  });
 }
 
 async function loadGoogleCalendars() {
@@ -481,26 +505,16 @@ async function loadGoogleCalendars() {
     state.gcalCalendars = Array.isArray(calendars) ? calendars : [];
     await window.api.saveGcalCalendarsCache(state.gcalCalendars);
     
-    if ((!state.settings.activeGcalIds || state.settings.activeGcalIds.length === 0) && state.gcalCalendars.length > 0) {
+    if (state.settings.activeGcalIds === undefined && state.gcalCalendars.length > 0) {
       state.activeGcalIds = state.gcalCalendars.map(c => c.id);
-      state.settings.activeGcalIds = state.activeGcalIds;
+      state.settings.activeGcalIds = [...state.activeGcalIds];
       await window.api.saveSettings(state.settings);
-    } else if (state.settings.activeGcalIds) {
-      state.activeGcalIds = state.settings.activeGcalIds;
+    } else if (Array.isArray(state.settings.activeGcalIds)) {
+      state.activeGcalIds = [...state.settings.activeGcalIds];
     }
     
     renderSidebarGcals();
-    
-    const refreshBtn = document.getElementById('refresh-gcals-btn');
-    if (refreshBtn && !refreshBtn.dataset.listener) {
-      refreshBtn.dataset.listener = 'true';
-      refreshBtn.addEventListener('click', async () => {
-        const icon = refreshBtn.querySelector('svg');
-        if (icon) icon.style.animation = 'spin 1s linear infinite';
-        await loadGoogleCalendars();
-        if (icon) icon.style.animation = '';
-      });
-    }
+    setupRefreshButton();
 
     await reloadGoogleEvents(true);
     
@@ -586,7 +600,9 @@ function renderSidebarGcals() {
   if (!listContainer) return;
   
   listContainer.innerHTML = '';
-  const visibleIds = state.settings.visibleGcalIds || state.gcalCalendars.map(c => c.id);
+  const visibleIds = Array.isArray(state.settings.visibleGcalIds)
+    ? state.settings.visibleGcalIds
+    : state.gcalCalendars.map(c => c.id);
   
   state.gcalCalendars.forEach(cal => {
     if (!visibleIds.includes(cal.id)) return; // Skip hidden calendars
@@ -602,16 +618,17 @@ function renderSidebarGcals() {
     cb.checked = isChecked;
     cb.style.setProperty('--cal-color', cal.color);
     
-    cb.addEventListener('change', (e) => {
+    cb.addEventListener('change', async (e) => {
       if (e.target.checked) {
         if (!state.activeGcalIds.includes(cal.id)) state.activeGcalIds.push(cal.id);
       } else {
         state.activeGcalIds = state.activeGcalIds.filter(id => id !== cal.id);
       }
       
-      state.settings.activeGcalIds = state.activeGcalIds;
-      window.api.saveSettings(state.settings);
-      reloadGoogleEvents();
+      state.settings.activeGcalIds = [...state.activeGcalIds];
+      await window.api.saveSettings(state.settings);
+      await reloadGoogleEvents();
+      updateCalendarEventsUI();
     });
     
     const span = document.createElement('span');
@@ -741,7 +758,8 @@ function updatePlannerCalendarEvents() {
         <span style="font-size:11px;color:var(--text-tertiary)">${dayEvents.length + dayTasks.length} items</span>
       </div>
       ${[...dayEvents.map(e => {
-          const isGcal = state.settings.activeGcalIds && state.settings.activeGcalIds.includes(e.calendarId);
+          const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
+          const isGcal = activeIds.includes(e.calendarId);
           let calColor = e.color;
           if (isGcal && state.gcalCalendars) {
             const calData = state.gcalCalendars.find(c => c.id === e.calendarId);
@@ -1292,9 +1310,11 @@ function attachViewListeners() {
 
   // Settings view listeners
   document.querySelectorAll('.setting-visible-cb').forEach(cb => {
-    cb.addEventListener('change', (e) => {
+    cb.addEventListener('change', async (e) => {
       const calId = cb.dataset.calId;
-      let visibleIds = state.settings.visibleGcalIds || state.gcalCalendars.map(c => c.id);
+      let visibleIds = Array.isArray(state.settings.visibleGcalIds)
+        ? [...state.settings.visibleGcalIds]
+        : state.gcalCalendars.map(c => c.id);
       
       if (e.target.checked) {
         if (!visibleIds.includes(calId)) visibleIds.push(calId);
@@ -1302,15 +1322,16 @@ function attachViewListeners() {
         visibleIds = visibleIds.filter(id => id !== calId);
         // Also remove from activeGcalIds if hiding
         state.activeGcalIds = state.activeGcalIds.filter(id => id !== calId);
-        state.settings.activeGcalIds = state.activeGcalIds;
+        state.settings.activeGcalIds = [...state.activeGcalIds];
       }
       
       state.settings.visibleGcalIds = visibleIds;
-      window.api.saveSettings(state.settings);
+      await window.api.saveSettings(state.settings);
       
-      // Re-render sidebar to reflect visibility
+      showToast('Calendar visibility updated', 'success');
       renderSidebarGcals();
-      reloadGoogleEvents();
+      await reloadGoogleEvents();
+      updateCalendarEventsUI();
     });
   });
 

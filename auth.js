@@ -27,9 +27,43 @@ function signInWithGoogle() {
       if (req.url === '/auth-callback' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
+        req.on('end', async () => {
           try {
             const data = JSON.parse(body);
+            let finalAccessToken = data.accessToken;
+            let finalRefreshToken = data.refreshToken;
+            let finalExpiresIn = data.expiresIn || 3600;
+            let finalIdToken = data.idToken;
+
+            // If an authorization code was obtained from Google, exchange it for persistent Google OAuth tokens
+            if (data.authCode && data.clientId) {
+              try {
+                const params = new URLSearchParams({
+                  code: data.authCode,
+                  client_id: data.clientId,
+                  grant_type: 'authorization_code',
+                  redirect_uri: 'postmessage'
+                });
+                const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: params
+                });
+                if (tokenRes.ok) {
+                  const tokenData = await tokenRes.json();
+                  if (tokenData.access_token) finalAccessToken = tokenData.access_token;
+                  if (tokenData.refresh_token) finalRefreshToken = tokenData.refresh_token;
+                  if (tokenData.id_token) finalIdToken = tokenData.id_token;
+                  if (tokenData.expires_in) finalExpiresIn = tokenData.expires_in;
+                  console.log('[auth] Successfully exchanged Google authorization code for persistent refresh token.');
+                } else {
+                  console.warn('[auth] Authorization code exchange returned status:', tokenRes.status, await tokenRes.text());
+                }
+              } catch (e) {
+                console.warn('[auth] Failed to exchange authCode for refresh token:', e);
+              }
+            }
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ status: 'ok' }));
             
@@ -37,8 +71,14 @@ function signInWithGoogle() {
             
             if (data.error) {
               reject(new Error(data.error));
-            } else if (data.idToken && data.accessToken) {
-              resolve({ idToken: data.idToken, accessToken: data.accessToken });
+            } else if (finalIdToken && finalAccessToken) {
+              resolve({
+                idToken: finalIdToken,
+                accessToken: finalAccessToken,
+                refreshToken: finalRefreshToken || null,
+                expiresIn: finalExpiresIn,
+                clientId: data.clientId || null
+              });
             } else {
               reject(new Error('Invalid token payload'));
             }

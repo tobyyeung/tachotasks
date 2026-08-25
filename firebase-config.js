@@ -1,5 +1,5 @@
 const { initializeApp } = require('firebase/app');
-const { getAuth } = require('firebase/auth');
+const { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence } = require('firebase/auth');
 const { getFirestore } = require('firebase/firestore');
 const path = require('path');
 const fs = require('fs');
@@ -28,6 +28,15 @@ function getFirebaseConfig() {
 const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+if (typeof window !== 'undefined' || (process && process.type === 'renderer')) {
+  setPersistence(auth, indexedDBLocalPersistence).catch(() => {
+    setPersistence(auth, browserLocalPersistence).catch(e => {
+      console.warn('[firebase-config] Failed to set browser persistence:', e);
+    });
+  });
+}
+
 const db = getFirestore(app);
 
 module.exports = { app, auth, db, firebaseConfig, getFirebaseConfig };

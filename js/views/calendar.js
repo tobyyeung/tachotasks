@@ -155,7 +155,8 @@ function renderCalendarEvents() {
   state.gcalEvents.forEach(evt => {
     const dayIdx = days.indexOf(evt.date);
     if (dayIdx < 0) return;
-    if (!state.settings.activeGcalIds || !state.settings.activeGcalIds.includes(evt.calendarId)) return;
+    const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
+    if (!activeIds.includes(evt.calendarId)) return;
     
     const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
     const calColor = cal ? cal.color : 'var(--accent)';

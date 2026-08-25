@@ -1,6 +1,8 @@
 // ===== SETTINGS VIEW =====
 function renderSettings() {
-  const visibleIds = state.settings.visibleGcalIds || state.gcalCalendars.map(c => c.id);
+  const visibleIds = Array.isArray(state.settings.visibleGcalIds)
+    ? state.settings.visibleGcalIds
+    : state.gcalCalendars.map(c => c.id);
 
   let gcalSettingsHtml = '';
   if (state.gcalCalendars.length > 0) {

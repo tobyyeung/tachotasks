@@ -8,18 +8,81 @@ const { store } = require('./store');
 const BASE_URL = 'https://www.googleapis.com/calendar/v3';
 
 /**
+ * Refreshes the Google Access Token using the stored refresh_token if available.
+ * @returns {Promise<string|null>} New access token if successful, null otherwise.
+ */
+async function refreshAccessToken() {
+  const refreshToken = store.get('auth.refreshToken');
+  const clientId = store.get('auth.clientId') || process.env.GOOGLE_CLIENT_ID;
+
+  if (refreshToken) {
+    try {
+      console.log('[gcal-service] Refreshing access token via refresh_token...');
+      const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      });
+      if (clientId) {
+        params.append('client_id', clientId);
+      }
+
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) {
+          store.set('auth.googleAccessToken', data.access_token);
+          const expiryMs = Date.now() + ((data.expires_in || 3600) - 300) * 1000;
+          store.set('auth.accessTokenExpiresAt', expiryMs);
+          console.log('[gcal-service] Successfully refreshed access token.');
+          return data.access_token;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn('[gcal-service] Refresh token request returned error:', res.status, errText);
+      }
+    } catch (e) {
+      console.warn('[gcal-service] Failed to refresh access token using refresh_token:', e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Gets a valid Google Access Token, attempting automatic refresh if expired.
+ * @returns {Promise<string|null>} Valid access token or null.
+ */
+async function getValidAccessToken() {
+  let token = store.get('auth.googleAccessToken');
+  const expiresAt = store.get('auth.accessTokenExpiresAt');
+
+  if (!token || (expiresAt && Date.now() >= expiresAt)) {
+    console.log('[gcal-service] Token is missing or expired. Attempting token refresh...');
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      token = newToken;
+    }
+  }
+  return token;
+}
+
+/**
  * Performs an authenticated HTTP fetch request to the Google Calendar API.
  * @param {string} endpoint - API endpoint path.
  * @param {Object} [options={}] - Extra fetch options.
  * @returns {Promise<Object>} JSON response.
  */
 async function fetchWithToken(endpoint, options = {}) {
-  const token = store.get('auth.googleAccessToken');
+  let token = await getValidAccessToken();
   if (!token) {
     throw new Error('No Google Access Token available. User must re-authenticate.');
   }
 
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
+  let res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       ...options.headers,
@@ -27,6 +90,21 @@ async function fetchWithToken(endpoint, options = {}) {
       'Accept': 'application/json'
     }
   });
+
+  if (res.status === 401) {
+    console.warn('[gcal-service] 401 Unauthorized received. Retrying with token refresh...');
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      res = await fetch(`${BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${newToken}`,
+          'Accept': 'application/json'
+        }
+      });
+    }
+  }
 
   if (!res.ok) {
     const errText = await res.text();

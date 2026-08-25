@@ -25,6 +25,7 @@
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="spinner" id="spinner"></div>
@@ -43,39 +44,71 @@
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.setCustomParameters({
+      access_type: 'offline',
+      prompt: 'consent'
+    });
 
-    function doSignIn() {
+    async function doSignIn() {
       document.getElementById('sign-in-btn').style.display = 'none';
       document.getElementById('spinner').style.display = 'block';
       document.getElementById('status-text').innerText = 'Opening Google sign in...';
 
-      signInWithPopup(auth, provider)
-        .then((result) => {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          const idToken = credential.idToken;
-          const accessToken = credential.accessToken;
-          
-          document.getElementById('status-text').innerText = 'Success! Returning to TachoTasks...';
-          document.getElementById('spinner').style.display = 'none';
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const idToken = credential ? credential.idToken : null;
+        const accessToken = credential ? credential.accessToken : null;
+        const tokenResponse = result._tokenResponse || {};
+        const refreshToken = tokenResponse.refreshToken || (result.user && result.user.refreshToken) || null;
+        const expiresIn = tokenResponse.oauthExpireIn || 3600;
+        const clientId = tokenResponse.clientId || tokenResponse.oauthClientId || null;
 
-          fetch('/auth-callback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken, accessToken })
-          }).then(() => {
-            setTimeout(() => { window.close(); }, 500);
-          });
-        })
-        .catch((error) => {
-          console.error('Sign-in error:', error);
-          document.getElementById('spinner').style.display = 'none';
-          document.getElementById('sign-in-btn').style.display = 'block';
-          if (error.code === 'auth/popup-closed-by-user') {
-            document.getElementById('status-text').innerText = 'Sign in cancelled. Click below to try again:';
-          } else {
-            document.getElementById('status-text').innerText = 'Sign in error. Click below to try again:';
+        // Obtain Google OAuth authorization code for persistent refresh token
+        let authCode = null;
+        if (clientId && window.google && window.google.accounts && window.google.accounts.oauth2) {
+          try {
+            authCode = await new Promise((resolveCode) => {
+              const codeClient = window.google.accounts.oauth2.initCodeClient({
+                client_id: clientId,
+                scope: 'https://www.googleapis.com/auth/calendar.readonly openid email profile',
+                ux_mode: 'popup',
+                callback: (resp) => {
+                  if (resp && resp.code) {
+                    resolveCode(resp.code);
+                  } else {
+                    resolveCode(null);
+                  }
+                },
+                error_callback: () => resolveCode(null)
+              });
+              codeClient.requestCode();
+            });
+          } catch (e) {
+            console.warn('Failed to obtain Google auth code:', e);
           }
+        }
+        
+        document.getElementById('status-text').innerText = 'Success! Returning to TachoTasks...';
+        document.getElementById('spinner').style.display = 'none';
+
+        await fetch('/auth-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken, accessToken, refreshToken, expiresIn, clientId, authCode })
         });
+
+        setTimeout(() => { window.close(); }, 500);
+      } catch (error) {
+        console.error('Sign-in error:', error);
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('sign-in-btn').style.display = 'block';
+        if (error.code === 'auth/popup-closed-by-user') {
+          document.getElementById('status-text').innerText = 'Sign in cancelled. Click below to try again:';
+        } else {
+          document.getElementById('status-text').innerText = 'Sign in error. Click below to try again:';
+        }
+      }
     }
 
     // Auto-trigger sign in popup on page load

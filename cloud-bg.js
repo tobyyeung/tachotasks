@@ -8,28 +8,64 @@ const { collection, doc, setDoc, getDocs, writeBatch } = require('firebase/fires
 const { app, auth, db } = require('./firebase-config');
 
 let currentUser = null;
+let hasReceivedInitialAuth = false;
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
-    currentUser = user;
-    ipcRenderer.send('cloudBg:authStateChanged', {
+    currentUser = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL
-    });
+    };
+    hasReceivedInitialAuth = true;
+    await ipcRenderer.invoke('store:setRaw', 'auth.user', currentUser);
+    ipcRenderer.send('cloudBg:authStateChanged', currentUser);
   } else {
+    // Firebase fired null — check if we have stored credentials before wiping user
+    const storedUser = await ipcRenderer.invoke('store:getRaw', 'auth.user');
+    const storedToken = await ipcRenderer.invoke('store:getRaw', 'auth.googleAccessToken');
+
+    if (!hasReceivedInitialAuth && storedUser && storedToken) {
+      // First boot: Firebase couldn't restore its session but we have stored creds.
+      // Keep the stored user alive — don't send null to the renderer.
+      hasReceivedInitialAuth = true;
+      currentUser = storedUser;
+      console.log('[cloud-bg] Firebase session not restored, but stored user found. Keeping session alive.');
+      ipcRenderer.send('cloudBg:authStateChanged', storedUser);
+      return;
+    }
+
+    // Genuine sign-out (user clicked sign out, or no stored credentials exist)
     currentUser = null;
+    hasReceivedInitialAuth = true;
+    await ipcRenderer.invoke('store:deleteRaw', 'auth.user');
     ipcRenderer.send('cloudBg:authStateChanged', null);
   }
 });
 
 // IPC listeners from main process
-ipcRenderer.on('cloudBg:signIn', async (e, idToken, accessToken) => {
+ipcRenderer.on('cloudBg:signIn', async (e, idToken, accessToken, refreshToken, expiresIn, clientId) => {
   try {
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(auth, credential);
+    const userObj = {
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      photoURL: result.user.photoURL
+    };
+    currentUser = userObj;
+    await ipcRenderer.invoke('store:setRaw', 'auth.user', userObj);
     await ipcRenderer.invoke('store:setRaw', 'auth.googleAccessToken', accessToken);
+    if (refreshToken) {
+      await ipcRenderer.invoke('store:setRaw', 'auth.refreshToken', refreshToken);
+    }
+    if (clientId) {
+      await ipcRenderer.invoke('store:setRaw', 'auth.clientId', clientId);
+    }
+    const expiryMs = Date.now() + ((expiresIn || 3600) - 300) * 1000;
+    await ipcRenderer.invoke('store:setRaw', 'auth.accessTokenExpiresAt', expiryMs);
     ipcRenderer.send('cloudBg:signInSuccess');
   } catch (err) {
     console.error('Sign in error in bg:', err);

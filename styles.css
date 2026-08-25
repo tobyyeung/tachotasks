@@ -3743,3 +3743,49 @@ a {
   display: inline-block;
   margin-right: 0.2em;
 }
+
+/* ===== REFRESH BUTTON ROTATION (90° ROTATE, PAUSE, RETURN) & BLUE LIGHT ANIMATION ===== */
+@keyframes rotate90Pause {
+  0% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(90deg);
+  }
+  65% {
+    transform: rotate(90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+#refresh-gcals-btn {
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  border-radius: 50%;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center !important;
+}
+
+#refresh-gcals-btn img,
+#refresh-gcals-btn svg {
+  display: block !important;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+#refresh-gcals-btn:hover {
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 6px #00aaff) brightness(1.4);
+}
+
+#refresh-gcals-btn:active,
+#refresh-gcals-btn.refreshing {
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 10px #0099ff) brightness(1.6);
+  animation: rotate90Pause 1.2s ease-in-out 1 !important;
+}
