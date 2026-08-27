@@ -151,27 +151,13 @@ async function performSyncToCloud() {
       const collRef = collection(db, `users/${uid}/${collName}`);
       const snapshot = await getDocs(collRef);
 
-      const batch = writeBatch(db);
-      let opCount = 0;
-
-      // Safety: Never wipe existing cloud docs if local store is completely empty
-      if (items.length > 0) {
-        snapshot.forEach(docSnap => {
-          if (!itemIds.has(docSnap.id)) {
-            batch.delete(docSnap.ref);
-            opCount++;
-          }
-        });
-      } else if (snapshot.size > 0) {
-        // Local store was empty but cloud has items — populate local store instead of deleting cloud!
-        const cloudItems = [];
-        snapshot.forEach(docSnap => {
-          const it = docSnap.data();
-          if (!it.id) it.id = docSnap.id;
-          cloudItems.push(it);
-        });
-        lsSet(collName, cloudItems);
-      }
+      // Delete docs in cloud that are not in local store
+      snapshot.forEach(docSnap => {
+        if (!itemIds.has(docSnap.id)) {
+          batch.delete(docSnap.ref);
+          opCount++;
+        }
+      });
 
       for (const item of items) {
         if (!item.id) continue;

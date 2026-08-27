@@ -124,16 +124,11 @@ function showUndoToast(taskId, message) {
  * @param {string} taskId - Task ID to delete.
  */
 async function deleteTask(taskId) {
-  const isArchived = state.archivedTasks && state.archivedTasks.find(t => t.id === taskId);
-  
-  if (isArchived) {
-    state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
-    if (window.api.saveArchivedTasks) {
-      await window.api.saveArchivedTasks(state.archivedTasks);
-    }
-  } else {
-    state.tasks = state.tasks.filter(t => t.id !== taskId);
-    await saveTasks();
+  state.tasks = (state.tasks || []).filter(t => t.id !== taskId);
+  state.archivedTasks = (state.archivedTasks || []).filter(t => t.id !== taskId);
+  await saveTasks();
+  if (window.api.saveArchivedTasks) {
+    await window.api.saveArchivedTasks(state.archivedTasks);
   }
   
   if (typeof closeModal === 'function') closeModal();
