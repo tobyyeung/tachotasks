@@ -62,10 +62,38 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// ===== ENVIRONMENT DETECTION & NAMESPACING =====
+function isDevEnv() {
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
+function getStoragePrefix() {
+  return isDevEnv() ? 'tachotasks_dev.' : 'tachotasks.';
+}
+
+function getCloudUserPath(uid) {
+  return isDevEnv() ? `users_dev/${uid}` : `users/${uid}`;
+}
+
+// One-time migration for localhost to copy existing local data into tachotasks_dev.*
+if (isDevEnv()) {
+  try {
+    const devKeys = Object.keys(localStorage).filter(k => k.startsWith('tachotasks_dev.'));
+    if (devKeys.length === 0) {
+      const prodKeys = Object.keys(localStorage).filter(k => k.startsWith('tachotasks.'));
+      prodKeys.forEach(k => {
+        const devK = k.replace('tachotasks.', 'tachotasks_dev.');
+        localStorage.setItem(devK, localStorage.getItem(k));
+      });
+    }
+  } catch (e) {}
+}
+
 // ===== LOCAL STORAGE HELPERS =====
 function lsGet(key, defaultValue = null) {
   try {
-    const raw = localStorage.getItem(`tachotasks.${key}`);
+    const raw = localStorage.getItem(`${getStoragePrefix()}${key}`);
     if (raw === null) return defaultValue;
     return JSON.parse(raw);
   } catch (e) {
@@ -75,14 +103,14 @@ function lsGet(key, defaultValue = null) {
 
 function lsSet(key, value) {
   try {
-    localStorage.setItem(`tachotasks.${key}`, JSON.stringify(value));
+    localStorage.setItem(`${getStoragePrefix()}${key}`, JSON.stringify(value));
   } catch (e) {
     console.error('localStorage write error:', e);
   }
 }
 
 function lsDelete(key) {
-  localStorage.removeItem(`tachotasks.${key}`);
+  localStorage.removeItem(`${getStoragePrefix()}${key}`);
 }
 
 // ===== SYNC DEBOUNCE =====
@@ -144,11 +172,13 @@ async function performSyncToCloud() {
 
   try {
     const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
+    const basePath = getCloudUserPath(uid);
+
     for (const collName of collections) {
       const items = lsGet(collName, []);
       const itemIds = new Set(items.map(i => i.id).filter(Boolean));
 
-      const collRef = collection(db, `users/${uid}/${collName}`);
+      const collRef = collection(db, `${basePath}/${collName}`);
       const snapshot = await getDocs(collRef);
 
       const batch = writeBatch(db);
@@ -162,7 +192,7 @@ async function performSyncToCloud() {
 
       for (const item of items) {
         if (!item.id) continue;
-        const docRef = doc(db, `users/${uid}/${collName}`, item.id);
+        const docRef = doc(db, `${basePath}/${collName}`, item.id);
         batch.set(docRef, cleanObjectForFirestore(item));
       }
       await batch.commit();
@@ -170,7 +200,7 @@ async function performSyncToCloud() {
 
     const settings = lsGet('settings', {});
     if (settings) {
-      await setDoc(doc(db, `users/${uid}/settings`, 'preferences'), cleanObjectForFirestore(settings));
+      await setDoc(doc(db, `${basePath}/settings`, 'preferences'), cleanObjectForFirestore(settings));
     }
     lsSet('lastSyncTimestamp', Date.now());
   } catch (err) {
@@ -201,11 +231,12 @@ async function performSyncFromCloud() {
   try {
     let needsCloudFix = false;
     const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
+    const basePath = getCloudUserPath(uid);
     const newData = {};
     try { localStorage.removeItem('tt_reminders'); } catch (e) {}
 
     for (const collName of collections) {
-      const collRef = collection(db, `users/${uid}/${collName}`);
+      const collRef = collection(db, `${basePath}/${collName}`);
       const snapshot = await getDocs(collRef);
       const items = [];
       snapshot.forEach(docSnap => {
@@ -248,7 +279,7 @@ async function performSyncFromCloud() {
     }
 
     // Settings
-    const settingsSnap = await getDocs(collection(db, `users/${uid}/settings`));
+    const settingsSnap = await getDocs(collection(db, `${basePath}/settings`));
     for (const docSnap of settingsSnap.docs) {
       if (docSnap.id === 'preferences') {
         const data = docSnap.data();
@@ -273,6 +304,10 @@ async function performSyncFromCloud() {
     const timestamp = lsGet('lastSyncTimestamp');
 
     if (needsCloudFix) {
+      performSyncToCloud().catch(err => console.error('Cloud fix error:', err));
+    }
+
+    return { success: true, timestamp, data: newData };
       performSyncToCloud().catch(err => console.error('Cloud fix error:', err));
     }
 
