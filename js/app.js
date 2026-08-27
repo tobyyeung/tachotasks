@@ -307,6 +307,10 @@ function setupAuth() {
       manualSyncBtn.classList.add('sync-btn-spinning');
       setSyncStatus('syncing');
       try {
+        if (state.tasks) await window.api.saveTasks(state.tasks);
+        if (state.projects) await window.api.saveProjects(state.projects);
+        if (state.profiles) await window.api.saveProfiles(state.profiles);
+        if (state.settings) await window.api.saveSettings(state.settings);
         await window.api.syncPush();
         await window.api.syncPull();
         await refreshDataFromStore();
@@ -386,13 +390,12 @@ async function refreshDataFromStore() {
   
   renderSidebarProjects();
   renderSidebarTags();
+  renderView();
   
-  // Attempt to load Google Calendars if signed in
+  // Attempt to load Google Calendars in background if signed in
   const user = await window.api.getUser();
   if (user) {
-    await loadGoogleCalendars();
-  } else {
-    renderView();
+    loadGoogleCalendars().catch(e => console.warn('GCal load in background:', e));
   }
 }
 
