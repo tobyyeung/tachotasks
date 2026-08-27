@@ -34,5 +34,8 @@ When removing properties, fields, or features from data structures or local stor
 - Run `node -c <file>` syntax checks proactively without requiring manual confirmation whenever JavaScript files are modified.
 
 ### 6. Git Commit Convention
-- Every commit message MUST follow the versioned convention: `vX.Y - <type>: <description>` (e.g. `v1.1 - fix: ...`, `v1.2 - feat: ...`, `v1.3 - refactor: ...`).
+- Every commit message MUST follow semantic versioning: `vX.Y.Z - <type>: <description>` (e.g. `v1.0.1 - docs: ...`, `v1.1.0 - feat: ...`, `v1.0.2 - fix: ...`).
+- Small updates (docs, readme, chore, minor bug fixes) bump the patch digit `Z` (e.g. `v1.0.1`).
+- Feature additions or significant updates bump the minor digit `Y` (e.g. `v1.1.0`).
+- Major breaking changes or overhauls bump the major digit `X` (e.g. `v2.0.0`).
 
