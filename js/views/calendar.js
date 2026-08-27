@@ -1,9 +1,246 @@
 // ===== CALENDAR VIEW =====
+function formatScheduleTimeRange(startTime, endTime, isAllDay) {
+  if (isAllDay || !startTime) return 'All day';
+  if (!endTime) return formatTimeShort(startTime);
+
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+
+  const sAmpm = sh >= 12 ? 'pm' : 'am';
+  const eAmpm = eh >= 12 ? 'pm' : 'am';
+  const sDisplayH = sh === 0 ? 12 : (sh > 12 ? sh - 12 : sh);
+  const eDisplayH = eh === 0 ? 12 : (eh > 12 ? eh - 12 : eh);
+
+  const sMinsStr = sm > 0 ? `:${String(sm).padStart(2, '0')}` : '';
+  const eMinsStr = em > 0 ? `:${String(em).padStart(2, '0')}` : '';
+
+  if (sAmpm === eAmpm) {
+    return `${sDisplayH}${sMinsStr} – ${eDisplayH}${eMinsStr}${eAmpm}`;
+  }
+  return `${sDisplayH}${sMinsStr}${sAmpm} – ${eDisplayH}${eMinsStr}${eAmpm}`;
+}
+
+function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const monthDays = [];
+  for (let d = 1; d <= totalDays; d++) {
+    monthDays.push(new Date(year, month, d));
+  }
+
+  const itemsByDate = {};
+  monthDays.forEach(d => {
+    const dStr = toDateStr(d);
+    itemsByDate[dStr] = [];
+  });
+
+  // Collect events
+  state.events.forEach(evt => {
+    if (itemsByDate[evt.date]) {
+      itemsByDate[evt.date].push({
+        id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
+        date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
+        location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime
+      });
+    }
+  });
+
+  // Collect Google Calendar events
+  const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
+  state.gcalEvents.forEach(evt => {
+    if (!activeIds.includes(evt.calendarId)) return;
+    if (itemsByDate[evt.date]) {
+      const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
+      const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
+      itemsByDate[evt.date].push({
+        id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
+        date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
+        location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime
+      });
+    }
+  });
+
+  // Collect tasks
+  state.tasks.forEach(task => {
+    if (!task.dueDate || !itemsByDate[task.dueDate]) return;
+    let locPrefix = '';
+    let locColor = '';
+    if (task.projectId) {
+      const proj = (state.projects || []).find(p => p.id === task.projectId);
+      if (proj && proj.name) {
+        locColor = proj.color || '';
+        if (task.sectionId && task.sectionId !== 'unsectioned') {
+          const sec = (proj.sections || (state.settings && state.settings.projectSections) || []).find(s => s.id === task.sectionId);
+          if (sec && sec.name && sec.name !== 'Uncategorized' && sec.name.toLowerCase() !== 'tasks') {
+            locPrefix = `${proj.name} (${sec.name}):`;
+          } else {
+            locPrefix = `${proj.name}:`;
+          }
+        } else {
+          locPrefix = `${proj.name}:`;
+        }
+      }
+    } else if (task.sectionId && task.sectionId !== 'unsectioned' && state.settings && state.settings.taskSections) {
+      const sec = state.settings.taskSections.find(s => s.id === task.sectionId);
+      if (sec && sec.name && sec.name !== 'Uncategorized' && sec.name.toLowerCase() !== 'tasks') {
+        locPrefix = `${sec.name}:`;
+      }
+    }
+
+    itemsByDate[task.dueDate].push({
+      id: task.id, type: 'task', title: task.title,
+      color: getPriorityColor(task.priority) || '#00d4aa',
+      date: task.dueDate, startTime: task.dueTime || null, endTime: null,
+      locPrefix, locColor, completed: task.completed,
+      isAllDay: !task.dueTime
+    });
+  });
+
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const dayNamesShort = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  let scheduleGroupsHtml = '';
+  let totalRenderedEvents = 0;
+
+  monthDays.forEach(d => {
+    const dateStr = toDateStr(d);
+    const dayItems = itemsByDate[dateStr] || [];
+    const isToday = dateStr === todayStr;
+
+    // Remove gaps: only show days with events (or today if within month)
+    if (dayItems.length === 0 && !isToday) return;
+
+    totalRenderedEvents += dayItems.length;
+
+    // Sort day items: All day first, then by start time
+    dayItems.forEach(item => {
+      if (item.startTime) {
+        const [sh, sm] = item.startTime.split(':').map(Number);
+        item.startMinutes = sh * 60 + (sm || 0);
+      } else {
+        item.startMinutes = -1;
+      }
+    });
+
+    dayItems.sort((a, b) => {
+      if (a.isAllDay && !b.isAllDay) return -1;
+      if (!a.isAllDay && b.isAllDay) return 1;
+      return a.startMinutes - b.startMinutes;
+    });
+
+    const dayNum = d.getDate();
+    const monthShort = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    const dayNameShort = dayNamesShort[d.getDay()];
+
+    let itemsHtml = '';
+    let nowRendered = false;
+
+    if (dayItems.length === 0 && isToday) {
+      itemsHtml = `<div style="font-size:12px;color:var(--text-tertiary);padding:8px 12px;font-style:italic;">No events or tasks scheduled for today</div>`;
+    } else {
+      dayItems.forEach(item => {
+        // Check current time line insertion for Today
+        if (isToday && !nowRendered && !item.isAllDay && item.startMinutes > currentMins) {
+          itemsHtml += `
+            <div class="schedule-now-indicator">
+              <span class="schedule-now-dot"></span>
+              <span class="schedule-now-line"></span>
+            </div>
+          `;
+          nowRendered = true;
+        }
+
+        const isTask = item.type === 'task';
+        const timeDisplay = formatScheduleTimeRange(item.startTime, item.endTime, item.isAllDay);
+        const prefixHtml = (isTask && item.locPrefix) 
+          ? `<span style="color:${item.locColor || 'var(--accent)'};font-weight:600;margin-right:4px;">${escHtml(item.locPrefix)}</span>` 
+          : '';
+
+        itemsHtml += `
+          <div class="schedule-item-row ${item.completed ? 'completed' : ''}" data-event-id="${item.id}" data-event-type="${item.type}">
+            <div class="schedule-item-dot" style="background:${item.color};"></div>
+            <div class="schedule-item-time">${timeDisplay}</div>
+            <div class="schedule-item-body">
+              ${isTask ? '<span class="task-checkbox-circle" style="font-size:12px;line-height:1;opacity:0.85;margin-right:2px;flex-shrink:0;">◯</span> ' : ''}
+              <span class="schedule-item-title">${prefixHtml}${escHtml(item.title)}</span>
+              ${item.location ? `<span class="schedule-item-loc">${escHtml(formatLocationShort(item.location))}</span>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      if (isToday && !nowRendered) {
+        itemsHtml += `
+          <div class="schedule-now-indicator">
+            <span class="schedule-now-dot"></span>
+            <span class="schedule-now-line"></span>
+          </div>
+        `;
+        nowRendered = true;
+      }
+    }
+
+    scheduleGroupsHtml += `
+      <div class="schedule-day-group ${isToday ? 'is-today' : ''}" data-schedule-date="${dateStr}">
+        <div class="schedule-day-label">
+          <span class="schedule-day-num ${isToday ? 'today-badge' : ''}">${dayNum}</span>
+          <span class="schedule-day-meta ${isToday ? 'today-meta' : ''}">${monthShort}, ${dayNameShort}</span>
+        </div>
+        <div class="schedule-day-items">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  });
+
+  if (totalRenderedEvents === 0 && !scheduleGroupsHtml) {
+    scheduleGroupsHtml = `
+      <div class="schedule-empty-state">
+        <img src="assets/icons/Calendar.png" style="width:40px;height:40px;opacity:0.35;margin-bottom:12px;object-fit:contain;" />
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">No events or tasks scheduled</div>
+        <div style="font-size:12px;color:var(--text-tertiary);">There are no scheduled items for ${monthYear}</div>
+      </div>
+    `;
+  }
+
+  return `
+    ${sessionBanner}
+    <div class="calendar-view schedule">
+      <div class="calendar-header">
+        <div class="calendar-nav">
+          <button class="calendar-nav-btn" id="cal-prev" title="Previous">${icons.chevronLeft}</button>
+          <button class="calendar-today-btn" id="cal-today">Today</button>
+          <button class="calendar-nav-btn" id="cal-next" title="Next">${icons.chevronRight}</button>
+        </div>
+        <h2 class="calendar-title">${monthYear}</h2>
+        <div class="calendar-view-modes">${viewBtns}</div>
+      </div>
+      
+      <div class="schedule-view-container" id="schedule-scroll-area">
+        ${scheduleGroupsHtml}
+      </div>
+    </div>
+  `;
+}
+
 function renderCalendar() {
   const viewMode = state.calendarViewMode || 'weekly';
   const date = state.calendarDate;
   const today = getTodayStr();
   const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const viewBtns = ['schedule', 'daily', 'weekly', 'monthly'].map(mode =>
+    `<button class="view-mode-btn ${viewMode === mode ? 'active' : ''}" data-cal-view="${mode}">${mode.charAt(0).toUpperCase() + mode.slice(1)}</button>`
+  ).join('');
+
+  const sessionBanner = state.sessionExpired ? `<div class="gcal-expired-banner" onclick="window.reconnectGoogleCalendar()" style="cursor:pointer;" title="Click to reconnect Google Calendar">⚠️ Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>` : '';
+
+  if (viewMode === 'schedule') {
+    return renderScheduleView(date, today, sessionBanner, viewBtns, monthYear);
+  }
 
   let days = [];
   if (viewMode === 'daily') {
@@ -16,8 +253,6 @@ function renderCalendar() {
       days.push(d);
     }
   }
-
-  const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   // Day headers
   let headerHtml = '';
@@ -37,10 +272,6 @@ function renderCalendar() {
       `;
     }).join('');
   }
-
-  const viewBtns = ['daily', 'weekly', 'monthly'].map(mode =>
-    `<button class="view-mode-btn ${viewMode === mode ? 'active' : ''}" data-cal-view="${mode}">${mode.charAt(0).toUpperCase() + mode.slice(1)}</button>`
-  ).join('');
 
   let gridHtml = '';
   
@@ -90,8 +321,6 @@ function renderCalendar() {
       });
     }
   }
-
-  const sessionBanner = state.sessionExpired ? `<div class="gcal-expired-banner" onclick="window.reconnectGoogleCalendar()" style="cursor:pointer;" title="Click to reconnect Google Calendar">⚠️ Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>` : '';
 
   if (viewMode === 'monthly') {
     return `
@@ -151,6 +380,29 @@ function renderCalendar() {
 function renderCalendarEvents() {
   const viewMode = state.calendarViewMode || 'weekly';
 
+  if (viewMode === 'schedule') {
+    document.querySelectorAll('.schedule-item-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = row.dataset.eventId;
+        const type = row.dataset.eventType;
+        if (type === 'task') {
+          showTaskModal(id);
+        } else {
+          showEventPopover(id, type, row);
+        }
+      });
+    });
+
+    const todayGroup = document.querySelector('.schedule-day-group.is-today');
+    const scrollContainer = document.getElementById('schedule-scroll-area');
+    if (todayGroup && scrollContainer && !scrollContainer.dataset.scrolled) {
+      scrollContainer.dataset.scrolled = 'true';
+      todayGroup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
   const days = [];
   if (viewMode === 'daily') {
     days.push(toDateStr(state.calendarDate));
@@ -206,20 +458,37 @@ function renderCalendarEvents() {
     const dayIdx = days.indexOf(task.dueDate);
     if (dayIdx < 0) return;
     let startTime = task.dueTime || null;
-    let endTime = null;
-    if (startTime) {
-      const [h, m] = startTime.split(':').map(Number);
-      const startMins = h * 60 + m;
-      const endMins = Math.min(startMins + 45, 1439);
-      const endH = Math.floor(endMins / 60);
-      const endM = endMins % 60;
-      endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+    let locPrefix = '';
+    let locColor = '';
+    if (task.projectId) {
+      const proj = (state.projects || []).find(p => p.id === task.projectId);
+      if (proj && proj.name) {
+        locColor = proj.color || '';
+        if (task.sectionId && task.sectionId !== 'unsectioned') {
+          const sec = (proj.sections || (state.settings && state.settings.projectSections) || []).find(s => s.id === task.sectionId);
+          if (sec && sec.name && sec.name !== 'Uncategorized' && sec.name.toLowerCase() !== 'tasks') {
+            locPrefix = `${proj.name} (${sec.name}):`;
+          } else {
+            locPrefix = `${proj.name}:`;
+          }
+        } else {
+          locPrefix = `${proj.name}:`;
+        }
+      }
+    } else if (task.sectionId && task.sectionId !== 'unsectioned' && state.settings && state.settings.taskSections) {
+      const sec = state.settings.taskSections.find(s => s.id === task.sectionId);
+      if (sec && sec.name && sec.name !== 'Uncategorized' && sec.name.toLowerCase() !== 'tasks') {
+        locPrefix = `${sec.name}:`;
+      }
     }
+
     items.push({
       id: task.id, type: 'task', title: task.title,
       color: getPriorityColor(task.priority) || '#00d4aa',
       date: task.dueDate, startTime: startTime,
-      endTime: endTime,
+      endTime: null,
+      locPrefix, locColor,
       dayIdx, completed: task.completed,
       isAllDay: !startTime
     });
@@ -274,7 +543,8 @@ function renderCalendarEvents() {
         const timeStr = item.startTime ? formatTimeShort(item.startTime) : '';
         const dotHtml = !item.isAllDay ? `<span class="event-dot" style="background:${item.color};"></span>` : '';
         const timeHtml = timeStr ? `<span class="event-time-prefix">${timeStr}</span> ` : '';
-        const titleHtml = `<span class="event-title-text">${escHtml(item.title)}</span>`;
+        const prefixHtml = (item.type === 'task' && item.locPrefix) ? `<span style="color:${item.locColor || 'var(--accent)'};font-weight:600;opacity:0.9;">${escHtml(item.locPrefix)} </span>` : '';
+        const titleHtml = `<span class="event-title-text">${prefixHtml}${escHtml(item.title)}</span>`;
 
         el.innerHTML = `${dotHtml}${timeHtml}${titleHtml}`;
         
@@ -343,7 +613,9 @@ function renderCalendarEvents() {
       const [sh, sm] = sTime.split(':').map(Number);
       item.startMinutes = sh * 60 + (sm || 0);
 
-      if (item.endTime) {
+      if (item.type === 'task') {
+        item.endMinutes = item.startMinutes + 30;
+      } else if (item.endTime) {
         const [eh, em] = item.endTime.split(':').map(Number);
         item.endMinutes = eh * 60 + (em || 0);
       } else {
@@ -392,7 +664,8 @@ function renderCalendarEvents() {
     // Layout algorithm: Column 0 takes wide left width, Column 1+ indents right and layers on top
     dayItems.forEach(item => {
       const top = (item.startMinutes / 60) * cellHeight + headerOffset;
-      const height = Math.max(((item.endMinutes - item.startMinutes) / 60) * cellHeight, 22);
+      const isTask = item.type === 'task';
+      const height = isTask ? Math.max(((30 / 60) * cellHeight), 22) : Math.max(((item.endMinutes - item.startMinutes) / 60) * cellHeight, 22);
 
       // Find items starting at the exact same time (within 5 mins)
       const sameTimeItems = dayItems.filter(other =>
@@ -427,14 +700,13 @@ function renderCalendarEvents() {
       }
 
       const el = document.createElement('div');
-      el.className = `calendar-event ${item.type === 'task' ? 'is-task' : ''}`;
+      el.className = `calendar-event ${isTask ? 'is-task' : ''}`;
       el.style.top = `${top}px`;
       el.style.left = `${left}px`;
       el.style.width = `${width}px`;
       el.style.height = `${height}px`;
       el.style.zIndex = zIndex;
 
-      const isTask = item.type === 'task';
       const textColor = isTask ? '#d2e3fc' : getContrastTextColor(item.color);
 
       if (isTask) {
@@ -450,12 +722,32 @@ function renderCalendarEvents() {
 
       if (item.completed) el.style.opacity = '0.4';
 
-      const timeDisplay = item.startTime ? `${formatTimeShort(item.startTime)} – ${formatTimeShort(item.endTime)}` : 'All Day';
+      const eventTimeDisplay = item.startTime ? `${formatTimeShort(item.startTime)}${item.endTime ? ' – ' + formatTimeShort(item.endTime) : ''}` : 'All Day';
+      const isSideBySide = sameTimeItems.length > 1;
+      const titleLenPx = (item.title || '').length * 6.5;
+      const prefixLenPx = (item.locPrefix || '').length * 6.5;
+
+      // Space-aware prioritization: Task Title (1st) > Section Prefix (2nd) > Time (3rd)
+      // When cards are side-by-side (2+ items at same time) or width is constrained, omit prefix & time so task name is always visible
+      const showTaskPrefix = isTask && item.locPrefix && !isSideBySide && (width >= 135) && ((width - 35) >= (prefixLenPx + Math.min(titleLenPx, 40)));
+      const showTaskTime = isTask && item.startTime && !isSideBySide && (width >= 175) && ((width - 35) >= (prefixLenPx + titleLenPx + 45));
+
+      const prefixHtml = showTaskPrefix 
+        ? `<span class="task-loc-prefix" style="color:${item.locColor || 'var(--accent)'};font-weight:600;margin-right:3px;flex-shrink:0;opacity:0.9;">${escHtml(item.locPrefix)}</span>` 
+        : '';
+      const timeHtml = showTaskTime 
+        ? `<span class="task-time-inline" style="opacity:0.82;font-size:10px;margin-left:4px;flex-shrink:0;font-variant-numeric:tabular-nums;">${formatTimeShort(item.startTime)}</span>` 
+        : '';
 
       el.innerHTML = `
         <div class="event-card-content" style="color:${textColor};">
-          <div class="event-title">${isTask ? '<span class="task-checkbox-circle">◯</span> ' : ''}${escHtml(item.title)}</div>
-          ${height >= 32 ? `<div class="event-time" style="color:${textColor};opacity:0.88;">${timeDisplay}</div>` : ''}
+          <div class="event-title" style="display:flex;align-items:center;gap:3px;min-width:0;">
+            ${isTask ? '<span class="task-checkbox-circle" style="font-size:10px;line-height:1;opacity:0.8;flex-shrink:0;">◯</span> ' : ''}
+            ${prefixHtml}
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;font-weight:600;">${escHtml(item.title)}</span>
+            ${timeHtml}
+          </div>
+          ${!isTask && height >= 32 ? `<div class="event-time" style="color:${textColor};opacity:0.88;">${eventTimeDisplay}</div>` : ''}
           ${item.location && height >= 50 ? `<div class="event-location" style="color:${textColor};opacity:0.85;">${escHtml(formatLocationShort(item.location))}</div>` : ''}
         </div>
       `;
@@ -484,17 +776,18 @@ function renderCalendarEvents() {
   if (todayDayIdx >= 0) {
     const currentMins = now.getHours() * 60 + now.getMinutes();
     const lineTop = (currentMins / 60) * cellHeight + headerOffset;
+    const dayLeft = timeColWidth + todayDayIdx * dayColWidth;
 
     const timeLine = document.createElement('div');
     timeLine.className = 'calendar-current-time-line';
     timeLine.style.top = `${lineTop}px`;
-    timeLine.style.left = `${timeColWidth}px`;
-    timeLine.style.right = '0px';
+    timeLine.style.left = `${dayLeft}px`;
+    timeLine.style.width = `${dayColWidth}px`;
 
     const timeDot = document.createElement('div');
     timeDot.className = 'calendar-current-time-dot';
     timeDot.style.top = `${lineTop - 4}px`;
-    timeDot.style.left = `${timeColWidth + todayDayIdx * dayColWidth - 4}px`;
+    timeDot.style.left = `${dayLeft - 4}px`;
 
     eventsLayer.appendChild(timeLine);
     eventsLayer.appendChild(timeDot);

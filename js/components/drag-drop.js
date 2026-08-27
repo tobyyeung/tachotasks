@@ -88,7 +88,7 @@ function setupDragAndDrop() {
         task.dueDate = date;
         await saveTasks();
         renderView();
-        showToast(`Scheduled for ${formatDateShort(new Date(date))}`, 'success');
+        showToast(`Scheduled for ${formatDateShort(date)}`, 'success');
       }
     });
   });

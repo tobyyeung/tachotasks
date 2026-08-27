@@ -154,7 +154,7 @@ function getDueLabel(task) {
   if (task.dueDate === today) return { text: 'Today', class: 'today' };
   if (task.dueDate === tomorrow) return { text: 'Tomorrow', class: '' };
   if (task.dueDate < today) return { text: 'Overdue', class: 'overdue' };
-  return { text: formatDateShort(new Date(task.dueDate)), class: '' };
+  return { text: formatDateShort(task.dueDate), class: '' };
 }
 
 /**

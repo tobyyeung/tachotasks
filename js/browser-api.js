@@ -728,33 +728,72 @@ function parseNaturalLanguage(text) {
     }
   }
 
-  // "in X days"
+  // "in X days" / "in X weeks" / "in a week"
   if (!result.dueDate) {
-    dateMatch = cleaned.match(/\bin\s+(\d+)\s+days?\b/i);
+    dateMatch = cleaned.match(/\bin\s+(?:(\d+)\s+(days?|weeks?)|a\s+week)\b/i);
     if (dateMatch) {
       const d = new Date(today);
-      d.setDate(d.getDate() + parseInt(dateMatch[1], 10));
+      if (dateMatch[0].toLowerCase().includes('week')) {
+        const numWeeks = dateMatch[1] ? parseInt(dateMatch[1], 10) : 1;
+        d.setDate(d.getDate() + numWeeks * 7);
+      } else if (dateMatch[1]) {
+        d.setDate(d.getDate() + parseInt(dateMatch[1], 10));
+      }
       result.dueDate = toISODate(d);
       cleaned = cleaned.replace(dateMatch[0], '');
     }
   }
 
-  // "Jan 15", "December 3", etc.
+  // "Sep 01", "sep 1", "sept 1st", "Jan 15", "December 3", etc.
   if (!result.dueDate) {
-    const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-    const monthsShort = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-    dateMatch = cleaned.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?\b/i);
+    const monthMap = {
+      jan: 0, january: 0,
+      feb: 1, february: 1,
+      mar: 2, march: 2,
+      apr: 3, april: 3,
+      may: 4,
+      jun: 5, june: 5,
+      jul: 6, july: 6,
+      aug: 7, august: 7,
+      sep: 8, sept: 8, september: 8,
+      oct: 9, october: 9,
+      nov: 10, november: 10,
+      dec: 11, december: 11
+    };
+    const monthNamesPattern = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec';
+
+    // Month + Day ("Sep 01", "sep 1", "sep1", "sep01")
+    dateMatch = cleaned.match(new RegExp(`\\b(${monthNamesPattern})\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:\\s*,?\\s*(\\d{4}))?\\b`, 'i'));
     if (dateMatch) {
-      const monthName = dateMatch[1].toLowerCase();
-      let monthIdx = months.indexOf(monthName);
-      if (monthIdx === -1) monthIdx = monthsShort.indexOf(monthName);
+      const monthStr = dateMatch[1].toLowerCase();
+      const monthIdx = monthMap[monthStr];
       const day = parseInt(dateMatch[2], 10);
-      const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
-      const d = new Date(year, monthIdx, day);
-      // If the date is in the past and no year was specified, push to next year
-      if (!dateMatch[3] && d < today) d.setFullYear(d.getFullYear() + 1);
-      result.dueDate = toISODate(d);
-      cleaned = cleaned.replace(dateMatch[0], '');
+      if (monthIdx !== undefined && day >= 1 && day <= 31) {
+        const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
+        const d = new Date(year, monthIdx, day);
+        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (!dateMatch[3] && d < todayZero) d.setFullYear(d.getFullYear() + 1);
+        result.dueDate = toISODate(d);
+        cleaned = cleaned.replace(dateMatch[0], '');
+      }
+    }
+
+    // Day + Month ("01 sep", "1 sep", "1sep", "01sep", "1st sep")
+    if (!result.dueDate) {
+      dateMatch = cleaned.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s*(?:of\\s+)?(${monthNamesPattern})(?:\\s*,?\\s*(\\d{4}))?\\b`, 'i'));
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const monthStr = dateMatch[2].toLowerCase();
+        const monthIdx = monthMap[monthStr];
+        if (monthIdx !== undefined && day >= 1 && day <= 31) {
+          const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
+          const d = new Date(year, monthIdx, day);
+          const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          if (!dateMatch[3] && d < todayZero) d.setFullYear(d.getFullYear() + 1);
+          result.dueDate = toISODate(d);
+          cleaned = cleaned.replace(dateMatch[0], '');
+        }
+      }
     }
   }
 
@@ -782,19 +821,45 @@ function parseNaturalLanguage(text) {
     }
   }
 
-  // Time extraction: "at 3pm", "at 14:30", "3:00 pm", "3pm"
-  const timeMatch = cleaned.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  // Time extraction:
+  // Format A: compact "915pm", "915p", "915a", "1130p", "100p"
+  let timeMatch = cleaned.match(/\b(?:at\s+)?([1-9]|1[0-2])([0-5]\d)\s*(am|pm|a|p)\b/i);
   if (timeMatch) {
     let h = parseInt(timeMatch[1], 10);
-    const m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-    const ampm = timeMatch[3] ? timeMatch[3].toLowerCase() : null;
-    if (ampm === 'pm' && h < 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    // Only treat as time if it looks like a real time (has am/pm or colon or preceded by "at")
-    if (ampm || timeMatch[2] || cleaned.match(new RegExp('\\bat\\s+' + timeMatch[1]))) {
+    const m = parseInt(timeMatch[2], 10);
+    const ampm = timeMatch[3].toLowerCase();
+    if ((ampm === 'pm' || ampm === 'p') && h < 12) h += 12;
+    if ((ampm === 'am' || ampm === 'a') && h === 12) h = 0;
+    result.dueTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    cleaned = cleaned.replace(timeMatch[0], '');
+  }
+
+  // Format B: standard "3pm", "3p", "3a", "9:15pm", "9:15p", "10:30am", "10:30a"
+  if (!result.dueTime) {
+    timeMatch = cleaned.match(/\b(?:at\s+)?([1-9]|1[0-2])(?::([0-5]\d))?\s*(am|pm|a|p)\b/i);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[1], 10);
+      const m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+      const ampm = timeMatch[3].toLowerCase();
+      if ((ampm === 'pm' || ampm === 'p') && h < 12) h += 12;
+      if ((ampm === 'am' || ampm === 'a') && h === 12) h = 0;
       result.dueTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       cleaned = cleaned.replace(timeMatch[0], '');
     }
+  }
+
+  // Format C: 24-hour time or "at HH:MM"
+  if (!result.dueTime) {
+    timeMatch = cleaned.match(/\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/i);
+    if (timeMatch) {
+      result.dueTime = `${String(timeMatch[1]).padStart(2, '0')}:${String(timeMatch[2]).padStart(2, '0')}`;
+      cleaned = cleaned.replace(timeMatch[0], '');
+    }
+  }
+
+  // If a time was specified without an explicit date, default the due date to today
+  if (result.dueTime && !result.dueDate) {
+    result.dueDate = toISODate(today);
   }
 
   result.title = cleaned.replace(/\s+/g, ' ').trim();
@@ -940,16 +1005,8 @@ window.api = {
     try {
       return await fetchCalendars();
     } catch (e) {
-      console.error('Failed to fetch Google Calendars:', e);
+      console.warn('Failed to fetch Google Calendars:', e.message || e);
       if (e.message.includes('401') || e.message.includes('No Google Access Token')) {
-        // Try one interactive refresh before giving up
-        console.log('[gcal] Calendar fetch failed. Attempting interactive refresh...');
-        const token = await refreshAccessToken(true);
-        if (token) {
-          try { return await fetchCalendars(); } catch (e2) {
-            return { error: 'SESSION_EXPIRED' };
-          }
-        }
         return { error: 'SESSION_EXPIRED' };
       }
       return { error: e.message };
@@ -965,23 +1022,8 @@ window.api = {
       }
       return allEvents;
     } catch (e) {
-      console.error('Failed to fetch Google Events:', e);
+      console.warn('Failed to fetch Google Events:', e.message || e);
       if (e.message.includes('401') || e.message.includes('No Google Access Token')) {
-        // Try one interactive refresh before giving up
-        console.log('[gcal] Events fetch failed. Attempting interactive refresh...');
-        const token = await refreshAccessToken(true);
-        if (token) {
-          try {
-            let allEvents = [];
-            for (const calId of calendarIds) {
-              const evts = await fetchEvents(calId, timeMin, timeMax);
-              allEvents = allEvents.concat(evts);
-            }
-            return allEvents;
-          } catch (e2) {
-            return { error: 'SESSION_EXPIRED' };
-          }
-        }
         return { error: 'SESSION_EXPIRED' };
       }
       return { error: e.message };

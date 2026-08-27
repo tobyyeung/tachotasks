@@ -8,9 +8,9 @@ async function init() {
   state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
   if (state.settings.tasksViewMode) {
-    state.tasksViewMode = state.settings.tasksViewMode;
+    state.tasksViewMode = state.settings.tasksViewMode === 'section' ? 'board' : state.settings.tasksViewMode;
   } else {
-    state.tasksViewMode = 'section';
+    state.tasksViewMode = 'board';
   }
   state.profiles = await window.api.getProfiles() || [];
   state.gcalCalendars = await window.api.getGcalCalendarsCache() || [];
@@ -982,14 +982,14 @@ function attachViewListeners() {
   if (calPrev) calPrev.addEventListener('click', () => {
     const mode = state.calendarViewMode || 'weekly';
     if (mode === 'daily') state.calendarDate.setDate(state.calendarDate.getDate() - 1);
-    else if (mode === 'monthly') state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+    else if (mode === 'monthly' || mode === 'schedule') state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
     else state.calendarDate.setDate(state.calendarDate.getDate() - 7);
     renderView();
   });
   if (calNext) calNext.addEventListener('click', () => {
     const mode = state.calendarViewMode || 'weekly';
     if (mode === 'daily') state.calendarDate.setDate(state.calendarDate.getDate() + 1);
-    else if (mode === 'monthly') state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+    else if (mode === 'monthly' || mode === 'schedule') state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
     else state.calendarDate.setDate(state.calendarDate.getDate() + 7);
     renderView();
   });

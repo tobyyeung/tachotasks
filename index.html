@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=34">
+  <link rel="stylesheet" href="styles.css?v=49">
   <link rel="icon" href="assets/brand/logo.png" type="image/png">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <title>Tacho Tasks</title>
@@ -93,6 +93,14 @@
 
       <!-- Account & Sync (Moved to bottom) -->
       <div class="sidebar-section" id="account-section">
+        <div class="account-actions" style="margin-bottom:8px;">
+          <button class="nav-item" data-view="archive" id="nav-archive"
+            style="width:100%;justify-content:flex-start;padding:8px;font-size:13px;border-radius:var(--radius-md);">
+            <img class="nav-icon" src="assets/icons/Archive.png" alt="Archive" style="width:20px;height:20px;object-fit:contain;margin-right:8px;" />
+            <span>Archive</span>
+          </button>
+        </div>
+
         <div id="auth-section" class="sidebar-auth-section">
           <div id="user-profile" class="user-profile hidden">
             <img id="user-avatar" src="" alt="Avatar" class="user-avatar" />
@@ -101,12 +109,12 @@
                 <div id="user-name" class="user-name">Name</div>
                 <div style="display:flex; gap:6px; align-items:center;">
                   <button id="manual-sync-btn" class="icon-btn" title="Sync with Cloud"
-                    style="width:22px;height:22px;margin-top:-6px;">
-                    <img src="assets/icons/Refresh.png" alt="Sync" style="width:100%;height:100%;object-fit:contain;" />
+                    style="width:16px;height:16px;padding:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <img src="assets/icons/Refresh.png" alt="Sync" style="width:100%;height:100%;object-fit:contain;opacity:0.75;transition:opacity 0.15s;" />
                   </button>
                   <button id="sign-out-btn" class="icon-btn" title="Sign Out"
-                    style="width:22px;height:22px;margin-top:-6px;">
-                    <img src="assets/icons/Sign out.png" alt="Sign Out" style="width:100%;height:100%;object-fit:contain;" />
+                    style="width:16px;height:16px;padding:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <img src="assets/icons/Sign out.png" alt="Sign Out" style="width:100%;height:100%;object-fit:contain;opacity:0.75;transition:opacity 0.15s;" />
                   </button>
                 </div>
               </div>
@@ -118,19 +126,11 @@
             </div>
           </div>
 
-          <div class="account-actions">
-            <button class="nav-item" data-view="archive" id="nav-archive"
-              style="margin-top:4px;width:100%;justify-content:flex-start;padding:8px;font-size:13px;border-radius:var(--radius-md);">
-              <img class="nav-icon" src="assets/icons/Archive.png" alt="Archive" style="width:20px;height:20px;object-fit:contain;margin-right:8px;" />
-              <span>Archive</span>
-            </button>
-          </div>
-
           <button id="sign-in-btn" class="sign-in-btn">
             <img src="assets/icons/Add.png" alt="Sign in" style="width:20px;height:20px;object-fit:contain;margin-right:6px;" />
             Sign in with Google
           </button>
-          <div id="sync-status" class="sync-status"></div>
+          <div id="sync-status" class="sync-status" style="margin-top:4px;"></div>
         </div>
       </div>
     </aside>
@@ -190,7 +190,7 @@
   <script src="js/components/date-selector.js"></script>
   <script src="js/components/task-menu.js"></script>
   <script src="js/components/modal-base.js"></script>
-  <script src="js/components/task-modal.js?v=14"></script>
+  <script src="js/components/task-modal.js?v=20"></script>
   <script src="js/components/project-modal.js"></script>
   <script src="js/components/event-popover.js"></script>
   <script src="js/components/quick-add.js"></script>

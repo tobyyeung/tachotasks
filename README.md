@@ -83,9 +83,7 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 
 ## Pending Updates & Roadmap
 
-- [ ] Fix task profile selector
 - [ ] Fix projects UI and integration
 - [ ] Create a timestamp-based sync & conflict resolution system to ensure older device tasks never override newer updates
-- [ ] Add animation when hovering over settings icon (spin on hover)
-- [ ] Add all-day event banner support in monthly/weekly calendar
 - [ ] Daily reminder notifications in dashboard
+- [ ] Reduce lines in styles.css and calendar.js

@@ -17,7 +17,7 @@ function toISODate(d) {
 /**
  * Natural language token parser & highlight generator
  */
-function parseTaskInputTokens(text) {
+function parseTaskInputTokens(text, dismissedTokens = []) {
   if (!text) {
     return {
       cleanTitle: '',
@@ -26,9 +26,17 @@ function parseTaskInputTokens(text) {
       priority: null,
       tags: [],
       projectName: null,
-      highlightHtml: ''
+      highlightHtml: '',
+      tokens: []
     };
   }
+
+  const isDismissed = (start, end, tokenText) => {
+    if (!dismissedTokens || dismissedTokens.length === 0) return false;
+    return dismissedTokens.some(d => {
+      return d.start === start && d.text.toLowerCase() === tokenText.toLowerCase();
+    });
+  };
 
   const tokens = [];
   const today = new Date();
@@ -37,89 +45,200 @@ function parseTaskInputTokens(text) {
   let m;
   const prioRegex = /\b(p[1-4])\b/gi;
   while ((m = prioRegex.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'prio',
-      value: m[1].toUpperCase(),
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'prio',
+        value: m[1].toUpperCase(),
+        text: m[0]
+      });
+    }
   }
 
   const exclRegex = /(!{2,3})/g;
   while ((m = exclRegex.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'prio',
-      value: m[0].length === 3 ? 'P1' : 'P2',
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'prio',
+        value: m[0].length === 3 ? 'P1' : 'P2',
+        text: m[0]
+      });
+    }
   }
 
   // 2. Tags: @\w+
   const tagRegex = /@(\w+)/g;
   while ((m = tagRegex.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'tag',
-      value: '@' + m[1],
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'tag',
+        value: '@' + m[1],
+        text: m[0]
+      });
+    }
   }
 
   // 3. Project: #\w+
   const projRegex = /#(\w+)/g;
   while ((m = projRegex.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'project',
-      value: m[1],
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'project',
+        value: m[1],
+        text: m[0]
+      });
+    }
   }
 
   // 4. Dates:
   // "today", "tod"
   const todayRegex = /\b(today|tod)\b/gi;
   while ((m = todayRegex.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'date',
-      value: toISODate(today),
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'date',
+        value: toISODate(today),
+        text: m[0]
+      });
+    }
   }
 
   // "tomorrow", "tmr", "tmrw"
   const tmrRegex = /\b(tomorrow|tmr|tmrw)\b/gi;
   while ((m = tmrRegex.exec(text)) !== null) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + 1);
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'date',
-      value: toISODate(d),
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 1);
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'date',
+        value: toISODate(d),
+        text: m[0]
+      });
+    }
   }
 
   // "yesterday"
   const yestRegex = /\b(yesterday)\b/gi;
   while ((m = yestRegex.exec(text)) !== null) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - 1);
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      type: 'date',
-      value: toISODate(d),
-      text: m[0]
-    });
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 1);
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'date',
+        value: toISODate(d),
+        text: m[0]
+      });
+    }
+  }
+
+  // "in X days" / "in X weeks" / "in a week"
+  const inDaysRegex = /\bin\s+(?:(\d+)\s+(days?|weeks?)|a\s+week)\b/gi;
+  while ((m = inDaysRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const d = new Date(today);
+      if (m[0].toLowerCase().includes('week')) {
+        const numWeeks = m[1] ? parseInt(m[1], 10) : 1;
+        d.setDate(d.getDate() + numWeeks * 7);
+      } else if (m[1]) {
+        d.setDate(d.getDate() + parseInt(m[1], 10));
+      }
+      tokens.push({
+        start,
+        end,
+        type: 'date',
+        value: toISODate(d),
+        text: m[0]
+      });
+    }
+  }
+
+  // Month lookup map
+  const monthMap = {
+    jan: 0, january: 0,
+    feb: 1, february: 1,
+    mar: 2, march: 2,
+    apr: 3, april: 3,
+    may: 4,
+    jun: 5, june: 5,
+    jul: 6, july: 6,
+    aug: 7, august: 7,
+    sep: 8, sept: 8, september: 8,
+    oct: 9, october: 9,
+    nov: 10, november: 10,
+    dec: 11, december: 11
+  };
+  const monthNamesPattern = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec';
+
+  // Month + Day: "sep 01", "sep 1", "sep1", "sep01", "sept 1st", "september 15", "Oct 03 2026", "jul 4th", etc.
+  const monthDayRegex = new RegExp(`\\b(${monthNamesPattern})\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:\\s*,?\\s*(\\d{4}))?\\b`, 'gi');
+  while ((m = monthDayRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const monthStr = m[1].toLowerCase();
+      const monthIdx = monthMap[monthStr];
+      const day = parseInt(m[2], 10);
+      if (monthIdx !== undefined && day >= 1 && day <= 31) {
+        const year = m[3] ? parseInt(m[3], 10) : today.getFullYear();
+        const d = new Date(year, monthIdx, day);
+        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (!m[3] && d < todayZero) {
+          d.setFullYear(d.getFullYear() + 1);
+        }
+        tokens.push({
+          start,
+          end,
+          type: 'date',
+          value: toISODate(d),
+          text: m[0]
+        });
+      }
+    }
+  }
+
+  // Day + Month: "01 sep", "1 sep", "1sep", "01sep", "1st sep", "15th september", "3 oct 2026"
+  const dayMonthRegex = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s*(?:of\\s+)?(${monthNamesPattern})(?:\\s*,?\\s*(\\d{4}))?\\b`, 'gi');
+  while ((m = dayMonthRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const day = parseInt(m[1], 10);
+      const monthStr = m[2].toLowerCase();
+      const monthIdx = monthMap[monthStr];
+      if (monthIdx !== undefined && day >= 1 && day <= 31) {
+        const year = m[3] ? parseInt(m[3], 10) : today.getFullYear();
+        const d = new Date(year, monthIdx, day);
+        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (!m[3] && d < todayZero) {
+          d.setFullYear(d.getFullYear() + 1);
+        }
+        tokens.push({
+          start,
+          end,
+          type: 'date',
+          value: toISODate(d),
+          text: m[0]
+        });
+      }
+    }
   }
 
   // Day names: "next friday", "friday", "fri", etc.
@@ -129,7 +248,7 @@ function parseTaskInputTokens(text) {
     const start = m.index;
     const end = m.index + m[0].length;
     const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
-    if (!overlap) {
+    if (!overlap && !isDismissed(start, end, m[0])) {
       const isNext = m[0].toLowerCase().startsWith('next');
       const rawDay = m[1].toLowerCase();
       let targetDay = dayNamesFull.findIndex(d => d.startsWith(rawDay.slice(0, 3)));
@@ -149,29 +268,63 @@ function parseTaskInputTokens(text) {
     }
   }
 
-  // Times: "3pm", "10:30am", "14:00"
-  const timeRegex = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\b([01]?\d|2[0-3]):([0-5]\d)\b/gi;
-  while ((m = timeRegex.exec(text)) !== null) {
+  // 5. Times:
+  // Format A: 3-4 digits followed by am/pm/a/p (e.g. "915pm", "915p", "915a", "915am", "1130p", "100p", "1200a")
+  const compactTimeRegex = /\b(?:at\s+)?([1-9]|1[0-2])([0-5]\d)\s*(am|pm|a|p)\b/gi;
+  while ((m = compactTimeRegex.exec(text)) !== null) {
     const start = m.index;
     const end = m.index + m[0].length;
     const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
-    if (!overlap) {
-      let timeVal = null;
-      if (m[3]) {
-        let h = parseInt(m[1], 10);
-        const min = m[2] ? parseInt(m[2], 10) : 0;
-        const ampm = m[3].toLowerCase();
-        if (ampm === 'pm' && h < 12) h += 12;
-        if (ampm === 'am' && h === 12) h = 0;
-        timeVal = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-      } else if (m[4]) {
-        timeVal = `${String(m[4]).padStart(2, '0')}:${String(m[5]).padStart(2, '0')}`;
-      }
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ampm = m[3].toLowerCase();
+      if ((ampm === 'pm' || ampm === 'p') && h < 12) h += 12;
+      if ((ampm === 'am' || ampm === 'a') && h === 12) h = 0;
       tokens.push({
         start,
         end,
         type: 'time',
-        value: timeVal,
+        value: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+        text: m[0]
+      });
+    }
+  }
+
+  // Format B: 1-2 digits with optional :MM followed by am/pm/a/p (e.g. "3pm", "3p", "3a", "9:15pm", "9:15p", "10:30am", "10:30a")
+  const standardTimeRegex = /\b(?:at\s+)?([1-9]|1[0-2])(?::([0-5]\d))?\s*(am|pm|a|p)\b/gi;
+  while ((m = standardTimeRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      let h = parseInt(m[1], 10);
+      const min = m[2] ? parseInt(m[2], 10) : 0;
+      const ampm = m[3].toLowerCase();
+      if ((ampm === 'pm' || ampm === 'p') && h < 12) h += 12;
+      if ((ampm === 'am' || ampm === 'a') && h === 12) h = 0;
+      tokens.push({
+        start,
+        end,
+        type: 'time',
+        value: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+        text: m[0]
+      });
+    }
+  }
+
+  // Format C: 24-hour time (e.g. "14:00", "09:15", "at 14:00")
+  const militaryTimeRegex = /\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/gi;
+  while ((m = militaryTimeRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      tokens.push({
+        start,
+        end,
+        type: 'time',
+        value: `${String(m[1]).padStart(2, '0')}:${String(m[2]).padStart(2, '0')}`,
         text: m[0]
       });
     }
@@ -238,6 +391,11 @@ function parseTaskInputTokens(text) {
 
   cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
 
+  // If a time was specified without an explicit date, default the due date to today
+  if (finalDueTime && !finalDueDate) {
+    finalDueDate = toISODate(today);
+  }
+
   return {
     cleanTitle,
     dueDate: finalDueDate,
@@ -245,7 +403,8 @@ function parseTaskInputTokens(text) {
     priority: finalPriority,
     tags: finalTags,
     projectName: finalProjectName,
-    highlightHtml
+    highlightHtml,
+    tokens: nonOverlapping
   };
 }
 
@@ -438,7 +597,9 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     tags: initParsed.tags.length > 0 ? initParsed.tags : ((initialData && initialData.tags) ? [...initialData.tags] : []),
     projectId: targetProjectId,
     sectionId: targetSectionId,
-    profileId: targetProfileId
+    profileId: targetProfileId,
+    dismissedTokens: [],
+    activeTokens: initParsed.tokens || []
   };
 
   function getLocationInfo() {
@@ -483,7 +644,6 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     <div class="inline-create-input" id="inline-create-input" contenteditable="true" spellcheck="false" data-placeholder="Task name">${initParsed.highlightHtml || escHtml(initRaw)}</div>
     
     <div class="inline-create-row">
-      <button class="inline-create-plus-btn" id="inline-expand-btn" title="Open full task editor">+</button>
       <div class="inline-create-location-pill" id="inline-loc-pill" title="Click to change project / section">
         ${locInfo.iconHtml}
         <span id="inline-loc-text">${escHtml(locInfo.text)}</span>
@@ -493,7 +653,8 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
         <span id="inline-date-label">${escHtml(getDateChipLabel(inlineState.dueDate, inlineState.dueTime))}</span>
         ${inlineState.dueDate ? '<span class="chip-close" id="inline-date-clear" style="margin-left:4px;opacity:0.7;font-size:12px;">✕</span>' : ''}
       </div>
-      <div id="inline-extra-chips" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
+      <div id="inline-extra-chips" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+      <button class="inline-create-plus-btn" id="inline-expand-btn" title="Open full task editor">+</button>
     </div>
 
     <div class="inline-create-actions">
@@ -683,10 +844,19 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       const rawText = inputEl.innerText.replace(/\u00A0/g, ' ').replace(/\r?\n|\r/g, ' ');
       inlineState.rawText = rawText;
 
-      const caret = getCaretOffset(inputEl);
-      const parsedInfo = parseTaskInputTokens(rawText);
+      // Filter dismissed tokens so they remain active only while the text at that position matches
+      if (inlineState.dismissedTokens && inlineState.dismissedTokens.length > 0) {
+        inlineState.dismissedTokens = inlineState.dismissedTokens.filter(d => {
+          const slice = rawText.substring(d.start, d.start + d.text.length);
+          return slice.toLowerCase() === d.text.toLowerCase();
+        });
+      }
 
-      // State synchronization (reverts to default if keyword is deleted)
+      const caret = getCaretOffset(inputEl);
+      const parsedInfo = parseTaskInputTokens(rawText, inlineState.dismissedTokens);
+      inlineState.activeTokens = parsedInfo.tokens || [];
+
+      // State synchronization (reverts to default if keyword is deleted or dismissed)
       inlineState.cleanTitle = parsedInfo.cleanTitle;
       inlineState.dueDate = parsedInfo.dueDate;
       inlineState.dueTime = parsedInfo.dueTime;
@@ -717,6 +887,43 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     });
 
     inputEl.addEventListener('keydown', async (e) => {
+      if (e.key === 'Backspace') {
+        const sel = window.getSelection();
+        if (sel && sel.isCollapsed && inlineState.activeTokens && inlineState.activeTokens.length > 0) {
+          const caret = getCaretOffset(inputEl);
+          // Check if cursor is right after an active bubble token, or anywhere inside it
+          const targetToken = inlineState.activeTokens.find(t => caret === t.end || (caret > t.start && caret <= t.end));
+          if (targetToken) {
+            e.preventDefault();
+            if (!inlineState.dismissedTokens) inlineState.dismissedTokens = [];
+            inlineState.dismissedTokens.push({
+              start: targetToken.start,
+              end: targetToken.end,
+              text: targetToken.text
+            });
+
+            const rawText = inputEl.innerText.replace(/\u00A0/g, ' ').replace(/\r?\n|\r/g, ' ');
+            const parsedInfo = parseTaskInputTokens(rawText, inlineState.dismissedTokens);
+            inlineState.activeTokens = parsedInfo.tokens || [];
+
+            inlineState.cleanTitle = parsedInfo.cleanTitle;
+            inlineState.dueDate = parsedInfo.dueDate;
+            inlineState.dueTime = parsedInfo.dueTime;
+            inlineState.priority = parsedInfo.priority;
+            inlineState.tags = parsedInfo.tags;
+
+            isUpdating = true;
+            inputEl.innerHTML = parsedInfo.highlightHtml || escHtml(rawText);
+            restoreCaretOffset(inputEl, caret);
+            isUpdating = false;
+
+            updateDateButton();
+            updateExtraChips();
+            return;
+          }
+        }
+      }
+
       if (e.key === 'Enter') {
         e.preventDefault();
         await submitInlineTask();
@@ -823,7 +1030,7 @@ function showQuickLocationSelector(anchorEl, currentState, onSelect) {
     <div style="padding:4px 12px;font-size:11px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;">Profiles</div>
   `;
 
-  (state.profiles || []).forEach(prof => {
+  (state.profiles || []).filter(p => p.id !== 'all').forEach(prof => {
     const isSel = !currentState.projectId && currentState.profileId === prof.id;
     itemsHtml += `
       <div class="qc-loc-opt" data-type="profile" data-id="${prof.id}" style="padding:6px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;background:${isSel ? 'rgba(255,255,255,0.08)' : 'transparent'};">
@@ -983,9 +1190,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
 
         <div class="sidebar-property-row">
           <label class="sidebar-property-label">Due Date</label>
-          <div class="dt-trigger-capsule" id="modal-due-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;cursor:pointer;">
-            <span id="modal-due-dt-text" style="font-size:13px;${currentDueDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentDueDate ? formatDateShort(currentDueDate) + (currentDueTime ? ' at ' + formatTime12(currentDueTime) : '') : 'e.g. Jul 24, 9:30 AM'}</span>
-            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
+          <div class="dt-trigger-capsule" id="modal-due-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;cursor:pointer;">
+            <span id="modal-due-dt-text" style="font-size:12px;${currentDueDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentDueDate ? formatDateShort(currentDueDate) + (currentDueTime ? ' at ' + formatTime12(currentDueTime) : '') : 'e.g. Jul 24, 9:30 AM'}</span>
+            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
           </div>
           <input type="hidden" id="modal-due-date" value="${currentDueDate}" />
           <input type="hidden" id="modal-due-time" value="${currentDueTime}" />
@@ -993,9 +1200,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
 
         <div class="sidebar-property-row">
           <label class="sidebar-property-label">Planned Date</label>
-          <div class="dt-trigger-capsule" id="modal-planned-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;cursor:pointer;">
-            <span id="modal-planned-dt-text" style="font-size:13px;${currentPlannedDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentPlannedDate ? formatDateShort(currentPlannedDate) + (currentPlannedTime ? ' at ' + formatTime12(currentPlannedTime) : '') : 'e.g. Jul 25, 2:00 PM'}</span>
-            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
+          <div class="dt-trigger-capsule" id="modal-planned-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;cursor:pointer;">
+            <span id="modal-planned-dt-text" style="font-size:12px;${currentPlannedDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentPlannedDate ? formatDateShort(currentPlannedDate) + (currentPlannedTime ? ' at ' + formatTime12(currentPlannedTime) : '') : 'e.g. Jul 25, 2:00 PM'}</span>
+            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
           </div>
           <input type="hidden" id="modal-planned-date" value="${currentPlannedDate}" />
           <input type="hidden" id="modal-planned-time" value="${currentPlannedTime}" />
@@ -1009,7 +1216,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
               const colorClass = getPriorityColorClass(p);
               const flagSrc = p === 'P4' ? 'assets/icons/Flag.png' : 'assets/icons/Flag filled.png';
               return `<button class="priority-flag-btn ${colorClass} ${selected}" data-priority="${p}" title="Priority ${p.replace('P', '')}">
-                <img src="${flagSrc}" alt="${p}" style="width:20px;height:20px;object-fit:contain;" />
+                <img src="${flagSrc}" alt="${p}" style="width:16px;height:16px;object-fit:contain;" />
               </button>`;
             }).join('')}
           </div>
@@ -1022,9 +1229,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
 
         <div style="flex:1"></div>
 
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-          <button class="btn-secondary" id="modal-cancel-btn" style="padding:6px 14px;font-size:12px;">Cancel</button>
-          ${!isArchived ? `<button class="btn-primary" id="modal-save-btn" style="padding:6px 16px;font-size:12px;">${isNew ? 'Add Task' : 'Save'}</button>` : ''}
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:16px;">
+          <button class="btn-secondary" id="modal-cancel-btn" style="padding:5px 12px;font-size:11px;">Cancel</button>
+          ${!isArchived ? `<button class="btn-primary" id="modal-save-btn" style="padding:5px 14px;font-size:11px;">${isNew ? 'Add Task' : 'Save'}</button>` : ''}
         </div>
       </div>
     </div>
