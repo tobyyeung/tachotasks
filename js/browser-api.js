@@ -126,11 +126,11 @@ function waitForFirebaseAuth(maxWaitMs = 5000) {
 }
 
 async function performSyncToCloud() {
-  if (!_currentUser) return;
+  if (!_currentUser) throw new Error('Not signed in with Google');
   // Wait for Firebase to actually be authenticated before hitting Firestore
   if (!auth.currentUser) {
-    const ready = await waitForFirebaseAuth(3000);
-    if (!ready) { console.warn('[sync] Firebase not ready, skipping push'); return; }
+    const ready = await waitForFirebaseAuth(4000);
+    if (!ready) throw new Error('Firebase authentication connecting... Please retry in a second');
   }
 
   if (_isSyncing) {
@@ -140,7 +140,7 @@ async function performSyncToCloud() {
   _isSyncing = true;
 
   const uid = (auth.currentUser && auth.currentUser.uid) || (_currentUser && _currentUser.uid);
-  if (!uid) return;
+  if (!uid) throw new Error('User UID missing');
 
   try {
     const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
@@ -152,12 +152,14 @@ async function performSyncToCloud() {
       const snapshot = await getDocs(collRef);
 
       const batch = writeBatch(db);
+      let opCount = 0;
 
       // Safety: Never wipe existing cloud docs if local store is completely empty
       if (items.length > 0) {
         snapshot.forEach(docSnap => {
           if (!itemIds.has(docSnap.id)) {
             batch.delete(docSnap.ref);
+            opCount++;
           }
         });
       } else if (snapshot.size > 0) {
@@ -175,8 +177,11 @@ async function performSyncToCloud() {
         if (!item.id) continue;
         const docRef = doc(db, `users/${uid}/${collName}`, item.id);
         batch.set(docRef, cleanObjectForFirestore(item));
+        opCount++;
       }
-      await batch.commit();
+      if (opCount > 0) {
+        await batch.commit();
+      }
     }
 
     const settings = lsGet('settings', {});
@@ -185,10 +190,10 @@ async function performSyncToCloud() {
     }
     lsSet('lastSyncTimestamp', Date.now());
   } catch (err) {
-    if (err.message && (err.message.includes('permission') || err.code === 'permission-denied')) {
-      return;
-    }
     console.error('syncToCloud error:', err);
+    if (err.code === 'permission-denied' || (err.message && err.message.includes('permission'))) {
+      throw new Error('Firestore Permission Denied (Check Firebase Security Rules)');
+    }
     throw err;
   } finally {
     _isSyncing = false;
@@ -289,10 +294,10 @@ async function performSyncFromCloud() {
 
     return { success: true, timestamp, data: newData };
   } catch (err) {
-    if (err.message && (err.message.includes('permission') || err.code === 'permission-denied')) {
-      return { error: 'Permission denied' };
-    }
     console.error('syncFromCloud error:', err);
+    if (err.code === 'permission-denied' || (err.message && err.message.includes('permission'))) {
+      return { error: 'Firestore Permission Denied (Check Firebase Security Rules)' };
+    }
     return { error: err.message };
   }
 }

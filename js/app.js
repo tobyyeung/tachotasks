@@ -311,8 +311,10 @@ function setupAuth() {
         if (state.projects) await window.api.saveProjects(state.projects);
         if (state.profiles) await window.api.saveProfiles(state.profiles);
         if (state.settings) await window.api.saveSettings(state.settings);
-        await window.api.syncPush();
-        await window.api.syncPull();
+        const pushRes = await window.api.syncPush();
+        if (pushRes && pushRes.error) throw new Error(pushRes.error);
+        const pullRes = await window.api.syncPull();
+        if (pullRes && pullRes.error) throw new Error(pullRes.error);
         await refreshDataFromStore();
         setSyncStatus('synced');
         showToast('Cloud Sync Complete', 'success');
@@ -1328,8 +1330,14 @@ function attachViewListeners() {
       settingsSyncBtn.disabled = true;
       setSyncStatus('syncing');
       try {
-        await window.api.syncPush();
-        await window.api.syncPull();
+        if (state.tasks) await window.api.saveTasks(state.tasks);
+        if (state.projects) await window.api.saveProjects(state.projects);
+        if (state.profiles) await window.api.saveProfiles(state.profiles);
+        if (state.settings) await window.api.saveSettings(state.settings);
+        const pushRes = await window.api.syncPush();
+        if (pushRes && pushRes.error) throw new Error(pushRes.error);
+        const pullRes = await window.api.syncPull();
+        if (pullRes && pullRes.error) throw new Error(pullRes.error);
         await refreshDataFromStore();
         setSyncStatus('synced');
         showToast('Synced with Firebase Cloud!', 'success');
