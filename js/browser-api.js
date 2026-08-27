@@ -308,10 +308,6 @@ async function performSyncFromCloud() {
     }
 
     return { success: true, timestamp, data: newData };
-      performSyncToCloud().catch(err => console.error('Cloud fix error:', err));
-    }
-
-    return { success: true, timestamp, data: newData };
   } catch (err) {
     if (err.message && (err.message.includes('permission') || err.code === 'permission-denied')) {
       return { error: 'Permission denied' };
