@@ -86,5 +86,5 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 - [ ] Fix task profile selector
 - [ ] Fix projects UI and integration
 - [ ] Add animation when hovering over settings icon (spin on hover)
-- [ ] Add all-day event banner support in monthly/weekly calendar
+  - [ ] Add all-day event banner support in monthly/weekly calendar
 - [ ] Daily reminder notifications in dashboard
