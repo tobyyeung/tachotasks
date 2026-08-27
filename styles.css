@@ -648,6 +648,16 @@ a {
   background: var(--accent);
 }
 
+.sync-btn-spinning img {
+  animation: spin 0.8s linear infinite !important;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes pulse {
   0% {
     opacity: 1;

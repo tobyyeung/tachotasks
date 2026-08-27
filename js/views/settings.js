@@ -125,9 +125,13 @@ function renderSettings() {
       </div>
 
       <div class="settings-section" style="margin-bottom:32px;">
-        <h2 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);border-bottom:1px solid var(--border);padding-bottom:8px;">Data & Backup</h2>
-        <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:16px;">Export your local data to a JSON file for safekeeping, or import from a previous backup.</p>
-        <div style="display:flex;gap:16px;">
+        <h2 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);border-bottom:1px solid var(--border);padding-bottom:8px;">Data & Cloud Sync</h2>
+        <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:16px;">Force an immediate two-way synchronization with Firebase Cloud, or export/import your local data.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button id="settings-sync-cloud-btn" class="btn-primary" style="display:flex;align-items:center;gap:6px;">
+            <img src="assets/icons/Refresh.png" alt="Sync" style="width:16px;height:16px;object-fit:contain;filter:brightness(10);" />
+            Sync with Cloud Now
+          </button>
           <button id="export-backup-btn" class="btn-secondary">Export Backup</button>
           <label class="btn-secondary" style="cursor:pointer;display:flex;align-items:center;">
             Import Backup

@@ -300,6 +300,27 @@ function setupAuth() {
     }
   });
 
+  const manualSyncBtn = document.getElementById('manual-sync-btn');
+  if (manualSyncBtn) {
+    manualSyncBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      manualSyncBtn.classList.add('sync-btn-spinning');
+      setSyncStatus('syncing');
+      try {
+        await window.api.syncPush();
+        await window.api.syncPull();
+        await refreshDataFromStore();
+        setSyncStatus('synced');
+        showToast('Cloud Sync Complete', 'success');
+      } catch (err) {
+        console.error('Manual sync failed:', err);
+        showToast('Sync failed: ' + err.message, 'error');
+        setSyncStatus('offline');
+      } finally {
+        manualSyncBtn.classList.remove('sync-btn-spinning');
+      }
+    });
+  }
 }
 
 function showLoginOverlay() {
@@ -1294,6 +1315,32 @@ function attachViewListeners() {
       renderView();
     });
   });
+
+  // Settings: Sync with Cloud Now
+  const settingsSyncBtn = document.getElementById('settings-sync-cloud-btn');
+  if (settingsSyncBtn) {
+    settingsSyncBtn.addEventListener('click', async () => {
+      const originalHtml = settingsSyncBtn.innerHTML;
+      settingsSyncBtn.innerHTML = '<img src="assets/icons/Refresh.png" alt="Sync" style="width:16px;height:16px;object-fit:contain;filter:brightness(10);animation:spin 0.8s linear infinite;" /> Syncing...';
+      settingsSyncBtn.disabled = true;
+      setSyncStatus('syncing');
+      try {
+        await window.api.syncPush();
+        await window.api.syncPull();
+        await refreshDataFromStore();
+        setSyncStatus('synced');
+        showToast('Synced with Firebase Cloud!', 'success');
+        renderView();
+      } catch (err) {
+        console.error('Settings cloud sync failed:', err);
+        showToast('Sync failed: ' + err.message, 'error');
+        setSyncStatus('offline');
+      } finally {
+        settingsSyncBtn.innerHTML = originalHtml;
+        settingsSyncBtn.disabled = false;
+      }
+    });
+  }
 
   // Settings: Export Backup
   const exportBtn = document.getElementById('export-backup-btn');
