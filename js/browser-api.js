@@ -153,12 +153,23 @@ async function performSyncToCloud() {
 
       const batch = writeBatch(db);
 
-      // Delete docs in cloud that are not in local store
-      snapshot.forEach(docSnap => {
-        if (!itemIds.has(docSnap.id)) {
-          batch.delete(docSnap.ref);
-        }
-      });
+      // Safety: Never wipe existing cloud docs if local store is completely empty
+      if (items.length > 0) {
+        snapshot.forEach(docSnap => {
+          if (!itemIds.has(docSnap.id)) {
+            batch.delete(docSnap.ref);
+          }
+        });
+      } else if (snapshot.size > 0) {
+        // Local store was empty but cloud has items — populate local store instead of deleting cloud!
+        const cloudItems = [];
+        snapshot.forEach(docSnap => {
+          const it = docSnap.data();
+          if (!it.id) it.id = docSnap.id;
+          cloudItems.push(it);
+        });
+        lsSet(collName, cloudItems);
+      }
 
       for (const item of items) {
         if (!item.id) continue;
@@ -902,11 +913,9 @@ window.api = {
 
   // Cloud Synchronization
   syncPull: async () => {
-    // If there are pending local changes, push first
     if (_syncTimeout) {
       clearTimeout(_syncTimeout);
       _syncTimeout = null;
-      await performSyncToCloud();
     }
     return await performSyncFromCloud();
   },
