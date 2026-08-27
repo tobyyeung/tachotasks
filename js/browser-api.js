@@ -151,6 +151,9 @@ async function performSyncToCloud() {
       const collRef = collection(db, `users/${uid}/${collName}`);
       const snapshot = await getDocs(collRef);
 
+      const batch = writeBatch(db);
+      let opCount = 0;
+
       // Delete docs in cloud that are not in local store
       snapshot.forEach(docSnap => {
         if (!itemIds.has(docSnap.id)) {
