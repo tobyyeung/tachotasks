@@ -33,3 +33,6 @@ When removing properties, fields, or features from data structures or local stor
 ### 5. Automated Verification
 - Run `node -c <file>` syntax checks proactively without requiring manual confirmation whenever JavaScript files are modified.
 
+### 6. Git Commit Convention
+- Every commit message MUST follow the versioned convention: `vX.Y - <type>: <description>` (e.g. `v1.1 - fix: ...`, `v1.2 - feat: ...`, `v1.3 - refactor: ...`).
+
