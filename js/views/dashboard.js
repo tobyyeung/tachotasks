@@ -22,8 +22,8 @@ function renderDashboard() {
     </button>
   `;
 
-  // Apply mode filter to dashboard tasks
-  const modeFilteredTasks = getFilteredByMode(state.tasks);
+  // Global tasks across workspace
+  const allTasks = state.tasks || [];
   const dateStr = formatDateFull(new Date());
 
   // 1. Today's Itinerary: merge Google Calendar events + scheduled tasks, sorted by time
@@ -31,7 +31,7 @@ function renderDashboard() {
     .filter(e => e.date === today)
     .map(e => ({ ...e, type: 'gcal_event', sortTime: e.startTime || '00:00' }));
 
-  const todayScheduledTasks = modeFilteredTasks
+  const todayScheduledTasks = allTasks
     .filter(t => t.dueDate === today && t.dueTime)
     .map(t => {
       const [h, m] = t.dueTime.split(':').map(Number);
@@ -65,6 +65,7 @@ function renderDashboard() {
         `;
       } else {
         const pColor = getPriorityColor(item.priority);
+        const proj = item.projectId ? state.projects.find(p => p.id === item.projectId) : null;
         return `
           <div class="itinerary-item ${item.completed ? 'completed' : ''}" data-task-id="${item.id}">
             <span class="itinerary-time">${formatTime12(item.dueTime)}</span>
@@ -73,6 +74,7 @@ function renderDashboard() {
               <div class="itinerary-title">${escHtml(item.title)}</div>
               <div class="itinerary-meta">
                 <span>Due ${formatTime12(item.dueTime)}${item.endTime && item.endTime !== item.dueTime ? ' – ' + formatTime12(item.endTime) : ''}</span>
+                ${proj ? `<span class="source-badge" style="color:${proj.color || 'var(--accent)'};border-color:${proj.color}40;">● ${escHtml(proj.name)}</span>` : ''}
               </div>
             </div>
           </div>
@@ -81,20 +83,22 @@ function renderDashboard() {
     }).join('')
     : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No items scheduled for today</div></div>';
 
-  const unscheduledToday = modeFilteredTasks.filter(t => t.dueDate === today && !t.dueTime && !t.completed);
+  const unscheduledToday = allTasks.filter(t => t.dueDate === today && !t.dueTime && !t.completed);
 
   // 2. Do Soon (Due Today or Tomorrow)
-  const doSoonTasks = modeFilteredTasks.filter(t => (t.dueDate === today || t.dueDate === tomorrow) && !t.completed)
+  const doSoonTasks = allTasks.filter(t => (t.dueDate === today || t.dueDate === tomorrow) && !t.completed)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   const doSoonHtml = doSoonTasks.length > 0
     ? doSoonTasks.map(t => {
       const dueLabel = t.dueDate === today ? 'Today' : 'Tomorrow';
+      const proj = t.projectId ? state.projects.find(p => p.id === t.projectId) : null;
       return `
         <div class="itinerary-item" data-task-id="${t.id}" style="align-items:center;">
           <input type="checkbox" class="task-checkbox do-soon-checkbox" data-task-id="${t.id}" style="margin-right:12px;width:18px;height:18px;accent-color:var(--accent);cursor:pointer;" />
           <div class="itinerary-content">
             <div class="itinerary-title" style="font-size:13px;">${escHtml(t.title)}</div>
+            ${proj ? `<div style="font-size:11px;color:${proj.color || 'var(--accent)'};margin-top:2px;">● ${escHtml(proj.name)}</div>` : ''}
           </div>
           <span style="font-size:11px;color:var(--priority-p1);font-weight:600;padding-left:8px;">${dueLabel}</span>
         </div>
@@ -102,52 +106,17 @@ function renderDashboard() {
     }).join('')
     : '<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">Nothing due soon</div></div>';
 
-  // 3. Upcoming Birthdays (Reminders)
-  const upcomingReminders = state.reminders
-    .map(r => {
-      const rDate = new Date(r.date);
-      const diff = Math.ceil((rDate - new Date(today)) / 86400000);
-      return { ...r, daysUntil: diff };
-    })
-    .filter(r => r.daysUntil >= 0 && r.daysUntil <= 30)
-    .sort((a, b) => a.daysUntil - b.daysUntil);
-
-  const remindersHtml = upcomingReminders.length > 0
-    ? upcomingReminders.map(r => {
-      const initials = r.personName.split(' ').map(n => n[0]).join('').toUpperCase();
-      const daysText = r.daysUntil === 0 ? 'Today!' : r.daysUntil === 1 ? 'Tomorrow' : `In ${r.daysUntil} days`;
-      const icon = r.type === 'birthday' ? '🎂' : '💝';
-      return `
-        <div class="reminder-card">
-          <div class="reminder-avatar">${initials}</div>
-          <div class="reminder-info">
-            <div class="reminder-name">🔔 ${escHtml(r.personName)}</div>
-            <div class="reminder-detail">${daysText} · ${r.date}</div>
-          </div>
-        </div>
-      `;
-    }).join('')
-    : '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">No upcoming reminders</div></div>';
-
   // Dynamic greeting logic
   const greetingOptions = [];
   if (unscheduledToday.length > 0) {
     greetingOptions.push(`You have ${unscheduledToday.length} tasks due today!`);
-  }
-  if (upcomingReminders.length > 0) {
-    const nextRem = upcomingReminders[0];
-    if (nextRem.daysUntil === 0) {
-      greetingOptions.push(`Reminder for ${escHtml(nextRem.personName)} is today! 🔔`);
-    } else {
-      greetingOptions.push(`Reminder for ${escHtml(nextRem.personName)} is coming up!`);
-    }
   }
   if (greetingOptions.length === 0) {
     greetingOptions.push(`Congrats! You have no tasks coming up.`);
   }
 
   const randomGreeting = greetingOptions[Math.floor(Math.random() * greetingOptions.length)];
-  const sessionBanner = state.sessionExpired ? `<div style="background:rgba(255,100,100,0.1);color:var(--danger);padding:10px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);">Google Session Expired. Please sign out and sign back in to sync your Google Calendars.</div>` : '';
+  const sessionBanner = state.sessionExpired ? `<div onclick="window.reconnectGoogleCalendar()" style="background:rgba(255,100,100,0.1);color:var(--danger);padding:10px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);cursor:pointer;" title="Click to reconnect Google Calendar">⚠️ Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>` : '';
 
   return `
     ${sessionBanner}
@@ -191,18 +160,6 @@ function renderDashboard() {
             </div>
             <div id="collapse-content-do-soon" class="itinerary-list" style="${collapsed['do-soon'] ? 'display:none;' : ''}">
               ${doSoonHtml}
-            </div>
-          </div>
-
-          <div class="social-widget" style="background:var(--bg-glass);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-lg);">
-            <div class="card-header">
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${getCollapseIcon('birthdays')}
-                <h2 style="font-size:var(--fs-lg);font-weight:600;">Upcoming Birthdays</h2>
-              </div>
-            </div>
-            <div id="collapse-content-birthdays" style="${collapsed['birthdays'] ? 'display:none;' : ''}">
-              ${remindersHtml}
             </div>
           </div>
 

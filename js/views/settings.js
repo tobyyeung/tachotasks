@@ -116,10 +116,10 @@ function renderSettings() {
         <h2 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);border-bottom:1px solid var(--border);padding-bottom:8px;">Developer & UI Testing</h2>
         <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:16px;">Temporarily disable Auth and Google Sync to make UI design and testing fast and easy without auth overlays or network errors.</p>
         <label style="display:flex;align-items:center;cursor:pointer;gap:12px;padding:12px;background:var(--bg-glass);border-radius:var(--radius-md);">
-          <input type="checkbox" id="settings-toggle-dev-mode" ${state.settings.devMode || window.IS_BROWSER ? 'checked' : ''} style="accent-color:var(--accent);width:18px;height:18px;cursor:pointer;">
+          <input type="checkbox" id="settings-toggle-dev-mode" ${state.settings.devMode ? 'checked' : ''} style="accent-color:var(--accent);width:18px;height:18px;cursor:pointer;">
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--text-primary);">Disable Auth & Google Sync (Dev Mode)</div>
-            <div style="font-size:12px;color:var(--text-secondary);">${window.IS_BROWSER ? 'Active automatically in Browser Mode (persisted via localStorage)' : 'Bypasses Google login & cloud sync errors for fast local UI work.'}</div>
+            <div style="font-size:12px;color:var(--text-secondary);">Bypasses Google login & cloud sync errors for fast local UI work.</div>
           </div>
         </label>
       </div>

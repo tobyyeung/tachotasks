@@ -4,7 +4,6 @@ async function init() {
   state.tasks = ensureTaskSchema(await window.api.getTasks());
   state.projects = await window.api.getProjects();
   state.events = [];
-  state.reminders = await window.api.getReminders();
   state.floatingGoals = [];
   state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
@@ -87,7 +86,7 @@ async function init() {
 
   // Auto-refresh calendars and cloud sync every 10 minutes (600,000 ms)
   setInterval(async () => {
-    if (state.settings.devMode || window.IS_BROWSER) return;
+    if (state.settings.devMode) return;
     if (state.activeGcalIds.length > 0) {
       await reloadGoogleEvents(true);
     }
@@ -151,56 +150,9 @@ function setupNavigation() {
 }
 
 
-// ===== MODE SWITCHER (Category Profiles) =====
+// ===== TASKS PROFILE SWITCHER SETUP =====
 function setupModeSwitcher() {
-  const switcher = document.getElementById('mode-switcher');
-  if (!switcher) return;
-
-  // Restore active mode from settings
-  state.activeMode = state.settings.activeMode || 'all';
-  
-  switcher.innerHTML = (state.profiles || []).map(p => {
-    let pImg = p.image;
-    if (!pImg) {
-      if (p.id === 'all') pImg = 'assets/brand/logo.png';
-      else if (p.id.includes('work')) pImg = 'assets/profiles/work.png';
-      else if (p.id.includes('school')) pImg = 'assets/profiles/school.png';
-      else pImg = 'assets/profiles/personal.png';
-    }
-    return `
-      <button class="mode-btn ${p.id === state.activeMode ? 'active' : ''}" data-mode="${p.id}" title="${escHtml(p.name).replace(/"/g, '&quot;')}">
-        <img src="${pImg}" alt="${escAttr(p.name)}" class="custom-emoji" style="margin-right:0;font-size:16px;" />
-      </button>
-    `;
-  }).join('');
-
-  switcher.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const mode = btn.dataset.mode;
-      state.activeMode = mode;
-
-      // Update UI
-      switcher.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      // Persist
-      state.settings.activeMode = mode;
-      await window.api.saveSettings(state.settings);
-
-      // If currently in a project view, check if the project belongs to the selected mode
-      if (state.currentView === 'project' && state.filterProject) {
-        const proj = state.projects.find(p => p.id === state.filterProject);
-        if (!proj || (mode !== 'all' && proj.profileId && proj.profileId !== mode)) {
-          state.currentView = 'tasks';
-          state.filterProject = null;
-        }
-      }
-
-      // Re-render
-      renderSidebarProjects();
-      renderView();
-    });
-  });
+  state.activeProfileId = state.settings.activeProfileId || 'all';
 }
 
 
@@ -212,7 +164,7 @@ function setupAuth() {
   
   if (!signInBtn || !signOutBtn) return;
 
-  if (state.settings.devMode || window.IS_BROWSER) {
+  if (state.settings.devMode) {
     hideLoginOverlay();
   }
 
@@ -235,10 +187,10 @@ function setupAuth() {
       try {
         const res = await window.api.syncPull();
         if (res && res.error) {
-          console.warn('Sync pull result:', res.error);
           if (isAuthOrInitError(res.error)) {
             setSyncStatus('');
           } else {
+            console.warn('Sync pull result:', res.error);
             setSyncStatus('offline');
           }
         } else {
@@ -268,7 +220,7 @@ function setupAuth() {
     }
   });
 
-  // Get initial user state
+  // Get initial user state — only set up UI, don't sync (let onAuthStateChanged handle sync when Firebase is ready)
   window.api.getUser().then(async user => {
     if (user) {
       signInBtn.classList.add('hidden');
@@ -279,25 +231,9 @@ function setupAuth() {
       
       const gcalSection = document.getElementById('gcal-sidebar-section');
       if (gcalSection) gcalSection.classList.remove('hidden');
-      
-      setSyncStatus('syncing');
-      try {
-        const res = await window.api.syncPull();
-        if (res && res.error) {
-          console.warn('Sync pull result:', res.error);
-          if (isAuthOrInitError(res.error)) {
-            setSyncStatus('');
-          } else {
-            setSyncStatus('offline');
-          }
-        } else {
-          setSyncStatus('synced');
-        }
-      } catch (e) {
-        console.error('Sync failed', e);
-        setSyncStatus('offline');
-      }
+      hideLoginOverlay();
 
+      // Load from local storage immediately (no cloud sync yet — Firebase auth may not be ready)
       try {
         await refreshDataFromStore();
       } catch (e) {
@@ -318,9 +254,14 @@ function setupAuth() {
       loginOverlayBtn.textContent = 'Connecting...';
       try {
         const result = await window.api.signIn();
-        if (result.success) {
+        if (result && result.success) {
           hideLoginOverlay();
           showToast('Signed in successfully', 'success');
+        } else {
+          const errMsg = (result && result.error) || 'Unknown sign in error';
+          console.error('Sign in error:', errMsg);
+          showToast(errMsg, 'error');
+          loginOverlayBtn.innerHTML = '<img src="assets/icons/Add.png" alt="Sign in" style="width:16px;height:16px;object-fit:contain;margin-right:6px;" /> Sign in with Google';
         }
       } catch (err) {
         console.error(err);
@@ -334,17 +275,13 @@ function setupAuth() {
     signInBtn.textContent = 'Connecting...';
     try {
       const result = await window.api.signIn();
-      if (result.success) {
+      if (result && result.success) {
         showToast('Signed in successfully', 'success');
-        
-        // After first sign-in, check if we should migrate local data
-        if (state.tasks.length > 5) {
-          const confirmMigrate = confirm("You have local tasks. Do you want to move them to your cloud account?");
-          if (confirmMigrate) {
-            await window.api.migrateLocalToCloud();
-            showToast('Data migrated to cloud', 'success');
-          }
-        }
+      } else {
+        const errMsg = (result && result.error) || 'Unknown sign in error';
+        console.error('Sign in error:', errMsg);
+        showToast(errMsg, 'error');
+        signInBtn.innerHTML = '<img src="assets/icons/Add.png" alt="Sign in" style="width:16px;height:16px;object-fit:contain;margin-right:6px;" /> Sign in with Google';
       }
     } catch (err) {
       console.error(err);
@@ -366,7 +303,7 @@ function setupAuth() {
 }
 
 function showLoginOverlay() {
-  if (state.settings.devMode || window.IS_BROWSER) {
+  if (state.settings.devMode) {
     hideLoginOverlay();
     return;
   }
@@ -416,32 +353,11 @@ function ensureTaskSchema(tasks) {
 async function refreshDataFromStore() {
   state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
   state.projects = await window.api.getProjects() || [];
-  state.events = await window.api.getEvents() || [];
-  state.reminders = await window.api.getReminders() || [];
-  state.floatingGoals = await window.api.getFloatingGoals() || [];
+  state.events = [];
+  state.floatingGoals = [];
   state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
   state.profiles = await window.api.getProfiles() || [];
-  
-  // Auto-expire or renew reminders
-  const todayDate = new Date(getTodayStr());
-  let remindersChanged = false;
-  state.reminders = state.reminders.filter(r => {
-    const rDate = new Date(r.date);
-    if (rDate < todayDate && r.date !== getTodayStr()) {
-      const parts = r.date.split('-');
-      while (new Date(parts.join('-')) < todayDate && parts.join('-') !== getTodayStr()) {
-        parts[0] = (parseInt(parts[0], 10) + 1).toString();
-      }
-      r.date = parts.join('-');
-      remindersChanged = true;
-      return true;
-    }
-    return true;
-  });
-  if (remindersChanged) {
-    window.api.saveReminders(state.reminders);
-  }
 
   if (Array.isArray(state.settings.activeGcalIds)) {
     state.activeGcalIds = [...state.settings.activeGcalIds];
@@ -485,7 +401,7 @@ async function loadGoogleCalendars() {
   const listContainer = document.getElementById('gcal-list');
   if (!listContainer) return;
   
-  if (state.settings.devMode || window.IS_BROWSER) {
+  if (state.settings.devMode) {
     console.log('[Dev Mode] Skipping Google Calendar network sync');
     renderSidebarGcals();
     return;
@@ -496,9 +412,16 @@ async function loadGoogleCalendars() {
     if (calendars && calendars.error) {
       if (calendars.error === 'SESSION_EXPIRED') {
         state.sessionExpired = true;
+        updateGcalStatus();
         renderView();
       }
-      throw new Error(calendars.error);
+      // Fallback to cached calendars so UI doesn't break
+      const cachedCals = await window.api.getGcalCalendarsCache();
+      if (cachedCals && cachedCals.length > 0) {
+        state.gcalCalendars = cachedCals;
+        renderSidebarGcals();
+      }
+      return;
     }
     
     state.sessionExpired = false;
@@ -515,12 +438,43 @@ async function loadGoogleCalendars() {
     
     renderSidebarGcals();
     setupRefreshButton();
+    updateGcalStatus();
 
     await reloadGoogleEvents(true);
     
   } catch (err) {
     console.error('Failed to load Google Calendars', err);
-    listContainer.innerHTML = `<div style="padding:5px;color:var(--danger);font-size:11px;">Error loading calendars</div>`;
+    const cachedCals = await window.api.getGcalCalendarsCache();
+    if (cachedCals && cachedCals.length > 0) {
+      state.gcalCalendars = cachedCals;
+      renderSidebarGcals();
+    } else {
+      listContainer.innerHTML = `<div style="padding:5px;color:var(--danger);font-size:11px;">Error loading calendars</div>`;
+    }
+    updateGcalStatus();
+  }
+}
+
+/**
+ * Updates the Google Calendar connection status indicator in the sidebar.
+ */
+function updateGcalStatus() {
+  const statusEl = document.getElementById('gcal-status');
+  if (!statusEl) return;
+  
+  const isConnected = localStorage.getItem('auth.gcalConnected') === 'true';
+  const hasToken = !!localStorage.getItem('auth.googleAccessToken');
+  
+  if (state.sessionExpired) {
+    statusEl.style.display = 'flex';
+    statusEl.classList.add('disconnected');
+    statusEl.querySelector('.gcal-status-text').textContent = 'GCal session expired';
+  } else if (isConnected && hasToken) {
+    statusEl.style.display = 'flex';
+    statusEl.classList.remove('disconnected');
+    statusEl.querySelector('.gcal-status-text').textContent = 'Google Calendar connected';
+  } else {
+    statusEl.style.display = 'none';
   }
 }
 
@@ -530,7 +484,6 @@ async function reloadGoogleEvents(force = false) {
     return;
   }
   
-  // Only fetch calendars that are newly checked or if force refresh is requested
   const toFetch = force ? state.activeGcalIds : state.activeGcalIds.filter(id => !state.fetchedGcalIds.has(id));
   
   if (toFetch.length === 0) {
@@ -538,38 +491,56 @@ async function reloadGoogleEvents(force = false) {
     return;
   }
   
-  // We only fetch events roughly around the current month/week to keep it fast
   const today = new Date();
   const timeMin = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString();
   const timeMax = new Date(today.getFullYear(), today.getMonth() + 2, 1).toISOString();
   
   try {
     const newEvents = await window.api.getGCalEvents(toFetch, timeMin, timeMax);
-    if (newEvents.error) {
+    if (newEvents && newEvents.error) {
       if (newEvents.error === 'SESSION_EXPIRED') {
         state.sessionExpired = true;
         renderView();
       }
+      // Fallback to cached events
+      const cachedEvents = await window.api.getGcalEventsCache();
+      if (cachedEvents && cachedEvents.length > 0) {
+        state.gcalEvents = cachedEvents;
+      }
+      updateCalendarEventsUI();
       return;
     }
     
     state.sessionExpired = false;
-    // Remove stale events for the calendars we just re-fetched
-      state.gcalEvents = state.gcalEvents.filter(e => !toFetch.includes(e.calendarId));
-      // Append new freshly fetched events
-      state.gcalEvents.push(...newEvents);
-      
-      // Mark as fetched
-      toFetch.forEach(id => state.fetchedGcalIds.add(id));
-      
-      // Save to cache
-      await window.api.saveGcalEventsCache(state.gcalEvents);
+    state.gcalEvents = state.gcalEvents.filter(e => !toFetch.includes(e.calendarId));
+    state.gcalEvents.push(...newEvents);
+    
+    toFetch.forEach(id => state.fetchedGcalIds.add(id));
+    await window.api.saveGcalEventsCache(state.gcalEvents);
   } catch (err) {
     console.error('Failed to load Google Events', err);
+    const cachedEvents = await window.api.getGcalEventsCache();
+    if (cachedEvents && cachedEvents.length > 0) {
+      state.gcalEvents = cachedEvents;
+    }
   }
   
   updateCalendarEventsUI();
 }
+
+window.reconnectGoogleCalendar = async () => {
+  showToast('Reconnecting Google Calendar...', 'info');
+  const res = await window.api.reconnectGCal();
+  if (res && res.success) {
+    state.sessionExpired = false;
+    updateGcalStatus();
+    showToast('Google Calendar reconnected!', 'success');
+    await loadGoogleCalendars();
+    renderView();
+  } else {
+    showToast('Failed to reconnect. Please click Sign In in Settings.', 'danger');
+  }
+};
 
 function renderView() {
   const container = document.getElementById('view-container');
@@ -577,7 +548,6 @@ function renderView() {
     case 'dashboard': container.innerHTML = renderDashboard(); break;
     case 'tasks': container.innerHTML = renderTasks(); break;
     case 'project': container.innerHTML = renderProject(); break;
-    case 'reminders': container.innerHTML = renderReminders(); break;
     case 'calendar': container.innerHTML = renderCalendar(); break;
     case 'planner': container.innerHTML = renderPlanner(); break;
     case 'settings': container.innerHTML = renderSettings(); break;
@@ -737,7 +707,7 @@ function updatePlannerCalendarEvents() {
   if (rows.length === 0) return false;
   
   const today = getTodayStr();
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
   rows.forEach((row, i) => {
     const dateStr = row.dataset.plannerDate;
@@ -777,62 +747,15 @@ function updatePlannerCalendarEvents() {
 }
 
 
-// ===== QUICK-ADD BAR =====
-function setupQuickAdd() {
-  const input = document.getElementById('quick-add-input');
-  input.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter' && input.value.trim()) {
-      const text = input.value.trim();
-      const parsed = await window.api.parseNaturalLanguage(text);
-      addTaskFromParsed(parsed);
-      input.value = '';
-      showToast('Task added!', 'success');
-    }
-  });
-}
 
-async function addTaskFromParsed(parsed) {
-  // Try to match project by name
-  let projectId = null;
-  if (parsed.projectName) {
-    const proj = state.projects.find(p =>
-      p.name.toLowerCase() === parsed.projectName.toLowerCase()
-    );
-    if (proj) projectId = proj.id;
-  }
-
-  const task = {
-    id: generateId(),
-    title: parsed.title || 'Untitled task',
-    description: '',
-    priority: parsed.priority || null,
-    tags: parsed.tags || [],
-    projectId: projectId,
-    parentTaskId: null,
-    dueDate: parsed.dueDate || null,
-    dueTime: parsed.dueTime || null,
-    recurring: parsed.recurring || null,
-    completed: false,
-    completedAt: null,
-    createdAt: new Date().toISOString(),
-    profileId: getActiveProfileId()
-  };
-
-  state.tasks.push(task);
-  await saveTasks();
-  renderView();
-  renderSidebarTags();
-}
 
 /**
- * Migrates any tasks, projects, reminders, or sections missing a valid profileId to the default profile.
+ * Migrates any tasks or sections missing a valid profileId to the default profile.
  */
 async function migrateItemsToProfiles() {
   const defaultProf = (state.settings && state.settings.defaultProfileId) || 'profile-personal';
   let tasksChanged = false;
   let archivedChanged = false;
-  let projectsChanged = false;
-  let remindersChanged = false;
   let settingsChanged = false;
 
   (state.tasks || []).forEach(t => {
@@ -849,20 +772,6 @@ async function migrateItemsToProfiles() {
     }
   });
 
-  (state.projects || []).forEach(p => {
-    if (!p.profileId || p.profileId === 'all') {
-      p.profileId = defaultProf;
-      projectsChanged = true;
-    }
-  });
-
-  (state.reminders || []).forEach(r => {
-    if (!r.profileId || r.profileId === 'all') {
-      r.profileId = defaultProf;
-      remindersChanged = true;
-    }
-  });
-
   if (state.settings && state.settings.taskSections) {
     state.settings.taskSections.forEach(s => {
       if (!s.profileId || s.profileId === 'all') {
@@ -874,8 +783,6 @@ async function migrateItemsToProfiles() {
 
   if (tasksChanged) await window.api.saveTasks(state.tasks);
   if (archivedChanged) await window.api.saveArchivedTasks(state.archivedTasks);
-  if (projectsChanged) await window.api.saveProjects(state.projects);
-  if (remindersChanged) await window.api.saveReminders(state.reminders);
   if (settingsChanged) await window.api.saveSettings(state.settings);
 }
 
@@ -1035,16 +942,13 @@ function attachViewListeners() {
   const calNext = document.getElementById('cal-next') || document.getElementById('planner-next');
   const calToday = document.getElementById('cal-today') || document.getElementById('planner-today');
 
-  // Reminders view listeners
-  const addReminderBtn = document.getElementById('add-reminder-btn');
-  if (addReminderBtn) addReminderBtn.addEventListener('click', () => showReminderModal());
-
-  document.querySelectorAll('.delete-reminder-btn').forEach(btn => {
+  // Tasks page profile switcher
+  document.querySelectorAll('.tasks-mode-switcher [data-tasks-profile]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id = btn.dataset.reminderId;
-      state.reminders = state.reminders.filter(r => r.id !== id);
-      await window.api.saveReminders(state.reminders);
-      showToast('Reminder deleted', 'success');
+      const pId = btn.dataset.tasksProfile;
+      state.activeProfileId = pId;
+      state.settings.activeProfileId = pId;
+      await window.api.saveSettings(state.settings);
       renderView();
     });
   });
@@ -1078,45 +982,12 @@ function attachViewListeners() {
 
   // Inline Add Task for Section
   document.querySelectorAll('.add-task-inline-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const secId = btn.dataset.addTaskSection;
-      const html = `
-        <div style="padding:var(--sp-md);">
-          <h2 style="font-size:16px;margin-bottom:12px;">Add Task</h2>
-          <input type="text" id="modal-inline-task-title" class="inbox-input" placeholder="Task name..." style="width:100%;margin-bottom:16px;" autofocus />
-          <div style="display:flex;gap:8px;justify-content:flex-end;">
-            <button id="modal-cancel-inline-task" style="padding:6px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text-primary);cursor:pointer;">Cancel</button>
-            <button id="modal-confirm-inline-task" style="padding:6px 16px;border-radius:var(--radius-sm);background:var(--accent);color:white;border:none;cursor:pointer;">Add Task</button>
-          </div>
-        </div>
-      `;
-      openModal(html);
-
-      const submit = async () => {
-        const title = document.getElementById('modal-inline-task-title').value.trim();
-        if (title) {
-          const newTask = {
-            id: 'task-' + generateId(),
-            title,
-            completed: false,
-            createdAt: new Date().toISOString(),
-            sectionId: secId !== 'unsectioned' ? secId : null,
-            projectId: state.filterProject || null,
-            profileId: getActiveProfileId(),
-            tags: [],
-            priority: null
-          };
-          state.tasks.unshift(newTask);
-          await window.api.saveTasks(state.tasks);
-          renderView();
-          closeModal();
-        }
-      };
-
-      document.getElementById('modal-cancel-inline-task').addEventListener('click', closeModal);
-      document.getElementById('modal-confirm-inline-task').addEventListener('click', submit);
-      document.getElementById('modal-inline-task-title').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submit();
+      openInlineTaskCreate(btn, {
+        sectionId: secId !== 'unsectioned' ? secId : null,
+        projectId: state.filterProject || null
       });
     });
   });
@@ -1212,31 +1083,6 @@ function attachViewListeners() {
       renderView();
     });
   });
-
-  // Quick Add Reminder
-  const quickReminderBtn = document.getElementById('quick-reminder-submit-btn');
-  if (quickReminderBtn) {
-    quickReminderBtn.addEventListener('click', async () => {
-      const name = document.getElementById('quick-reminder-name').value.trim();
-      const date = document.getElementById('quick-reminder-date').value;
-      if (!name || !date) {
-        showToast('Please provide a name and date', 'error');
-        return;
-      }
-      
-      const newRem = {
-        id: 'rem-' + generateId(),
-        personName: name,
-        date,
-        profileId: getActiveProfileId()
-      };
-      
-      state.reminders.push(newRem);
-      await window.api.saveReminders(state.reminders);
-      renderView();
-      showToast('Reminder added');
-    });
-  }
 
   // Delete Section
   document.querySelectorAll('.delete-section-btn').forEach(btn => {
@@ -1417,8 +1263,8 @@ function attachViewListeners() {
       const pId = btn.dataset.profileId;
       if (confirm('Delete this profile? (Tasks in this profile will become uncategorized in All)')) {
         state.profiles = state.profiles.filter(p => p.id !== pId);
-        if (state.activeMode === pId) state.activeMode = 'all';
-        state.settings.activeMode = state.activeMode;
+        if (state.activeProfileId === pId) state.activeProfileId = 'all';
+        state.settings.activeProfileId = state.activeProfileId;
         
         // Remove categories from projects that used this profile
         state.projects.forEach(p => {
@@ -1484,14 +1330,12 @@ function attachViewListeners() {
               state.settings = importedState.settings || {};
               state.profiles = importedState.profiles || [];
               state.archivedTasks = importedState.archivedTasks || [];
-              state.reminders = importedState.reminders || [];
               
               await saveTasks();
               await window.api.saveProjects(state.projects);
               await window.api.saveSettings(state.settings);
               await window.api.saveProfiles(state.profiles);
               await saveArchivedTasks();
-              await window.api.saveReminders(state.reminders);
               
               showToast('Backup imported successfully');
               setTimeout(() => location.reload(), 1000);
@@ -1517,107 +1361,35 @@ function attachViewListeners() {
 }
 
 
-// ===== DRAG AND DROP =====
-function setupDragAndDrop() {
-  // Draggable tasks
-  document.querySelectorAll('[draggable="true"][data-task-id]').forEach(el => {
-    el.addEventListener('dragstart', (e) => {
-      state.dragTaskId = el.dataset.taskId;
-      el.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', el.dataset.taskId);
-    });
-    el.addEventListener('dragend', () => {
-      el.classList.remove('dragging');
-      state.dragTaskId = null;
-      document.querySelectorAll('.drag-over').forEach(d => d.classList.remove('drag-over'));
-    });
-  });
-
-  // Section drop zones
-  document.querySelectorAll('[data-section-drop]').forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      zone.style.background = 'var(--bg-glass)';
-      zone.style.outline = '1px dashed var(--accent)';
-    });
-    zone.addEventListener('dragleave', () => {
-      zone.style.background = '';
-      zone.style.outline = 'none';
-    });
-    zone.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      zone.style.background = '';
-      zone.style.outline = 'none';
-      const taskId = e.dataTransfer.getData('text/plain');
-      const newSectionId = zone.dataset.sectionDrop;
-      const task = state.tasks.find(t => t.id === taskId);
-      if (task) {
-        task.sectionId = newSectionId === 'unsectioned' ? null : newSectionId;
-        await saveTasks();
-        renderView();
-      }
-    });
-  });
-
-  // Calendar drop zones
-  document.querySelectorAll('[data-drop-target="calendar"]').forEach(cell => {
-    cell.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      cell.classList.add('drag-over');
-    });
-    cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
-    cell.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      cell.classList.remove('drag-over');
-      const taskId = e.dataTransfer.getData('text/plain');
-      const date = cell.dataset.calDate;
-      const hour = parseInt(cell.dataset.calHour);
-      const task = state.tasks.find(t => t.id === taskId);
-      if (task && date) {
-        task.dueDate = date;
-        task.dueTime = `${String(hour).padStart(2, '0')}:00`;
-        await saveTasks();
-        renderView();
-        showToast(`Due time set to ${formatTime12(task.dueTime)}`, 'success');
-      }
-    });
-  });
-
-  // Planner drop zones
-  document.querySelectorAll('[data-drop-target="planner"]').forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      zone.style.background = 'var(--accent-muted)';
-    });
-    zone.addEventListener('dragleave', () => {
-      zone.style.background = '';
-    });
-    zone.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      zone.style.background = '';
-      const taskId = e.dataTransfer.getData('text/plain');
-      const date = zone.dataset.plannerDate;
-      const task = state.tasks.find(t => t.id === taskId);
-      if (task && date) {
-        task.dueDate = date;
-        await saveTasks();
-        renderView();
-        showToast(`Scheduled for ${formatDateShort(new Date(date))}`, 'success');
-      }
-    });
-  });
-}
 
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', init);
+
+// Initialize app when DOM is ready AND browser-api.js module has loaded
+// ES modules (type="module") are deferred — they execute after regular scripts.
+// We poll briefly for window.api to be set by browser-api.js before bootstrapping.
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.api) { init(); return; }
+  const waitForApi = setInterval(() => {
+    if (window.api) { clearInterval(waitForApi); init(); }
+  }, 50);
+});
 
 // Global click listener for external links
 document.body.addEventListener('click', (e) => {
   const target = e.target.closest('a.external-link');
   if (target && target.href) {
     e.preventDefault();
-    window.api.openExternal(target.href);
+    window.open(target.href, '_blank');
+  }
+});
+
+// Re-render calendar events on window resize
+let _calResizeTimeout = null;
+window.addEventListener('resize', () => {
+  if (state.currentView === 'calendar') {
+    if (_calResizeTimeout) clearTimeout(_calResizeTimeout);
+    _calResizeTimeout = setTimeout(() => {
+      renderCalendarEvents();
+    }, 100);
   }
 });

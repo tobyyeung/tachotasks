@@ -3,13 +3,15 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Tacho Tasks — A unified daily command center for schedule, tasks, and life events" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=33">
+  <link rel="icon" href="assets/brand/logo.png" type="image/png">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <title>Tacho Tasks</title>
 </head>
 
@@ -28,14 +30,6 @@
         </button>
       </div>
 
-      <!-- Mode Switcher -->
-      <div class="mode-switcher" id="mode-switcher">
-        <button class="mode-btn active" data-mode="all" title="All">All</button>
-        <button class="mode-btn" data-mode="profile-personal" title="Personal">P</button>
-        <button class="mode-btn" data-mode="profile-school" title="School">S</button>
-        <button class="mode-btn" data-mode="profile-work" title="Work">W</button>
-      </div>
-
       <nav class="sidebar-nav" id="sidebar-nav">
         <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
           <img class="nav-icon" src="assets/icons/Dashboard.png" alt="Dashboard" style="width:22px;height:22px;object-fit:contain;" />
@@ -48,10 +42,6 @@
         <button class="nav-item" data-view="calendar" id="nav-calendar">
           <img class="nav-icon" src="assets/icons/Calendar.png" alt="Calendar" style="width:22px;height:22px;object-fit:contain;" />
           <span>Calendar</span>
-        </button>
-        <button class="nav-item" data-view="reminders" id="nav-reminders">
-          <img class="nav-icon" src="assets/icons/Bell.png" alt="Reminders" style="width:22px;height:22px;object-fit:contain;" />
-          <span>Reminders</span>
         </button>
         <button class="nav-item" data-view="planner" id="nav-planner">
           <img class="nav-icon" src="assets/icons/Planner.png" alt="Planner" style="width:22px;height:22px;object-fit:contain;" />
@@ -115,6 +105,10 @@
                 </button>
               </div>
               <div id="user-email" class="user-email" style="font-size:11px;color:var(--text-tertiary);"></div>
+              <div id="gcal-status" class="gcal-connection-status" style="display:none;">
+                <span class="gcal-status-dot"></span>
+                <span class="gcal-status-text">Google Calendar connected</span>
+              </div>
             </div>
           </div>
 
@@ -183,18 +177,22 @@
   <!-- Context Menu -->
   <div id="context-menu" class="context-menu hidden"></div>
 
-  <script src="js/browser-api.js"></script>
+  <script type="module" src="js/browser-api.js?v=4"></script>
   <script src="js/state.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/data.js"></script>
   <script src="js/components/date-selector.js"></script>
   <script src="js/components/task-menu.js"></script>
-  <script src="js/components/modals.js"></script>
+  <script src="js/components/modal-base.js"></script>
+  <script src="js/components/task-modal.js?v=14"></script>
+  <script src="js/components/project-modal.js"></script>
+  <script src="js/components/event-popover.js"></script>
+  <script src="js/components/quick-add.js"></script>
+  <script src="js/components/drag-drop.js"></script>
   <script src="js/components/sidebar.js"></script>
   <script src="js/views/dashboard.js"></script>
   <script src="js/views/tasks.js"></script>
-  <script src="js/views/project.js"></script>
-  <script src="js/views/reminders.js"></script>
+  <script src="js/views/project.js?v=2"></script>
   <script src="js/views/archive.js"></script>
   <script src="js/views/calendar.js"></script>
   <script src="js/views/planner.js"></script>

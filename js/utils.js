@@ -8,8 +8,8 @@
  * @returns {string} Profile ID to assign to new items.
  */
 function getActiveProfileId() {
-  if (state.activeMode && state.activeMode !== 'all') {
-    return state.activeMode;
+  if (state.activeProfileId && state.activeProfileId !== 'all') {
+    return state.activeProfileId;
   }
   return (state.settings && state.settings.defaultProfileId) || 'profile-personal';
 }
@@ -64,15 +64,14 @@ function toDateStr(d) {
 }
 
 /**
- * Gets the Date object representing Monday of the given date's week.
+ * Gets the Date object representing Sunday of the given date's week.
  * @param {Date} date - Input date.
- * @returns {Date} Monday of that week.
+ * @returns {Date} Sunday of that week.
  */
 function getWeekStart(date) {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
+  const day = d.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  d.setDate(d.getDate() - day);
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -269,4 +268,25 @@ function escHtml(str) {
 function escAttr(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * Extracts the short venue/building name from a location string (omits street addresses).
+ * @param {string} locStr
+ * @returns {string}
+ */
+function formatLocationShort(locStr) {
+  if (!locStr) return '';
+  let clean = locStr.trim();
+  if (clean.includes('\n')) {
+    clean = clean.split('\n')[0].trim();
+  }
+  if (clean.includes(',')) {
+    const parts = clean.split(',');
+    const first = parts[0].trim();
+    if (first) {
+      clean = first;
+    }
+  }
+  return clean;
 }

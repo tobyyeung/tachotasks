@@ -7,12 +7,11 @@ function renderProject() {
     return renderTasks();
   }
 
-  // Get project & sub-project tasks
+  // Get project & sub-project tasks (globally)
   const subProjects = state.projects.filter(p => p.parentProjectId === proj.id);
   const projectIds = [proj.id, ...subProjects.map(p => p.id)];
 
-  let modeTasks = getFilteredByMode(state.tasks);
-  let projectTasks = modeTasks.filter(t => projectIds.includes(t.projectId));
+  let projectTasks = state.tasks.filter(t => projectIds.includes(t.projectId));
   let filtered = applyFilters(projectTasks);
 
   // Sorting
@@ -36,9 +35,6 @@ function renderProject() {
     return 0;
   });
 
-  // Profile info for connection badge
-  const profile = state.profiles.find(p => p.id === proj.profileId) || { name: 'Personal', icon: 'P' };
-
   // Sub-lists chips if any
   const subListsHtml = subProjects.length > 0 ? `
     <div class="project-sublists-bar" style="display:flex; gap:6px; margin-bottom:12px; align-items:center;">
@@ -54,10 +50,6 @@ function renderProject() {
         ${allTags.map(tag => `<button class="filter-chip ${state.filterTag === tag ? 'active' : ''}" data-filter-tag="${tag}">${tag}</button>`).join('')}
       </div>
       <div style="display:flex;gap:8px;">
-        <div class="view-toggle">
-          <button class="view-toggle-btn ${state.tasksViewMode !== 'list' ? 'active' : ''}" data-tasks-view="section">Sections</button>
-          <button class="view-toggle-btn ${state.tasksViewMode === 'list' ? 'active' : ''}" data-tasks-view="list">List</button>
-        </div>
         <div class="sort-dropdown-wrapper">
           <button class="sort-dropdown-btn" id="tasks-sort-btn">
             <img src="assets/icons/Sort.png" alt="Sort" style="width:18px;height:18px;object-fit:contain;" />
@@ -86,6 +78,20 @@ function renderProject() {
     </div>
   `;
 
+  // Render project tasks in a clean list
+  const incomplete = filtered.filter(t => !t.completed && !t.isCompleting);
+  const completing = filtered.filter(t => t.isCompleting);
+  const visibleTasks = [...incomplete, ...completing];
+
+  const taskListHtml = `
+    <div class="task-list">
+      ${visibleTasks.length > 0
+        ? visibleTasks.map(t => renderTaskItem(t)).join('')
+        : '<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">No tasks in this project yet. Add one!</div></div>'
+      }
+    </div>
+  `;
+
   // Project Deadlines card under tasks
   const upcomingTasks = filtered
     .filter(t => t.dueDate && !t.completed)
@@ -107,15 +113,11 @@ function renderProject() {
   `;
 
   return `
-    <div class="project-view">
+    <div class="project-view" style="height:100%; overflow-y:auto; padding-bottom:32px;">
       <div class="view-header" style="flex-wrap:wrap; gap:12px; align-items:center;">
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="dot" style="background:${proj.color}; width:14px; height:14px; border-radius:50%; box-shadow: 0 0 10px ${proj.color}88;"></span>
           <h1 style="font-size:24px; font-weight:700;">${escHtml(proj.name)}</h1>
-          <span class="profile-badge" style="display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:var(--radius-full); background:var(--accent-muted); color:var(--accent); font-size:11px; font-weight:600;">
-            <img src="${profile.image || (profile.id === 'profile-work' ? 'assets/profiles/work.png' : profile.id === 'profile-school' ? 'assets/profiles/school.png' : 'assets/profiles/personal.png')}" alt="${escAttr(profile.name)}" style="width:16px;height:16px;object-fit:contain;" />
-            <span>${escHtml(profile.name)}</span>
-          </span>
         </div>
         <div style="display:flex; gap:8px; margin-left:auto;">
           <button class="btn-secondary" id="add-project-list-btn" style="padding:6px 12px; font-size:12px;">+ Add List</button>
@@ -124,103 +126,8 @@ function renderProject() {
       </div>
       ${subListsHtml}
       ${filterHtml}
-      ${renderProjectTaskList(filtered, proj)}
+      ${taskListHtml}
       ${projectDeadlinesCard}
     </div>
   `;
-}
-
-function renderProjectTaskList(tasks, proj) {
-  const incomplete = tasks.filter(t => !t.completed && !t.isCompleting);
-  const completing = tasks.filter(t => t.isCompleting);
-  const visibleTasks = [...incomplete, ...completing];
-
-  let html = '<div class="task-list">';
-
-  // List view mode
-  if (state.tasksViewMode === 'list') {
-    html += visibleTasks.length > 0
-      ? visibleTasks.map(t => renderTaskItem(t)).join('')
-      : '<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">No tasks in this project yet. Add one!</div></div>';
-    html += '</div>';
-    return html;
-  }
-
-  // Section view mode (Project specific sections)
-  if (!state.settings.projectSections) {
-    state.settings.projectSections = [];
-  }
-
-  let sections = state.settings.projectSections.filter(s => s.projectId === proj.id);
-
-  // Group tasks by section
-  const sectionedTasks = {};
-  sections.forEach(s => sectionedTasks[s.id] = []);
-  const unsectionedTasks = [];
-
-  visibleTasks.forEach(t => {
-    if (t.sectionId && sectionedTasks[t.sectionId]) {
-      sectionedTasks[t.sectionId].push(t);
-    } else {
-      unsectionedTasks.push(t);
-    }
-  });
-
-  html += `
-    <div class="tasks-sections-wrapper">
-  `;
-
-  // Render project sections
-  sections.forEach(sec => {
-    const secTasks = sectionedTasks[sec.id] || [];
-    const count = secTasks.length;
-    html += `
-      <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="${sec.id}" draggable="true">
-        <div class="task-group-header">
-          <div class="section-title-wrap">
-            <span class="section-name">${escHtml(sec.name)}</span>
-            <span class="section-count">${count}</span>
-          </div>
-          <button class="icon-btn delete-project-section-btn" data-project-section-id="${sec.id}" title="Delete section" style="font-size:12px;opacity:0.4;">•••</button>
-        </div>
-        <div class="task-section-list">
-          ${secTasks.map(t => renderTaskItem(t)).join('')}
-        </div>
-        <button class="add-task-inline-btn" data-add-task-section="${sec.id}">
-          <span class="plus-icon">+</span> Add task
-        </button>
-      </div>
-    `;
-  });
-
-  // Render unsectioned tasks if not empty (or if no sections exist)
-  if (unsectionedTasks.length > 0 || sections.length === 0) {
-    const count = unsectionedTasks.length;
-    html += `
-      <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="unsectioned">
-        <div class="task-group-header">
-          <div class="section-title-wrap">
-            <span class="section-name">Uncategorized</span>
-            <span class="section-count">${count}</span>
-          </div>
-          <button class="icon-btn" style="font-size:12px;opacity:0.2;cursor:default;">•••</button>
-        </div>
-        <div class="task-section-list">
-          ${unsectionedTasks.map(t => renderTaskItem(t)).join('')}
-        </div>
-        <button class="add-task-inline-btn" data-add-task-section="unsectioned">
-          <span class="plus-icon">+</span> Add task
-        </button>
-      </div>
-    `;
-  }
-
-  // Add Section button for project
-  html += `
-    <button class="add-section-btn">
-      <img src="assets/icons/Add.png" alt="Add" style="width:18px;height:18px;object-fit:contain;" />
-      Add section
-    </button>
-  </div>`;
-  return html;
 }

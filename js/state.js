@@ -8,7 +8,6 @@ var state = {
   tasks: [],
   projects: [],
   profiles: [],
-  reminders: [],
   archivedTasks: [],
   settings: {},
   gcalEvents: [],
@@ -20,7 +19,7 @@ var state = {
   filterPriority: null,
   filterTag: null,
   filterProject: null,
-  activeMode: 'all', // 'all' | 'profile-work' | 'profile-personal' | 'profile-school'
+  activeProfileId: 'all', // 'all' | 'profile-personal' | 'profile-work' | 'profile-school'
   dragTaskId: null,
 };
 
@@ -40,23 +39,14 @@ var icons = {
 };
 
 /**
- * Filters an array of items (tasks, projects, reminders) based on the active profile mode.
- * Items without a profileId (created in 'all') pass through to every profile view.
- * @param {Array} items - Items to filter.
- * @returns {Array} Filtered list of items.
+ * Filters standalone tasks for the Tasks page based on the selected profile tab.
+ * @param {Array} items - Task items.
+ * @returns {Array} Filtered list of tasks.
  */
 function getFilteredByMode(items) {
   if (!items) return [];
-  if (state.activeMode === 'all') return items;
-  return items.filter(item => {
-    if (!item.profileId) return true;
-    if (item.profileId === state.activeMode) return true;
-    if (item.projectId) {
-      const proj = state.projects.find(p => p.id === item.projectId);
-      if (proj && (!proj.profileId || proj.profileId === state.activeMode)) return true;
-    }
-    return false;
-  });
+  if (!state.activeProfileId || state.activeProfileId === 'all') return items;
+  return items.filter(item => !item.projectId && item.profileId === state.activeProfileId);
 }
 
 /**

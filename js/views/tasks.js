@@ -63,10 +63,27 @@ function renderTasks() {
     </div>
   `;
 
+  const profileBtns = `
+    <div class="mode-switcher tasks-mode-switcher" id="tasks-mode-switcher">
+      <button class="mode-btn ${(!state.activeProfileId || state.activeProfileId === 'all') ? 'active' : ''}" data-tasks-profile="all" title="All Profiles">All</button>
+      ${(state.profiles || []).map(p => {
+        const isActive = state.activeProfileId === p.id;
+        const iconSrc = p.image || 'assets/profiles/personal.png';
+        return `<button class="mode-btn ${isActive ? 'active' : ''}" data-tasks-profile="${p.id}" title="${escAttr(p.name)}">
+          <img src="${iconSrc}" alt="${escAttr(p.name)}" class="custom-emoji" />
+          <span>${escHtml(p.name)}</span>
+        </button>`;
+      }).join('')}
+    </div>
+  `;
+
   return `
     <div class="tasks-view">
-      <div class="view-header">
-        <h1>Tasks</h1>
+      <div class="view-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <h1 style="margin:0;">Tasks</h1>
+          ${profileBtns}
+        </div>
         <button class="btn-primary" id="add-task-btn" style="padding:8px 16px;font-size:13px;">+ New Task</button>
       </div>
       ${filterHtml}
@@ -92,15 +109,14 @@ function renderTaskList(tasks) {
   }
 
   // Section view mode (default)
-  // Ensure sections exist in settings
   if (!state.settings.taskSections) {
     state.settings.taskSections = [];
   }
 
-  // Filter sections by active mode
+  // Filter sections by active profile
   let sections = state.settings.taskSections;
-  if (state.activeMode !== 'all') {
-    sections = sections.filter(s => !s.profileId || s.profileId === state.activeMode);
+  if (state.activeProfileId && state.activeProfileId !== 'all') {
+    sections = sections.filter(s => !s.profileId || s.profileId === state.activeProfileId);
   }
 
   // Group tasks by section

@@ -9,7 +9,7 @@ function renderPlanner() {
   }
 
   const today = getTodayStr();
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Mini week calendar
   let miniCalHtml = '<div class="calendar-nav" style="margin-bottom:16px;">';
@@ -25,11 +25,11 @@ function renderPlanner() {
     const localDayEvents = state.events.filter(e => e.date === dateStr);
     const gcalDayEvents = getActiveGcalEvents().filter(e => e.date === dateStr);
     const dayEvents = [...localDayEvents, ...gcalDayEvents];
-    const dayTasks = state.tasks.filter(t => t.dueDate === dateStr);
+    const dayTasks = state.tasks.filter(t => (t.dueDate === dateStr || t.plannedDate === dateStr));
 
     miniCalHtml += `
       <div class="planner-day-row" data-planner-date="${dateStr}" data-drop-target="planner" 
-           style="padding:12px;margin-bottom:4px;border-radius:10px;background:${isToday ? 'var(--accent-muted)' : 'var(--bg-glass)'};border:1px solid ${isToday ? 'rgba(0,212,170,0.2)' : 'var(--border)'};">
+           style="padding:12px;margin-bottom:6px;border-radius:10px;background:${isToday ? 'var(--accent-muted)' : 'var(--bg-glass)'};border:1px solid ${isToday ? 'rgba(0,212,170,0.2)' : 'var(--border)'};">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
           <span style="font-weight:600;font-size:13px;color:${isToday ? 'var(--accent)' : 'var(--text-primary)'}">${dayNames[i]} ${d.getDate()}</span>
           <span style="font-size:11px;color:var(--text-tertiary)">${dayEvents.length + dayTasks.length} items</span>
@@ -45,22 +45,33 @@ function renderPlanner() {
             }
             return `<div style="font-size:12px;color:${isGcal ? 'var(--text-primary)' : e.color};padding:2px 0;">${e.startTime ? formatTime12(e.startTime) : 'All Day'} ${isGcal ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${calColor};margin-right:4px;"></span>` : ''}${escHtml(e.title)}</div>`;
           }),
-          ...dayTasks.filter(t => !t.completed).map(t => `<div style="font-size:12px;color:var(--text-secondary);padding:2px 0;">• ${escHtml(t.title)}</div>`)
+          ...dayTasks.filter(t => !t.completed).map(t => {
+            const proj = t.projectId ? state.projects.find(p => p.id === t.projectId) : null;
+            const pColor = getPriorityColor(t.priority);
+            return `
+              <div style="font-size:12px;color:var(--text-secondary);padding:3px 0;display:flex;align-items:center;gap:6px;" data-task-id="${t.id}">
+                <span style="color:${pColor || 'var(--text-tertiary)'};">◯</span>
+                <span style="color:var(--text-primary);">${escHtml(t.title)}</span>
+                ${proj ? `<span style="color:${proj.color || 'var(--accent)'};font-size:11px;margin-left:auto;font-weight:500;">● ${escHtml(proj.name)}</span>` : ''}
+              </div>
+            `;
+          })
         ].join('')}
       </div>
     `;
   });
 
-  // Unscheduled backlog
-  const unscheduled = state.tasks.filter(t => !t.dueDate && !t.completed);
+  // Unscheduled backlog (all standalone and project tasks)
+  const unscheduled = state.tasks.filter(t => !t.dueDate && !t.plannedDate && !t.completed);
 
   const backlogHtml = unscheduled.length > 0
     ? unscheduled.map(t => {
-      const pClass = t.priority ? t.priority.toLowerCase() : '';
+      const proj = t.projectId ? state.projects.find(p => p.id === t.projectId) : null;
       return `
         <div class="planner-task-card" draggable="true" data-task-id="${t.id}">
           <div class="kanban-card-title">${escHtml(t.title)}</div>
-          <div class="kanban-card-meta">
+          <div class="kanban-card-meta" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+            ${proj ? `<span class="tag-pill" style="border:1px solid ${proj.color}40;color:${proj.color};">● ${escHtml(proj.name)}</span>` : ''}
             ${t.tags.map(tag => `<span class="tag-pill">${tag}</span>`).join('')}
           </div>
         </div>

@@ -53,7 +53,7 @@ function setupSidebarSectionCollapses() {
 }
 
 /**
- * Renders top-level projects and sub-lists in the sidebar based on active profile mode.
+ * Renders all projects globally with Google Calendar-style colored checkboxes.
  */
 function renderSidebarProjects() {
   setupSidebarSectionCollapses();
@@ -61,33 +61,31 @@ function renderSidebarProjects() {
   const container = document.getElementById('sidebar-projects');
   if (!container) return;
 
-  const modeProjects = state.activeMode === 'all'
-    ? state.projects
-    : state.projects.filter(p => !p.profileId || p.profileId === state.activeMode);
-
-  const topLevel = modeProjects.filter(p => !p.parentProjectId);
+  const allProjects = state.projects || [];
+  const topLevel = allProjects.filter(p => !p.parentProjectId);
   const collapsedProjects = state.settings.collapsedProjects || [];
 
   let html = '';
   topLevel.forEach(p => {
-    const subProjects = modeProjects.filter(sub => sub.parentProjectId === p.id);
+    const subProjects = allProjects.filter(sub => sub.parentProjectId === p.id);
     const count = state.tasks.filter(t => t.projectId === p.id && !t.completed).length;
     const hasSub = subProjects.length > 0;
     const isCollapsed = collapsedProjects.includes(p.id);
+    const isActive = state.filterProject === p.id;
 
     html += `
-      <div class="sidebar-list-item project-item ${state.filterProject === p.id ? 'active' : ''}" data-filter-project="${p.id}" data-project-id="${p.id}" style="position:relative; padding-right:50px;">
+      <div class="sidebar-list-item project-item ${isActive ? 'active' : ''}" data-filter-project="${p.id}" data-project-id="${p.id}" style="position:relative; display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:6px; cursor:pointer;">
         ${hasSub ? `
-          <button class="project-collapse-btn" data-toggle-project="${p.id}" title="Toggle sub-lists" style="background:none;border:none;padding:0;margin-right:4px;cursor:pointer;color:var(--text-tertiary);display:flex;align-items:center;">
+          <button class="project-collapse-btn" data-toggle-project="${p.id}" title="Toggle sub-lists" style="background:none;border:none;padding:0;margin-right:2px;cursor:pointer;color:var(--text-tertiary);display:flex;align-items:center;">
             <img class="collapse-arrow ${isCollapsed ? 'collapsed' : ''}" src="assets/icons/Down.png" alt="Toggle" style="width:14px;height:14px;transition:transform 0.2s;" />
           </button>
-        ` : `<span style="width:16px;"></span>`}
-        <span class="dot" style="background:${p.color}"></span>
-        <span>${escHtml(p.name)}</span>
-        <span class="count">${count}</span>
+        ` : ''}
+        <input type="checkbox" class="project-sidebar-checkbox" style="accent-color:${p.color || 'var(--accent)'}; width:16px; height:16px; border-radius:3px; cursor:pointer; flex-shrink:0; pointer-events:none;" ${isActive ? 'checked' : ''} />
+        <span class="project-name" style="font-size:13px; font-weight:500; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escHtml(p.name)}</span>
+        <span class="count" style="font-size:11px; color:var(--text-tertiary); margin-left:auto;">${count}</span>
         
-        <div class="project-actions" style="position:absolute; right:8px; display:flex; gap:4px;">
-          <button class="btn-icon-sm add-list-btn" data-parent-id="${p.id}" title="Add List" style="opacity:0.5;">+</button>
+        <div class="project-actions" style="position:absolute; right:8px; display:flex; gap:4px; opacity:0;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'">
+          <button class="btn-icon-sm add-list-btn" data-parent-id="${p.id}" title="Add List" style="opacity:0.6;">+</button>
         </div>
       </div>
     `;
@@ -95,11 +93,12 @@ function renderSidebarProjects() {
     if (hasSub && !isCollapsed) {
       subProjects.forEach(sub => {
         const subCount = state.tasks.filter(t => t.projectId === sub.id && !t.completed).length;
+        const subActive = state.filterProject === sub.id;
         html += `
-          <div class="sidebar-list-item project-item ${state.filterProject === sub.id ? 'active' : ''}" data-filter-project="${sub.id}" data-project-id="${sub.id}" style="padding-left:22px; position:relative; padding-right:32px;">
-            <span class="dot" style="background:${sub.color}; width:6px; height:6px;"></span>
-            <span style="font-size:12px;">${escHtml(sub.name)}</span>
-            <span class="count">${subCount}</span>
+          <div class="sidebar-list-item project-item ${subActive ? 'active' : ''}" data-filter-project="${sub.id}" data-project-id="${sub.id}" style="padding-left:26px; display:flex; align-items:center; gap:8px; padding-top:4px; padding-bottom:4px; border-radius:6px; cursor:pointer;">
+            <input type="checkbox" class="project-sidebar-checkbox" style="accent-color:${sub.color || 'var(--accent)'}; width:14px; height:14px; border-radius:3px; cursor:pointer; flex-shrink:0; pointer-events:none;" ${subActive ? 'checked' : ''} />
+            <span style="font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escHtml(sub.name)}</span>
+            <span class="count" style="font-size:11px; color:var(--text-tertiary); margin-left:auto;">${subCount}</span>
           </div>
         `;
       });
