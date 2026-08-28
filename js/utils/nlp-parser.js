@@ -38,6 +38,7 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
 
   const tokens = [];
   const today = new Date();
+  const dayNamesFull = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   // 1. Priority: \b(p[1-4])\b or !!! or !!
   let m;
@@ -95,7 +96,109 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
     }
   }
 
-  // 4. Dates:
+  // 4. Recurring Keywords:
+  // "every day", "daily", "everyday", "each day", "every single day"
+  const dailyRegex = /\b(every\s+single\s+day|every\s+day|daily|everyday|each\s+day)\b/gi;
+  while ((m = dailyRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'daily',
+        text: m[0]
+      });
+    }
+  }
+
+  // "every weekday", "weekdays", "every workday", "every work day"
+  const weekdaysRegex = /\b(every\s+weekday|weekdays|every\s+workday|every\s+work\s+day)\b/gi;
+  while ((m = weekdaysRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'weekdays',
+        text: m[0]
+      });
+    }
+  }
+
+  // "every week", "weekly", "each week"
+  const weeklyRegex = /\b(every\s+week|weekly|each\s+week)\b/gi;
+  while ((m = weeklyRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'weekly',
+        text: m[0]
+      });
+    }
+  }
+
+  // "every monday", "every tue", "every friday", etc.
+  const everyWeekdayRegex = /\bevery\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/gi;
+  while ((m = everyWeekdayRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      const rawDay = m[1].toLowerCase();
+      const targetDay = dayNamesFull.findIndex(d => d.startsWith(rawDay.slice(0, 3)));
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'weekly',
+        targetDay: targetDay !== -1 ? targetDay : undefined,
+        text: m[0]
+      });
+    }
+  }
+
+  // "every month", "monthly", "each month"
+  const monthlyRegex = /\b(every\s+month|monthly|each\s+month)\b/gi;
+  while ((m = monthlyRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'monthly',
+        text: m[0]
+      });
+    }
+  }
+
+  // "every year", "yearly", "annually", "annual", "each year"
+  const yearlyRegex = /\b(every\s+year|yearly|annually|annual|each\s+year)\b/gi;
+  while ((m = yearlyRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: 'yearly',
+        text: m[0]
+      });
+    }
+  }
+
+  // "every 2 days", "every 3 weeks", etc.
+  const intervalRegex = /\bevery\s+(\d+)\s+(days?|weeks?|months?|years?)\b/gi;
+  while ((m = intervalRegex.exec(text)) !== null) {
+    if (!isDismissed(m.index, m.index + m[0].length, m[0])) {
+      tokens.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: 'recurring',
+        value: `every ${m[1]} ${m[2].toLowerCase()}`,
+        text: m[0]
+      });
+    }
+  }
+
+  // 5. Dates:
   // "today", "tod"
   const todayRegex = /\b(today|tod)\b/gi;
   while ((m = todayRegex.exec(text)) !== null) {
@@ -240,7 +343,6 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
   }
 
   // Day names: "next friday", "friday", "fri", etc.
-  const dayNamesFull = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayRegex = /\b(?:next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/gi;
   while ((m = dayRegex.exec(text)) !== null) {
     const start = m.index;
@@ -349,6 +451,7 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
   let finalDueDate = null;
   let finalDueTime = null;
   let finalPriority = null;
+  let finalRecurring = null;
   const finalTags = [];
   let finalProjectName = null;
 
@@ -369,6 +472,16 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
     } else if (t.type === 'time') {
       kwClass = 'kw-time';
       finalDueTime = t.value;
+    } else if (t.type === 'recurring') {
+      kwClass = 'kw-repeat';
+      finalRecurring = t.value;
+      if (t.targetDay !== undefined && !finalDueDate) {
+        const d = new Date(today);
+        let diff = t.targetDay - d.getDay();
+        if (diff <= 0) diff += 7;
+        d.setDate(d.getDate() + diff);
+        finalDueDate = toISODate(d);
+      }
     } else if (t.type === 'tag') {
       kwClass = 'kw-tag';
       finalTags.push(t.value);
@@ -389,8 +502,8 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
 
   cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
 
-  // If a time was specified without an explicit date, default the due date to today
-  if (finalDueTime && !finalDueDate) {
+  // If a time or daily recurrence was specified without an explicit date, default the due date to today
+  if ((finalDueTime || finalRecurring === 'daily' || finalRecurring === 'weekdays') && !finalDueDate) {
     finalDueDate = toISODate(today);
   }
 
@@ -399,6 +512,7 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
     dueDate: finalDueDate,
     dueTime: finalDueTime,
     priority: finalPriority,
+    recurring: finalRecurring,
     tags: finalTags,
     projectName: finalProjectName,
     highlightHtml,

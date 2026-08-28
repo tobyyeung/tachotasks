@@ -148,6 +148,18 @@ async function refreshDataFromStore() {
   state.settings = await window.api.getSettings() || {};
   state.profiles = await window.api.getProfiles() || [];
 
+  if (state.settings.tasksViewMode) {
+    state.tasksViewMode = state.settings.tasksViewMode === 'section' ? 'board' : state.settings.tasksViewMode;
+  }
+  if (state.settings.tasksSortMode) {
+    state.tasksSortMode = state.settings.tasksSortMode;
+  }
+  if (state.settings.filterTag !== undefined) {
+    state.filterTag = state.settings.filterTag;
+  }
+  if (state.settings.dashboardUpcomingRange) {
+    state.dashboardUpcomingRange = state.settings.dashboardUpcomingRange;
+  }
   if (Array.isArray(state.settings.activeGcalIds)) {
     state.activeGcalIds = [...state.settings.activeGcalIds];
   }

@@ -22,18 +22,450 @@ function attachViewListeners() {
       const content = document.getElementById(`collapse-content-${id}`);
       if (content) content.style.display = isCollapsed ? 'none' : '';
       
+      const card = btn.closest('.dashboard-card');
+      if (card) card.classList.toggle('is-collapsed', isCollapsed);
+      
       await window.api.saveSettings(state.settings);
     });
   });
 
-  const upcomingRangeSelect = document.getElementById('dash-upcoming-range');
-  if (upcomingRangeSelect) {
-    upcomingRangeSelect.addEventListener('change', async (e) => {
-      state.dashboardUpcomingRange = e.target.value;
+  const upcomingRangeBtn = document.getElementById('dash-upcoming-range-btn');
+  const upcomingRangePanel = document.getElementById('dash-upcoming-range-panel');
+  if (upcomingRangeBtn && upcomingRangePanel) {
+    upcomingRangeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      upcomingRangePanel.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!upcomingRangePanel.contains(e.target) && e.target !== upcomingRangeBtn) {
+        upcomingRangePanel.classList.add('hidden');
+      }
+    });
+
+    upcomingRangePanel.querySelectorAll('[data-dash-range]').forEach(opt => {
+      opt.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        state.dashboardUpcomingRange = opt.dataset.dashRange;
+        if (!state.settings) state.settings = {};
+        state.settings.dashboardUpcomingRange = state.dashboardUpcomingRange;
+        await window.api.saveSettings(state.settings);
+        persistUIState();
+        renderView();
+      });
+    });
+  }
+
+  // Dashboard Splitter Drag Resizing
+  const dashSplitter = document.getElementById('dashboard-splitter');
+  const dashGrid = document.getElementById('dashboard-grid');
+  if (dashSplitter && dashGrid) {
+    let isDragging = false;
+    let startX = 0;
+    const minColumnPx = 280;
+
+    const calculateClampedPercent = (clientX) => {
+      const rect = dashGrid.getBoundingClientRect();
+      if (rect.width <= 0) return 50;
+      const minP = Math.max(25, (minColumnPx / rect.width) * 100);
+      const maxP = Math.min(75, 100 - (minColumnPx / rect.width) * 100);
+      const effectiveMin = Math.min(minP, maxP);
+      const effectiveMax = Math.max(minP, maxP);
+
+      const offsetX = clientX - rect.left;
+      let percent = Math.round((offsetX / rect.width) * 100);
+      return Math.max(effectiveMin, Math.min(effectiveMax, percent));
+    };
+
+    const startDrag = (clientX) => {
+      isDragging = true;
+      startX = clientX;
+      dashSplitter.classList.add('is-dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    };
+
+    const moveDrag = (clientX) => {
+      if (!isDragging) return;
+      const percent = calculateClampedPercent(clientX);
+      dashGrid.style.setProperty('--dash-split-left', `${percent}%`);
+      dashGrid.style.setProperty('--dash-split-right', `${100 - percent}%`);
+    };
+
+    const stopDrag = async (clientX) => {
+      if (!isDragging) return;
+      isDragging = false;
+      dashSplitter.classList.remove('is-dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+
+      const percent = calculateClampedPercent(clientX);
       if (!state.settings) state.settings = {};
-      state.settings.dashboardUpcomingRange = state.dashboardUpcomingRange;
+      state.settings.dashboardSplitRatio = percent;
       await window.api.saveSettings(state.settings);
-      renderView();
+    };
+
+    dashSplitter.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startDrag(e.clientX);
+    });
+
+    dashSplitter.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length > 0) {
+        startDrag(e.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    const handleMouseMove = (e) => {
+      if (isDragging) moveDrag(e.clientX);
+    };
+
+    const handleTouchMove = (e) => {
+      if (isDragging && e.touches && e.touches.length > 0) {
+        moveDrag(e.touches[0].clientX);
+      }
+    };
+
+    const handleMouseUp = (e) => {
+      if (isDragging) stopDrag(e.clientX);
+    };
+
+    const handleTouchEnd = (e) => {
+      if (isDragging) {
+        const clientX = e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : startX;
+        stopDrag(clientX);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchend', handleTouchEnd);
+  }
+
+  // Dashboard Widget Drag & Drop Reordering
+  const dashCards = document.querySelectorAll('.dashboard-card[data-widget-id]');
+  const dashColumns = document.querySelectorAll('.dashboard-widget-column');
+  if (dashCards.length > 0) {
+    let draggedWidgetId = null;
+
+    dashCards.forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        if (e.target.closest('button, select, input, a, .itinerary-item, .sort-dropdown-panel, .sort-dropdown-btn')) {
+          e.preventDefault();
+          return;
+        }
+        draggedWidgetId = card.dataset.widgetId;
+        card.classList.add('widget-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/dash-widget', draggedWidgetId);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('widget-dragging');
+        draggedWidgetId = null;
+        document.querySelectorAll('.dashboard-card').forEach(c => {
+          c.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        document.querySelectorAll('.dashboard-widget-column').forEach(col => {
+          col.classList.remove('drag-over-column');
+        });
+      });
+
+      card.addEventListener('dragover', (e) => {
+        if (!draggedWidgetId || draggedWidgetId === card.dataset.widgetId) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = card.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          card.classList.add('drag-over-top');
+          card.classList.remove('drag-over-bottom');
+        } else {
+          card.classList.add('drag-over-bottom');
+          card.classList.remove('drag-over-top');
+        }
+      });
+
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      card.addEventListener('drop', async (e) => {
+        if (!draggedWidgetId || draggedWidgetId === card.dataset.widgetId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        card.classList.remove('drag-over-top', 'drag-over-bottom');
+
+        const targetWidgetId = card.dataset.widgetId;
+        const rect = card.getBoundingClientRect();
+        const insertBefore = e.clientY < (rect.top + rect.height / 2);
+
+        const knownWidgets = ['upcoming-tasks', 'daily-tasks', 'todays-schedule', 'birthdays'];
+        let layout = state.settings.dashboardLayout || {};
+        let left = Array.isArray(layout.left) ? [...layout.left].filter(id => knownWidgets.includes(id)) : ['upcoming-tasks', 'daily-tasks'];
+        let right = Array.isArray(layout.right) ? [...layout.right].filter(id => knownWidgets.includes(id)) : ['todays-schedule', 'birthdays'];
+
+        const placed = new Set([...left, ...right]);
+        knownWidgets.forEach(id => {
+          if (!placed.has(id)) {
+            if (id === 'upcoming-tasks' || id === 'daily-tasks') left.push(id);
+            else right.push(id);
+          }
+        });
+
+        const sourceCol = left.includes(draggedWidgetId) ? 'left' : 'right';
+        const targetCol = left.includes(targetWidgetId) ? 'left' : 'right';
+
+        if (sourceCol === targetCol) {
+          // Within same column: Swap / Switch positions
+          const list = sourceCol === 'left' ? left : right;
+          const fromIdx = list.indexOf(draggedWidgetId);
+          const toIdx = list.indexOf(targetWidgetId);
+          if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+            const [moved] = list.splice(fromIdx, 1);
+            list.splice(toIdx, 0, moved);
+          }
+        } else {
+          // Across columns
+          const srcList = sourceCol === 'left' ? left : right;
+          const destList = targetCol === 'left' ? left : right;
+          const fromIdx = srcList.indexOf(draggedWidgetId);
+          const toIdx = destList.indexOf(targetWidgetId);
+          if (fromIdx !== -1) {
+            const [moved] = srcList.splice(fromIdx, 1);
+            if (toIdx !== -1) {
+              const destIdx = insertBefore ? toIdx : toIdx + 1;
+              destList.splice(destIdx, 0, moved);
+            } else {
+              destList.push(moved);
+            }
+          }
+        }
+
+        if (!state.settings) state.settings = {};
+        state.settings.dashboardLayout = { left, right };
+        await window.api.saveSettings(state.settings);
+        renderView();
+      });
+    });
+
+    dashColumns.forEach(col => {
+      col.addEventListener('dragover', (e) => {
+        if (!draggedWidgetId) return;
+        e.preventDefault();
+        col.classList.add('drag-over-column');
+      });
+
+      col.addEventListener('dragleave', (e) => {
+        if (!col.contains(e.relatedTarget)) {
+          col.classList.remove('drag-over-column');
+        }
+      });
+
+      col.addEventListener('drop', async (e) => {
+        if (!draggedWidgetId) return;
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        col.classList.remove('drag-over-column');
+
+        const targetColumn = col.dataset.dashColumn || 'left';
+        const knownWidgets = ['upcoming-tasks', 'daily-tasks', 'todays-schedule', 'birthdays'];
+        let layout = state.settings.dashboardLayout || {};
+        let left = Array.isArray(layout.left) ? [...layout.left].filter(id => knownWidgets.includes(id)) : ['upcoming-tasks', 'daily-tasks'];
+        let right = Array.isArray(layout.right) ? [...layout.right].filter(id => knownWidgets.includes(id)) : ['todays-schedule', 'birthdays'];
+
+        const placed = new Set([...left, ...right]);
+        knownWidgets.forEach(id => {
+          if (!placed.has(id)) {
+            if (id === 'upcoming-tasks' || id === 'daily-tasks') left.push(id);
+            else right.push(id);
+          }
+        });
+
+        const sourceCol = left.includes(draggedWidgetId) ? 'left' : 'right';
+        const srcList = sourceCol === 'left' ? left : right;
+        const destList = targetColumn === 'left' ? left : right;
+
+        const fromIdx = srcList.indexOf(draggedWidgetId);
+        if (fromIdx !== -1) {
+          const [moved] = srcList.splice(fromIdx, 1);
+          destList.push(moved);
+        }
+
+        if (!state.settings) state.settings = {};
+        state.settings.dashboardLayout = { left, right };
+        await window.api.saveSettings(state.settings);
+        renderView();
+      });
+    });
+  }
+
+  // Dashboard Quick Sticky Note
+  const quickNoteBtn = document.getElementById('dash-quick-note-btn');
+  const stickyPopover = document.getElementById('dashboard-sticky-popover');
+  const stickyTextarea = document.getElementById('dashboard-sticky-textarea');
+  const stickyCloseBtn = document.getElementById('sticky-close-btn');
+  const stickySaveIndicator = document.getElementById('sticky-save-indicator');
+  const stickyHeader = stickyPopover ? stickyPopover.querySelector('.sticky-header') : null;
+
+  if (quickNoteBtn && stickyPopover) {
+    let saveTimeout = null;
+
+    const setStickyPosition = (x, y) => {
+      const popoverWidth = stickyPopover.offsetWidth || 320;
+      const popoverHeight = stickyPopover.offsetHeight || 250;
+      const clampedX = Math.max(12, Math.min(window.innerWidth - popoverWidth - 12, x));
+      const clampedY = Math.max(12, Math.min(window.innerHeight - popoverHeight - 12, y));
+      stickyPopover.style.position = 'fixed';
+      stickyPopover.style.left = clampedX + 'px';
+      stickyPopover.style.top = clampedY + 'px';
+      stickyPopover.style.right = 'auto';
+      stickyPopover.style.bottom = 'auto';
+      return { x: clampedX, y: clampedY };
+    };
+
+    const showSticky = () => {
+      stickyPopover.classList.remove('hidden');
+      const savedPos = state.settings && state.settings.quickNotePos;
+      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
+        setStickyPosition(savedPos.x, savedPos.y);
+      } else {
+        const rect = quickNoteBtn.getBoundingClientRect();
+        setStickyPosition(rect.left, rect.bottom + 8);
+      }
+      if (stickyTextarea) {
+        stickyTextarea.focus();
+        stickyTextarea.setSelectionRange(stickyTextarea.value.length, stickyTextarea.value.length);
+      }
+    };
+
+    const hideSticky = () => {
+      stickyPopover.classList.add('hidden');
+    };
+
+    quickNoteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (stickyPopover.classList.contains('hidden')) {
+        showSticky();
+      } else {
+        hideSticky();
+      }
+    });
+
+    if (stickyCloseBtn) {
+      stickyCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideSticky();
+      });
+    }
+
+    stickyPopover.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Make Sticky Note Draggable via Header
+    if (stickyHeader) {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let initialLeft = 0, initialTop = 0;
+
+      const onDragStart = (clientX, clientY) => {
+        isDragging = true;
+        stickyHeader.classList.add('is-dragging');
+        const rect = stickyPopover.getBoundingClientRect();
+        startX = clientX;
+        startY = clientY;
+        initialLeft = rect.left;
+        initialTop = rect.top;
+      };
+
+      const onDragMove = (clientX, clientY) => {
+        if (!isDragging) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        setStickyPosition(initialLeft + dx, initialTop + dy);
+      };
+
+      const onDragEnd = async () => {
+        if (!isDragging) return;
+        isDragging = false;
+        stickyHeader.classList.remove('is-dragging');
+        const rect = stickyPopover.getBoundingClientRect();
+        if (!state.settings) state.settings = {};
+        state.settings.quickNotePos = { x: rect.left, y: rect.top };
+        await window.api.saveSettings(state.settings);
+      };
+
+      stickyHeader.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button, input, select, textarea')) return;
+        onDragStart(e.clientX, e.clientY);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          onDragMove(e.clientX, e.clientY);
+        }
+      });
+
+      window.addEventListener('mouseup', onDragEnd);
+
+      stickyHeader.addEventListener('touchstart', (e) => {
+        if (e.target.closest('button, input, select, textarea')) return;
+        if (e.touches && e.touches.length > 0) {
+          onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches && e.touches.length > 0) {
+          onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', onDragEnd);
+    }
+
+    if (stickyTextarea) {
+      stickyTextarea.addEventListener('input', () => {
+        if (stickySaveIndicator) stickySaveIndicator.textContent = 'Saving...';
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          if (!state.settings) state.settings = {};
+          if (!state.settings.quickNote || typeof state.settings.quickNote !== 'object') {
+            state.settings.quickNote = { text: '', color: 'yellow' };
+          }
+          state.settings.quickNote.text = stickyTextarea.value;
+          state.settings.quickNote.updatedAt = new Date().toISOString();
+          await window.api.saveSettings(state.settings);
+          if (stickySaveIndicator) stickySaveIndicator.textContent = 'Saved ✓';
+        }, 300);
+      });
+    }
+
+    document.querySelectorAll('.sticky-color-dot').forEach(dot => {
+      dot.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const color = dot.dataset.noteColor;
+        if (!color) return;
+
+        document.querySelectorAll('.sticky-color-dot').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+
+        ['yellow', 'blue', 'green', 'dark'].forEach(c => {
+          stickyPopover.classList.remove('theme-' + c);
+        });
+        stickyPopover.classList.add('theme-' + color);
+
+        if (!state.settings) state.settings = {};
+        if (!state.settings.quickNote || typeof state.settings.quickNote !== 'object') {
+          state.settings.quickNote = { text: '', color: 'yellow' };
+        }
+        state.settings.quickNote.color = color;
+        await window.api.saveSettings(state.settings);
+      });
     });
   }
 

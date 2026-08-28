@@ -3,23 +3,9 @@
  * Task creation & editing split modal interface.
  */
 
-// Entry point router: routes to Inline Section Creator for new tasks, or Full Split Editor for existing tasks.
-function showTaskModal(taskId, initialData = {}) {
-  if (taskId) {
-    showTaskEditorModal(taskId, initialData);
-  } else {
-    const inlineBtn = document.querySelector('.add-task-inline-btn');
-    if (inlineBtn && state.currentView === 'tasks' && state.tasksViewMode !== 'list') {
-      openInlineTaskCreate(inlineBtn, initialData);
-    } else {
-      const taskList = document.querySelector('.task-list');
-      if (taskList) {
-        openInlineTaskListCreate(taskList, initialData);
-      } else {
-        showTaskEditorModal(null, initialData);
-      }
-    }
-  }
+// Entry point: opens full task editor modal for new or existing task
+function showTaskModal(taskId = null, initialData = {}) {
+  showTaskEditorModal(taskId, initialData);
 }
 
 
@@ -53,6 +39,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
 
   const currentTags = task ? task.tags.join(', ') : ((initialData && initialData.tags) ? initialData.tags.join(', ') : '');
   const currentPriority = task ? (task.priority || 'P4') : ((initialData && initialData.priority) || 'P4');
+  let currentRecurring = task ? task.recurring : ((initialData && initialData.recurring) || null);
   const currentTitle = task ? task.title : ((initialData && initialData.title) || '');
   const currentDueDate = task ? (task.dueDate || '') : ((initialData && initialData.dueDate) || '');
   const currentDueTime = task ? (task.dueTime || '') : ((initialData && initialData.dueTime) || '');
@@ -203,20 +190,27 @@ function showTaskEditorModal(taskId, initialData = {}) {
         targetElement: duePickerBtn,
         initialDate: curDate,
         initialTime: curTime,
-        initialRepeat: task ? task.recurring : null,
+        initialRepeat: currentRecurring,
         onSelect: ({ date, time, repeat }) => {
           document.getElementById('modal-due-date').value = date || '';
           document.getElementById('modal-due-time').value = time || '';
-          if (task) task.recurring = repeat;
+          currentRecurring = repeat || null;
+          if (task) task.recurring = currentRecurring;
           const textEl = document.getElementById('modal-due-dt-text');
           if (textEl) {
-            textEl.textContent = date ? formatDateShort(date) + (time ? ' at ' + formatTime12(time) : '') : 'e.g. Jul 24, 9:30 AM';
-            textEl.style.color = date ? 'var(--text-primary)' : 'var(--text-tertiary)';
+            let label = date ? formatDateShort(date) + (time ? ' at ' + formatTime12(time) : '') : 'e.g. Jul 24, 9:30 AM';
+            if (currentRecurring) {
+              label += ` (${currentRecurring})`;
+            }
+            textEl.textContent = label;
+            textEl.style.color = date || currentRecurring ? 'var(--text-primary)' : 'var(--text-tertiary)';
           }
         },
         onClear: () => {
           document.getElementById('modal-due-date').value = '';
           document.getElementById('modal-due-time').value = '';
+          currentRecurring = null;
+          if (task) task.recurring = null;
           const textEl = document.getElementById('modal-due-dt-text');
           if (textEl) {
             textEl.textContent = 'e.g. Jul 24, 9:30 AM';
@@ -259,6 +253,21 @@ function showTaskEditorModal(taskId, initialData = {}) {
           }
         }
       });
+    });
+  }
+
+  // Location selector click
+  const locBtn = document.getElementById('modal-location-btn');
+  if (locBtn && !isArchived) {
+    locBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const projSelect = document.getElementById('modal-project');
+      if (projSelect) {
+        projSelect.focus();
+        if (typeof projSelect.showPicker === 'function') {
+          try { projSelect.showPicker(); } catch (err) { }
+        }
+      }
     });
   }
 
@@ -318,22 +327,44 @@ function showTaskEditorModal(taskId, initialData = {}) {
   const saveBtn = document.getElementById('modal-save-btn');
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
-      const title = document.getElementById('modal-title').value.trim();
-      if (!title) { showToast('Title is required', 'error'); return; }
+      const rawTitle = document.getElementById('modal-title').value.trim();
+      if (!rawTitle) { showToast('Title is required', 'error'); return; }
+
+      // Parse NLP tokens from title if any
+      const parsed = typeof parseTaskInputTokens === 'function' ? parseTaskInputTokens(rawTitle) : { cleanTitle: rawTitle };
+      const finalTitle = parsed.cleanTitle || rawTitle;
 
       const selectedPriorityBtn = document.querySelector('.priority-flag-btn.selected');
-      const selectedPriority = selectedPriorityBtn ? selectedPriorityBtn.dataset.priority : 'P4';
+      let selectedPriority = selectedPriorityBtn ? selectedPriorityBtn.dataset.priority : 'P4';
+      if (selectedPriority === 'P4' && parsed.priority) {
+        selectedPriority = parsed.priority;
+      }
+
       const tagsInput = document.getElementById('modal-tags').value;
-      const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+      let tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+      if (tags.length === 0 && parsed.tags && parsed.tags.length > 0) {
+        tags = parsed.tags;
+      }
+
+      let dueDate = document.getElementById('modal-due-date').value || null;
+      let dueTime = document.getElementById('modal-due-time').value || null;
+      if (!dueDate && parsed.dueDate) {
+        dueDate = parsed.dueDate;
+        dueTime = parsed.dueTime || dueTime;
+      }
+
+      if (!currentRecurring && parsed.recurring) {
+        currentRecurring = parsed.recurring;
+      }
 
       const data = {
-        title,
+        title: finalTitle,
         description: document.getElementById('modal-desc').value,
         priority: selectedPriority,
         plannedDate: document.getElementById('modal-planned-date').value || null,
         plannedTime: document.getElementById('modal-planned-time').value || null,
-        dueDate: document.getElementById('modal-due-date').value || null,
-        dueTime: document.getElementById('modal-due-time').value || null,
+        dueDate: dueDate,
+        dueTime: dueTime,
         projectId: document.getElementById('modal-project').value || null,
         tags
       };
@@ -344,7 +375,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
           ...data,
           sectionId: initialSectionId || null,
           parentTaskId: null,
-          recurring: null,
+          recurring: currentRecurring || null,
           completed: false,
           completedAt: null,
           createdAt: new Date().toISOString(),
@@ -355,6 +386,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
         if (!task.profileId || task.profileId === 'all') {
           task.profileId = getActiveProfileId();
         }
+        task.recurring = currentRecurring || null;
         Object.assign(task, data);
       }
 

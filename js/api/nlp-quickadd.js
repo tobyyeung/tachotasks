@@ -30,17 +30,46 @@ function parseNaturalLanguage(text) {
   if (projMatch) { result.projectName = projMatch[1]; cleaned = cleaned.replace(/#\w+/g, ''); }
 
   // Recurring pattern extraction
-  const recurMatch = cleaned.match(/\bevery\s+(day|daily|week|weekly|month|monthly|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
-  if (recurMatch) {
-    const freq = recurMatch[1].toLowerCase();
-    if (freq === 'day' || freq === 'daily') result.recurring = { frequency: 'daily' };
-    else if (freq === 'week' || freq === 'weekly') result.recurring = { frequency: 'weekly' };
-    else if (freq === 'month' || freq === 'monthly') result.recurring = { frequency: 'monthly' };
-    else {
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      result.recurring = { frequency: 'weekly', day: dayNames.indexOf(freq) };
-    }
-    cleaned = cleaned.replace(recurMatch[0], '');
+  const dailyMatch = cleaned.match(/\b(every\s+single\s+day|every\s+day|daily|everyday|each\s+day)\b/i);
+  if (dailyMatch) {
+    result.recurring = 'daily';
+    cleaned = cleaned.replace(dailyMatch[0], '');
+  }
+
+  const weekdaysMatch = cleaned.match(/\b(every\s+weekday|weekdays|every\s+workday|every\s+work\s+day)\b/i);
+  if (weekdaysMatch) {
+    result.recurring = 'weekdays';
+    cleaned = cleaned.replace(weekdaysMatch[0], '');
+  }
+
+  const weeklyMatch = cleaned.match(/\b(every\s+week|weekly|each\s+week)\b/i);
+  if (weeklyMatch) {
+    result.recurring = 'weekly';
+    cleaned = cleaned.replace(weeklyMatch[0], '');
+  }
+
+  const everyDayNameMatch = cleaned.match(/\bevery\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/i);
+  if (everyDayNameMatch) {
+    result.recurring = 'weekly';
+    cleaned = cleaned.replace(everyDayNameMatch[0], '');
+  }
+
+  const monthlyMatch = cleaned.match(/\b(every\s+month|monthly|each\s+month)\b/i);
+  if (monthlyMatch) {
+    result.recurring = 'monthly';
+    cleaned = cleaned.replace(monthlyMatch[0], '');
+  }
+
+  const yearlyMatch = cleaned.match(/\b(every\s+year|yearly|annually|annual|each\s+year)\b/i);
+  if (yearlyMatch) {
+    result.recurring = 'yearly';
+    cleaned = cleaned.replace(yearlyMatch[0], '');
+  }
+
+  const intervalMatch = cleaned.match(/\bevery\s+(\d+)\s+(days?|weeks?|months?|years?)\b/i);
+  if (intervalMatch) {
+    result.recurring = `every ${intervalMatch[1]} ${intervalMatch[2].toLowerCase()}`;
+    cleaned = cleaned.replace(intervalMatch[0], '');
   }
 
   // Date and time extraction (browser-compatible, replaces chrono-node)

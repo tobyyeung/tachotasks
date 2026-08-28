@@ -18,12 +18,40 @@ async function saveArchivedTasks() {
 }
 
 /**
- * Toggles task completion state with a visual delay before archiving.
+ * Toggles task completion state with a visual delay before archiving or advancing recurrence.
  * @param {string} taskId - ID of task to toggle.
  */
 async function toggleTask(taskId) {
   const task = state.tasks.find(t => t.id === taskId);
+  const today = getTodayStr();
+
   if (task) {
+    // If it's a recurring task that was completed today, clicking it uncompletes it for today
+    if (isTaskRecurring(task) && task.lastCompletedDate === today) {
+      task.lastCompletedDate = null;
+      if (task.previousDueDate) {
+        task.dueDate = task.previousDueDate;
+      } else {
+        task.dueDate = today;
+      }
+      if (task.previousPlannedDate) {
+        task.plannedDate = task.previousPlannedDate;
+      }
+      delete task.previousDueDate;
+      delete task.previousPlannedDate;
+      task.completed = false;
+      task.isCompleting = false;
+
+      // Remove today's archived snapshot if present
+      state.archivedTasks = state.archivedTasks.filter(a => !(a.originalTaskId === taskId && a.completedAt && a.completedAt.startsWith(today)));
+      
+      await saveTasks();
+      await saveArchivedTasks();
+      renderView();
+      showToast('Task marked incomplete', 'info');
+      return;
+    }
+
     if (!task.completed && !task.isCompleting) {
       task.isCompleting = true;
       renderView();
@@ -32,28 +60,68 @@ async function toggleTask(taskId) {
       
       task.completionTimeout = setTimeout(async () => {
         task.isCompleting = false;
-        task.completed = true;
-        task.completedAt = new Date().toISOString();
         
-        state.tasks = state.tasks.filter(t => t.id !== taskId);
-        state.archivedTasks.push(task);
+        if (isTaskRecurring(task)) {
+          // Recurring task: archive completion snapshot for today and advance active task to next upcoming date
+          task.previousDueDate = task.dueDate || today;
+          task.previousPlannedDate = task.plannedDate || null;
+          
+          const completedRecord = {
+            ...task,
+            id: task.id + '-' + (task.dueDate || today) + '-' + Date.now(),
+            completed: true,
+            completedAt: new Date().toISOString(),
+            originalTaskId: task.id,
+            isRecurringInstance: true
+          };
+          delete completedRecord.previousDueDate;
+          delete completedRecord.previousPlannedDate;
+          state.archivedTasks.push(completedRecord);
+
+          task.lastCompletedDate = today;
+          task.dueDate = getNextRecurringDate(task.dueDate || today, task.recurring);
+          if (task.plannedDate) {
+            task.plannedDate = getNextRecurringDate(task.plannedDate || today, task.recurring);
+          }
+          task.completed = false;
+        } else {
+          // Non-recurring task: mark completed and move to archived tasks
+          task.completed = true;
+          task.completedAt = new Date().toISOString();
+          state.tasks = state.tasks.filter(t => t.id !== taskId);
+          state.archivedTasks.push(task);
+        }
         
         await saveTasks();
         await saveArchivedTasks();
         renderView();
       }, 1500);
       
-      showUndoToast(taskId, 'Task completed');
+      showUndoToast(taskId, isTaskRecurring(task) ? 'Task completed & set for next date' : 'Task completed');
     } else if (task.isCompleting) {
       undoTaskCompletion(taskId);
     }
   } else {
     const archivedTask = state.archivedTasks.find(t => t.id === taskId);
     if (archivedTask) {
+      if (archivedTask.originalTaskId) {
+        const orig = state.tasks.find(t => t.id === archivedTask.originalTaskId);
+        if (orig) {
+          orig.lastCompletedDate = null;
+          if (orig.previousDueDate) orig.dueDate = orig.previousDueDate;
+          if (orig.previousPlannedDate) orig.plannedDate = orig.previousPlannedDate;
+          delete orig.previousDueDate;
+          delete orig.previousPlannedDate;
+          orig.completed = false;
+          orig.isCompleting = false;
+        }
+      }
       archivedTask.completed = false;
       archivedTask.completedAt = null;
       state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
-      state.tasks.push(archivedTask);
+      if (!archivedTask.originalTaskId) {
+        state.tasks.push(archivedTask);
+      }
       await saveTasks();
       await saveArchivedTasks();
       renderView();
@@ -67,22 +135,53 @@ async function toggleTask(taskId) {
  */
 function undoTaskCompletion(taskId) {
   const task = state.tasks.find(t => t.id === taskId);
-  if (task && task.isCompleting) {
-    clearTimeout(task.completionTimeout);
-    task.isCompleting = false;
-    task.completed = false;
-    renderView();
-  } else {
-    const archivedTask = state.archivedTasks.find(t => t.id === taskId);
-    if (archivedTask) {
-      archivedTask.completed = false;
-      archivedTask.completedAt = null;
-      state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
-      state.tasks.push(archivedTask);
+  const today = getTodayStr();
+
+  if (task) {
+    if (task.isCompleting) {
+      clearTimeout(task.completionTimeout);
+      task.isCompleting = false;
+      task.completed = false;
+      renderView();
+      return;
+    }
+    if (task.previousDueDate) {
+      task.dueDate = task.previousDueDate;
+      if (task.previousPlannedDate) task.plannedDate = task.previousPlannedDate;
+      task.lastCompletedDate = null;
+      delete task.previousDueDate;
+      delete task.previousPlannedDate;
+      task.completed = false;
+      task.isCompleting = false;
+      state.archivedTasks = state.archivedTasks.filter(a => !(a.originalTaskId === taskId && a.completedAt && a.completedAt.startsWith(today)));
       saveTasks();
       saveArchivedTasks();
       renderView();
+      return;
     }
+  }
+
+  const archivedTask = state.archivedTasks.find(t => t.id === taskId);
+  if (archivedTask) {
+    if (archivedTask.originalTaskId) {
+      const orig = state.tasks.find(t => t.id === archivedTask.originalTaskId);
+      if (orig) {
+        orig.lastCompletedDate = null;
+        if (orig.previousDueDate) orig.dueDate = orig.previousDueDate;
+        if (orig.previousPlannedDate) orig.plannedDate = orig.previousPlannedDate;
+        delete orig.previousDueDate;
+        delete orig.previousPlannedDate;
+      }
+    }
+    archivedTask.completed = false;
+    archivedTask.completedAt = null;
+    state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
+    if (!archivedTask.originalTaskId) {
+      state.tasks.push(archivedTask);
+    }
+    saveTasks();
+    saveArchivedTasks();
+    renderView();
   }
 }
 

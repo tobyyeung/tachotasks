@@ -500,6 +500,11 @@
   color: #ff9d6c;
 }
 
+.nlp-highlight-match.kw-repeat {
+  background: rgba(165, 94, 234, 0.22);
+  color: #c56cf0;
+}
+
 .nlp-highlight-match.kw-prio {
   background: rgba(255, 179, 71, 0.22);
   color: #ffb347;

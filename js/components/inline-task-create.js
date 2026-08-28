@@ -124,6 +124,7 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     dueDate: initParsed.dueDate || (initialData && initialData.dueDate) || null,
     dueTime: initParsed.dueTime || (initialData && initialData.dueTime) || null,
     priority: initParsed.priority || (initialData && initialData.priority) || null,
+    recurring: initParsed.recurring || (initialData && initialData.recurring) || null,
     tags: initParsed.tags.length > 0 ? initParsed.tags : ((initialData && initialData.tags) ? [...initialData.tags] : []),
     projectId: targetProjectId,
     sectionId: targetSectionId,
@@ -242,6 +243,20 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     if (!container) return;
     let chipsHtml = '';
 
+    if (inlineState.recurring) {
+      const rVal = inlineState.recurring;
+      const recurText = rVal === 'daily' ? 'Daily' : (rVal === 'weekly' ? 'Weekly' : (rVal === 'monthly' ? 'Monthly' : (rVal === 'yearly' ? 'Yearly' : (rVal === 'weekdays' ? 'Weekdays' : rVal))));
+      chipsHtml += `
+        <div class="inline-create-prio-chip" id="inline-repeat-chip" style="background:rgba(165,94,234,0.18);border:1px solid rgba(165,94,234,0.4);color:#c56cf0;" title="Repeats: ${escAttr(recurText)}">
+          <span style="display:inline-flex;align-items:center;">
+            <img src="assets/icons/Repeat.png" alt="Repeat" style="width:14px;height:14px;object-fit:contain;" />
+          </span>
+          <span style="font-weight:600;">${escHtml(recurText)}</span>
+          <span class="chip-close" id="inline-repeat-clear" style="margin-left:4px;opacity:0.7;font-size:12px;cursor:pointer;">✕</span>
+        </div>
+      `;
+    }
+
     if (inlineState.priority && inlineState.priority !== 'P4') {
       const pColor = getPriorityColor(inlineState.priority);
       const colorClass = getPriorityColorClass(inlineState.priority);
@@ -268,6 +283,15 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
     }
 
     container.innerHTML = chipsHtml;
+
+    const repeatClear = container.querySelector('#inline-repeat-clear');
+    if (repeatClear) {
+      repeatClear.addEventListener('click', (e) => {
+        e.stopPropagation();
+        inlineState.recurring = null;
+        updateExtraChips();
+      });
+    }
 
     const prioChip = container.querySelector('#inline-prio-chip');
     if (prioChip) {
@@ -351,12 +375,15 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
   if (expandBtn) {
     expandBtn.addEventListener('click', () => {
       closeAllQuickPopovers();
+      const currentRaw = (inputEl ? inputEl.innerText.replace(/\u00A0/g, ' ').replace(/\r?\n|\r/g, ' ') : inlineState.rawText).trim();
+      const currentTitle = inlineState.cleanTitle || currentRaw;
       closeInlineCreate();
       showTaskEditorModal(null, {
-        title: inlineState.cleanTitle || inlineState.rawText,
+        title: currentTitle,
         dueDate: inlineState.dueDate,
         dueTime: inlineState.dueTime,
         priority: inlineState.priority,
+        recurring: inlineState.recurring,
         tags: inlineState.tags,
         projectId: inlineState.projectId,
         sectionId: inlineState.sectionId,
@@ -391,6 +418,7 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       inlineState.dueDate = parsedInfo.dueDate;
       inlineState.dueTime = parsedInfo.dueTime;
       inlineState.priority = parsedInfo.priority;
+      inlineState.recurring = parsedInfo.recurring;
       inlineState.tags = parsedInfo.tags;
 
       if (parsedInfo.projectName) {
@@ -440,6 +468,7 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
             inlineState.dueDate = parsedInfo.dueDate;
             inlineState.dueTime = parsedInfo.dueTime;
             inlineState.priority = parsedInfo.priority;
+            inlineState.recurring = parsedInfo.recurring;
             inlineState.tags = parsedInfo.tags;
 
             isUpdating = true;
@@ -499,7 +528,7 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       parentTaskId: null,
       dueDate: inlineState.dueDate || null,
       dueTime: inlineState.dueTime || null,
-      recurring: null,
+      recurring: inlineState.recurring || null,
       completed: false,
       completedAt: null,
       createdAt: new Date().toISOString(),

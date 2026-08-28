@@ -26,7 +26,8 @@ function ensureGsiClient() {
     return false;
   }
 
-  const user = _currentUser || JSON.parse(localStorage.getItem('auth.user') || 'null');
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem('auth.user') || 'null'); } catch (e) { }
   const userEmail = user ? user.email : '';
 
   try {

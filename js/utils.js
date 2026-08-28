@@ -293,7 +293,7 @@ function formatLocationShort(locStr) {
 
 /**
  * Persists the user's active UI state (current view, tasks view mode, sort mode, active profile,
- * active project, calendar mode, calendar date, filter tag) to local settings.
+ * active project, calendar mode, calendar date, filter tag, dashboard layout, split ratio) to settings & cloud.
  */
 function persistUIState() {
   if (!state.settings) state.settings = {};
@@ -314,8 +314,126 @@ function persistUIState() {
   if (state.dashboardUpcomingRange) {
     state.settings.dashboardUpcomingRange = state.dashboardUpcomingRange;
   }
+  if (!state.settings.dashboardLayout) {
+    state.settings.dashboardLayout = {
+      left: ['upcoming-tasks', 'daily-tasks'],
+      right: ['todays-schedule', 'birthdays']
+    };
+  }
+  if (state.settings.dashboardSplitRatio === undefined) {
+    state.settings.dashboardSplitRatio = 50;
+  }
 
   if (window.api && window.api.saveSettings) {
     window.api.saveSettings(state.settings);
   }
+}
+
+/**
+ * Formats 24hr time (HH:MM) to short 12hr format (e.g. '7am', '12:53am', '11:30pm').
+ * @param {string} timeStr
+ * @returns {string}
+ */
+function formatTimeShort(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':').map(Number);
+  const hour = parts[0];
+  const mins = parts[1] || 0;
+  const ampm = hour >= 12 ? 'pm' : 'am';
+  const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+  if (mins === 0) return `${displayHour}${ampm}`;
+  return `${displayHour}:${String(mins).padStart(2, '0')}${ampm}`;
+}
+
+/**
+ * Returns either '#121212' or '#ffffff' depending on background luminance.
+ * @param {string} colorStr
+ * @returns {string}
+ */
+function getContrastTextColor(colorStr) {
+  if (!colorStr) return '#ffffff';
+  let r = 0, g = 0, b = 0;
+  
+  if (colorStr.startsWith('#')) {
+    let hex = colorStr.slice(1);
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length === 6) {
+      r = parseInt(hex.substring(0, 2), 16);
+      g = parseInt(hex.substring(2, 4), 16);
+      b = parseInt(hex.substring(4, 6), 16);
+    }
+  } else if (colorStr.startsWith('rgb')) {
+    const match = colorStr.match(/\d+/g);
+    if (match && match.length >= 3) {
+      r = parseInt(match[0], 10);
+      g = parseInt(match[1], 10);
+      b = parseInt(match[2], 10);
+    }
+  }
+  
+  // Standard perceived luminance formula (ITU-R BT.709)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? '#121212' : '#ffffff';
+}
+
+/**
+ * Checks if a task has any recurring schedule.
+ * @param {Object} task 
+ * @returns {boolean}
+ */
+function isTaskRecurring(task) {
+  if (!task) return false;
+  const r = task.recurring || task.repeat || task.recurrence;
+  if (!r) return false;
+  if (typeof r === 'string') {
+    const s = r.toLowerCase().trim();
+    return s !== '' && s !== 'none' && s !== 'never';
+  }
+  if (typeof r === 'object') {
+    return !!(r.frequency || r.freq || r.type);
+  }
+  return false;
+}
+
+/**
+ * Calculates the next occurrence date (YYYY-MM-DD) for a recurring rule.
+ * @param {string} baseDateStr - Base date string (YYYY-MM-DD), defaults to today if past/missing.
+ * @param {string|Object} recurringRule - The repeat rule.
+ * @returns {string} Next date string in YYYY-MM-DD format.
+ */
+function getNextRecurringDate(baseDateStr, recurringRule) {
+  if (!recurringRule) return null;
+  const todayStr = getTodayStr();
+  const refDateStr = (!baseDateStr || baseDateStr < todayStr) ? todayStr : baseDateStr;
+  const base = parseDateLocal(refDateStr);
+  if (!base || isNaN(base.getTime())) return todayStr;
+
+  let ruleStr = '';
+  if (typeof recurringRule === 'string') {
+    ruleStr = recurringRule.toLowerCase().trim();
+  } else if (typeof recurringRule === 'object') {
+    ruleStr = (recurringRule.frequency || recurringRule.freq || recurringRule.type || '').toLowerCase().trim();
+  }
+
+  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+
+  if (ruleStr === 'daily' || ruleStr === 'every day' || ruleStr === 'everyday' || ruleStr === 'day') {
+    next.setDate(next.getDate() + 1);
+  } else if (ruleStr === 'weekdays' || ruleStr === 'every weekday' || ruleStr === 'mon-fri') {
+    do {
+      next.setDate(next.getDate() + 1);
+    } while (next.getDay() === 0 || next.getDay() === 6); // Skip Sun (0) and Sat (6)
+  } else if (ruleStr === 'weekly' || ruleStr === 'every week' || ruleStr === 'week') {
+    next.setDate(next.getDate() + 7);
+  } else if (ruleStr === 'biweekly' || ruleStr === 'every 2 weeks') {
+    next.setDate(next.getDate() + 14);
+  } else if (ruleStr === 'monthly' || ruleStr === 'every month' || ruleStr === 'month') {
+    next.setMonth(next.getMonth() + 1);
+  } else if (ruleStr === 'yearly' || ruleStr === 'every year' || ruleStr === 'year') {
+    next.setFullYear(next.getFullYear() + 1);
+  } else {
+    next.setDate(next.getDate() + 1);
+  }
+
+  return toDateStr(next);
 }

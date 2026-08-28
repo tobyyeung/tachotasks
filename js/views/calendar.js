@@ -294,6 +294,8 @@ function renderCalendarEvents() {
   // MONTHLY VIEW RENDERING
   // ==========================================
   if (viewMode === 'monthly') {
+    closeMonthDayOverflowPopover();
+
     days.forEach(dateStr => {
       const container = document.getElementById(`month-events-${dateStr}`);
       if (container) container.innerHTML = '';
@@ -358,9 +360,7 @@ function renderCalendarEvents() {
         moreBtn.textContent = `+${overflowCount} more`;
         moreBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          state.calendarDate = parseDateLocal(dateStr);
-          state.calendarViewMode = 'daily';
-          renderView();
+          showMonthDayOverflowPopover(dateStr, dayItems, moreBtn);
         });
         container.appendChild(moreBtn);
       }
@@ -718,4 +718,143 @@ function getContrastTextColor(colorStr) {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   // If luminance > 0.55 (like yellow, light green, pastel), use dark text #121212; else white #ffffff
   return luminance > 0.55 ? '#121212' : '#ffffff';
+}
+
+/**
+ * Closes any active month day overflow popover.
+ */
+function closeMonthDayOverflowPopover() {
+  const existing = document.getElementById('month-day-overflow-popover');
+  if (existing) {
+    existing.remove();
+  }
+}
+
+/**
+ * Displays the day overflow popover anchored to the day cell matching the native design.
+ * @param {string} dateStr - 'YYYY-MM-DD'
+ * @param {Array} dayItems - list of tasks/events for this day
+ * @param {HTMLElement} anchorEl - the clicked '+X more' badge or cell
+ */
+function showMonthDayOverflowPopover(dateStr, dayItems, anchorEl) {
+  closeMonthDayOverflowPopover();
+
+  const dateObj = parseDateLocal(dateStr);
+  const weekdayShort = dateObj.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+  const dayNum = dateObj.getDate();
+
+  // Create popover container
+  const popover = document.createElement('div');
+  popover.id = 'month-day-overflow-popover';
+  popover.className = 'month-day-overflow-popover';
+
+  // Build items HTML
+  const itemsHtml = dayItems.map(item => {
+    const isTask = item.type === 'task';
+    const isDone = Boolean(item.completed);
+
+    if (item.isAllDay) {
+      const textColor = getContrastTextColor(item.color);
+      const bg = item.color || '#4285f4';
+      return `
+        <div class="month-popover-pill ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" style="background:${bg};color:${textColor};" title="${escAttr(item.title)}">
+          <span class="month-popover-title">${escHtml(item.title)}</span>
+        </div>
+      `;
+    } else {
+      const dotColor = item.color || (isTask ? 'var(--accent)' : '#4285f4');
+      const timeStr = item.startTime ? formatTimeShort(item.startTime) : '';
+      return `
+        <div class="month-popover-timed-row ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" title="${escAttr(item.title)}">
+          <span class="month-popover-dot" style="background:${dotColor};"></span>
+          ${timeStr ? `<span class="month-popover-time">${timeStr}</span>` : ''}
+          ${isDone ? `<span class="month-popover-check">✔</span>` : ''}
+          <span class="month-popover-title">${escHtml(item.title)}</span>
+        </div>
+      `;
+    }
+  }).join('');
+
+  popover.innerHTML = `
+    <div class="month-popover-header">
+      <div class="month-popover-weekday">${weekdayShort}</div>
+      <div class="month-popover-daynum">${dayNum}</div>
+      <button class="month-popover-close-btn" id="month-popover-close-btn" title="Close">✕</button>
+    </div>
+    <div class="month-popover-items">
+      ${itemsHtml}
+    </div>
+  `;
+
+  document.body.appendChild(popover);
+
+  // Position popover relative to cell or anchor
+  const cell = anchorEl.closest('.calendar-month-cell') || anchorEl;
+  const cellRect = cell.getBoundingClientRect();
+  const popoverRect = popover.getBoundingClientRect();
+
+  const popoverWidth = popoverRect.width || 250;
+  const popoverHeight = popoverRect.height || 260;
+
+  // Align with the top of the cell, centered horizontally over the cell
+  let left = cellRect.left + (cellRect.width / 2) - (popoverWidth / 2);
+  let top = cellRect.top - 8;
+
+  // Boundary checks
+  const margin = 12;
+  if (left < margin) left = margin;
+  if (left + popoverWidth > window.innerWidth - margin) {
+    left = window.innerWidth - popoverWidth - margin;
+  }
+  if (top < margin) top = margin;
+  if (top + popoverHeight > window.innerHeight - margin) {
+    top = window.innerHeight - popoverHeight - margin;
+  }
+
+  popover.style.left = `${Math.round(left)}px`;
+  popover.style.top = `${Math.round(top)}px`;
+
+  // Close button handler
+  const closeBtn = popover.querySelector('#month-popover-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeMonthDayOverflowPopover();
+    });
+  }
+
+  // Item click handlers
+  popover.querySelectorAll('[data-item-id]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const itemId = row.dataset.itemId;
+      const itemType = row.dataset.itemType;
+      closeMonthDayOverflowPopover();
+      if (itemType === 'task') {
+        showTaskModal(itemId);
+      } else {
+        showEventPopover(itemId, itemType, row);
+      }
+    });
+  });
+
+  // Click outside and ESC key dismiss listeners
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      closeMonthDayOverflowPopover();
+      document.removeEventListener('keydown', onKeyDown);
+    }
+  };
+  document.addEventListener('keydown', onKeyDown);
+
+  setTimeout(() => {
+    const onDocClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== anchorEl) {
+        closeMonthDayOverflowPopover();
+        document.removeEventListener('click', onDocClick);
+        document.removeEventListener('keydown', onKeyDown);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+  }, 10);
 }
