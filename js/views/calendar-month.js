@@ -37,10 +37,11 @@ function showMonthDayOverflowPopover(dateStr, dayItems, anchorEl) {
     const isDone = Boolean(item.completed);
 
     if (item.isAllDay) {
-      const textColor = getContrastTextColor(item.color);
-      const bg = item.color || '#4285f4';
+      const textColor = isTask ? '#d2e3fc' : '#ffffff';
+      const bg = isTask ? '#162d4a' : darkenColor(item.color || '#4285f4', 0.52);
+      const borderLeft = `3px solid ${item.color || '#4285f4'}`;
       return `
-        <div class="month-popover-pill ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" style="background:${bg};color:${textColor};" title="${escAttr(item.title)}">
+        <div class="month-popover-pill ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" style="background:${bg};color:${textColor};border:1px solid rgba(0,0,0,0.35);border-left:${borderLeft};" title="${escAttr(item.title)}">
           <span class="month-popover-title">${escHtml(item.title)}</span>
         </div>
       `;
@@ -204,11 +205,12 @@ function renderMonthEvents(days, items) {
       el.className = 'month-event-item';
       
       if (item.isAllDay) {
-        const textColor = getContrastTextColor(item.color);
+        const isTask = item.type === 'task';
         el.classList.add('all-day');
-        el.style.background = item.color;
-        el.style.border = '1px solid rgba(0, 0, 0, 0.25)';
-        el.style.color = textColor;
+        el.style.background = isTask ? '#162d4a' : darkenColor(item.color, 0.52);
+        el.style.border = '1px solid rgba(0, 0, 0, 0.35)';
+        el.style.borderLeft = `3px solid ${item.color}`;
+        el.style.color = isTask ? '#d2e3fc' : '#ffffff';
       } else {
         el.style.background = 'transparent';
         el.style.color = 'var(--text-primary)';

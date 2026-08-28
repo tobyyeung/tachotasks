@@ -251,6 +251,7 @@ function renderCalendarEvents() {
 
   state.tasks.forEach(task => {
     if (!task.dueDate) return;
+    if (task.projectId && !isProjectActive(task.projectId)) return;
     const dayIdx = days.indexOf(task.dueDate);
     if (dayIdx < 0) return;
     let startTime = task.dueTime || null;
@@ -326,11 +327,12 @@ function renderCalendarEvents() {
         el.className = 'month-event-item';
         
         if (item.isAllDay) {
-          const textColor = getContrastTextColor(item.color);
+          const isTask = item.type === 'task';
           el.classList.add('all-day');
-          el.style.background = item.color;
-          el.style.border = '1px solid rgba(0, 0, 0, 0.25)';
-          el.style.color = textColor;
+          el.style.background = isTask ? '#162d4a' : darkenColor(item.color, 0.52);
+          el.style.border = '1px solid rgba(0, 0, 0, 0.35)';
+          el.style.borderLeft = `3px solid ${item.color}`;
+          el.style.color = isTask ? '#d2e3fc' : '#ffffff';
         } else {
           el.style.background = 'transparent';
           el.style.color = 'var(--text-primary)';
@@ -429,9 +431,10 @@ function renderCalendarEvents() {
       pill.style.borderLeft = `3px solid ${item.color || '#00d4aa'}`;
       pill.style.color = '#d2e3fc';
     } else {
-      pill.style.background = item.color;
-      pill.style.border = `1px solid rgba(0, 0, 0, 0.25)`;
-      pill.style.color = textColor;
+      pill.style.background = darkenColor(item.color, 0.52);
+      pill.style.border = `1px solid rgba(0, 0, 0, 0.35)`;
+      pill.style.borderLeft = `3px solid ${item.color}`;
+      pill.style.color = '#ffffff';
     }
 
     if (item.completed) pill.style.opacity = '0.4';
@@ -568,18 +571,19 @@ function renderCalendarEvents() {
       el.style.height = `${height}px`;
       el.style.zIndex = zIndex;
 
-      const textColor = isTask ? '#d2e3fc' : getContrastTextColor(item.color);
+      const textColor = isTask ? '#d2e3fc' : '#ffffff';
 
       if (isTask) {
         el.style.background = '#162d4a';
         el.style.border = `1px solid rgba(0, 0, 0, 0.4)`;
         el.style.borderLeft = `3px solid ${item.color || '#00d4aa'}`;
+        el.style.color = textColor;
       } else {
-        el.style.background = item.color;
-        el.style.border = `1px solid rgba(0, 0, 0, 0.25)`;
+        el.style.background = darkenColor(item.color, 0.52);
+        el.style.border = `1px solid rgba(0, 0, 0, 0.35)`;
+        el.style.borderLeft = `3px solid ${item.color}`;
+        el.style.color = textColor;
       }
-
-      el.style.color = textColor;
 
       if (item.completed) el.style.opacity = '0.4';
 

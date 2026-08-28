@@ -33,7 +33,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
   const prof = (state.profiles || []).find(p => p.id === profId);
   const profName = prof ? prof.name : 'Personal';
 
-  const projectOptions = state.projects.map(p =>
+  const projectOptions = (state.projects || []).filter(p => !p.archived).map(p =>
     `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>📂 ${escHtml(p.name)}</option>`
   ).join('');
 

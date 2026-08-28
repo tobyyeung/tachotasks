@@ -280,7 +280,7 @@
         }
       });
 
-      (state.projects || []).forEach(p => {
+      (state.projects || []).filter(p => !p.archived).forEach(p => {
         if (p.sections && p.sections.length > 0) {
           p.sections.forEach(s => {
             subHtml += `<div class="ctx-submenu-item" data-proj-id="${p.id}" data-section-id="${s.id}">📂 ${escHtml(p.name)} / ${escHtml(s.name)}</div>`;

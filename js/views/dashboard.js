@@ -76,8 +76,8 @@ function renderDashboard() {
     </button>
   `;
 
-  // Global tasks across workspace
-  const allTasks = state.tasks || [];
+  // Global tasks across workspace, excluding deactivated projects
+  const allTasks = (state.tasks || []).filter(t => !t.projectId || isProjectActive(t.projectId));
   const incompleteTasks = allTasks.filter(t => !t.completed && !t.isCompleting);
 
   // Active Upcoming range: 'today', '7' (default), '30'

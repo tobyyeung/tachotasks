@@ -15,6 +15,17 @@ function getActiveProfileId() {
 }
 
 /**
+ * Checks if a project is currently active/visible based on sidebar checkbox toggles.
+ * @param {string} projId - Project ID.
+ * @returns {boolean} True if project is active/visible or not associated with a project.
+ */
+function isProjectActive(projId) {
+  if (!projId) return true;
+  const hidden = (state.settings && state.settings.hiddenProjectIds) || [];
+  return !hidden.includes(projId);
+}
+
+/**
  * Applies active priority, tag, and project filters to a list of tasks.
  * @param {Array} tasks - Tasks to filter.
  * @returns {Array} Filtered task array.
@@ -374,6 +385,43 @@ function getContrastTextColor(colorStr) {
   // Standard perceived luminance formula (ITU-R BT.709)
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.55 ? '#121212' : '#ffffff';
+}
+
+/**
+ * Darkens a color (hex/rgb) for harmonious rendering in dark mode calendar.
+ * @param {string} colorStr 
+ * @param {number} factor - Brightness multiplier (default 0.52)
+ * @returns {string}
+ */
+function darkenColor(colorStr, factor = 0.52) {
+  if (!colorStr) return '#1a2736';
+  if (typeof colorStr !== 'string') return '#1a2736';
+  if (colorStr.startsWith('var(')) return '#1f3a5f';
+  
+  let r = 0, g = 0, b = 0;
+  if (colorStr.startsWith('#')) {
+    let hex = colorStr.slice(1);
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length === 6) {
+      r = parseInt(hex.substring(0, 2), 16);
+      g = parseInt(hex.substring(2, 4), 16);
+      b = parseInt(hex.substring(4, 6), 16);
+    }
+  } else if (colorStr.startsWith('rgb')) {
+    const match = colorStr.match(/\d+/g);
+    if (match && match.length >= 3) {
+      r = parseInt(match[0], 10);
+      g = parseInt(match[1], 10);
+      b = parseInt(match[2], 10);
+    }
+  } else {
+    return colorStr;
+  }
+  
+  r = Math.min(255, Math.max(0, Math.round(r * factor)));
+  g = Math.min(255, Math.max(0, Math.round(g * factor)));
+  b = Math.min(255, Math.max(0, Math.round(b * factor)));
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 /**

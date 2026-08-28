@@ -243,7 +243,7 @@ async function addTaskFromParsed(parsed) {
   let projectId = null;
   if (parsed.projectName) {
     const proj = state.projects.find(p =>
-      p.name.toLowerCase() === parsed.projectName.toLowerCase()
+      !p.archived && p.name.toLowerCase() === parsed.projectName.toLowerCase()
     );
     if (proj) projectId = proj.id;
   }

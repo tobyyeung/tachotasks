@@ -194,6 +194,22 @@ function setupNavigation() {
       renderView();
     });
   }
+
+  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+  const sidebar = document.getElementById('sidebar');
+  if (sidebarToggleBtn && sidebar) {
+    if (state.settings && state.settings.sidebarCollapsed) {
+      sidebar.classList.add('collapsed');
+      sidebarToggleBtn.title = 'Expand sidebar';
+    }
+    sidebarToggleBtn.addEventListener('click', async () => {
+      sidebar.classList.toggle('collapsed');
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      sidebarToggleBtn.title = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      state.settings.sidebarCollapsed = isCollapsed;
+      await window.api.saveSettings(state.settings);
+    });
+  }
 }
 
 
@@ -1147,13 +1163,16 @@ function attachViewListeners() {
 
   // New task button
   const addBtn = document.getElementById('add-task-btn');
-  if (addBtn) addBtn.addEventListener('click', () => showTaskModal(null));
-
-  // Add project list button
-  const addProjectListBtn = document.getElementById('add-project-list-btn');
-  if (addProjectListBtn && state.filterProject) {
-    addProjectListBtn.addEventListener('click', () => showProjectModal(state.filterProject));
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      if (state.currentView === 'project' && state.filterProject) {
+        showTaskModal(null, { projectId: state.filterProject });
+      } else {
+        showTaskModal(null);
+      }
+    });
   }
+
 
   // Calendar navigation
   const calPrev = document.getElementById('cal-prev') || document.getElementById('planner-prev');
@@ -1325,6 +1344,40 @@ function attachViewListeners() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openSectionMenu(btn.dataset.sectionId, btn);
+    });
+  });
+
+  // Project Options Menu (Header button and right-click)
+  document.querySelectorAll('.project-options-menu-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = btn.getBoundingClientRect();
+      openProjectContextMenu(rect.left, rect.bottom + 4, btn.dataset.projectId);
+    });
+  });
+
+  document.querySelectorAll('.project-header-bar').forEach(header => {
+    header.addEventListener('contextmenu', (e) => {
+      if (e.target.closest('button') || e.target.closest('input')) return;
+      e.preventDefault();
+      openProjectContextMenu(e.clientX, e.clientY, header.dataset.projectId);
+    });
+  });
+
+  // Restore archived project
+  document.querySelectorAll('.unarchive-proj-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const projId = btn.dataset.projectId;
+      const proj = state.projects.find(p => p.id === projId);
+      if (proj) {
+        proj.archived = false;
+        delete proj.archivedAt;
+        await window.api.saveProjects(state.projects);
+        showToast(`Project "${proj.name}" restored`, 'success');
+        renderSidebarProjects();
+        renderView();
+      }
     });
   });
 

@@ -1,21 +1,310 @@
-/* ===== PROJECT VIEW & ANCHORED SIDEBAR ===== */
+/* ===== PROJECT VIEW (TWO-COLUMN DASHBOARD LAYOUT) ===== */
 .project-view {
-  animation: fadeInUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-2xl);
 }
 
-.profile-badge {
-  box-shadow: 0 0 12px rgba(72, 219, 251, 0.15);
+.project-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
+  flex-wrap: wrap;
+}
+
+.project-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.project-sublists-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--sp-md);
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .project-sublists-bar .tag-pill {
   transition: all var(--t-fast);
+  padding: 3px 10px;
+  font-size: 11px;
+  border-radius: var(--radius-full);
 }
 
 .project-sublists-bar .tag-pill:hover {
   transform: translateY(-1px);
-  filter: brightness(1.15);
+  filter: brightness(1.2);
 }
 
-.project-deadlines-sidebar {
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+.project-progress-banner {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  margin-bottom: var(--sp-lg);
+  backdrop-filter: blur(20px);
+}
+
+.project-progress-track {
+  height: 4px;
+  background: var(--bg-glass-strong);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.project-progress-fill {
+  height: 100%;
+  background: var(--accent-gradient);
+  border-radius: 2px;
+  transition: width var(--t-slow);
+}
+
+/* Two-column dashboard grid */
+.project-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: var(--sp-lg);
+  align-items: start;
+}
+
+@media (max-width: 950px) {
+  .project-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.project-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+.project-right-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+.project-section-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-lg);
+  backdrop-filter: blur(20px);
+  position: relative;
+  transition: all var(--t-fast);
+}
+
+.project-section-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.project-deadlines-widget {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-lg);
+  backdrop-filter: blur(20px);
+}
+
+.project-deadlines-widget .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Summary stats row */
+.deadlines-stat-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--sp-md);
+}
+
+.deadline-stat-badge {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  gap: 2px;
+}
+
+.deadline-stat-badge .stat-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.deadline-stat-badge .stat-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.deadline-stat-badge.alert .stat-num {
+  color: var(--danger, #ff5c5c);
+}
+
+.deadline-stat-badge.alert {
+  border-color: rgba(255, 92, 92, 0.3);
+  background: rgba(255, 92, 92, 0.06);
+}
+
+/* Deadlines timeline groups */
+.deadlines-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deadline-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deadline-group-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.deadline-group-header.overdue {
+  color: var(--danger, #ff5c5c);
+}
+
+.deadline-group-header.today {
+  color: var(--accent, #48dbfb);
+}
+
+.deadline-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  transition: all var(--t-fast);
+  cursor: pointer;
+}
+
+.deadline-item-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.deadline-item-card.overdue {
+  border-left: 3px solid var(--danger, #ff5c5c);
+  background: rgba(255, 92, 92, 0.03);
+}
+
+.deadline-item-card.today {
+  border-left: 3px solid var(--accent, #48dbfb);
+  background: rgba(72, 219, 251, 0.03);
+}
+
+.deadline-item-card.completed {
+  opacity: 0.45;
+}
+
+.deadline-tag-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.deadline-urgency-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.deadline-urgency-pill.overdue {
+  background: rgba(255, 92, 92, 0.15);
+  color: var(--danger, #ff5c5c);
+}
+
+.deadline-urgency-pill.today {
+  background: rgba(72, 219, 251, 0.15);
+  color: var(--accent, #48dbfb);
+}
+
+.deadline-urgency-pill.soon {
+  background: rgba(255, 177, 66, 0.15);
+  color: #ffb142;
+}
+
+.deadline-urgency-pill.future {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.project-view .add-task-inline-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: fit-content;
+  margin-top: 8px;
+}
+
+.project-view .add-task-inline-btn:hover {
+  color: var(--proj-color, var(--accent));
+}
+
+.project-view .add-task-inline-btn .plus-icon {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--proj-color, var(--accent));
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.project-view .add-task-inline-btn:hover .plus-icon {
+  transform: scale(1.2);
 }

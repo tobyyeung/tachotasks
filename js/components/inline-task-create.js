@@ -600,9 +600,10 @@ function showQuickLocationSelector(anchorEl, currentState, onSelect) {
     `;
   });
 
-  if (state.projects && state.projects.length > 0) {
+  const activeProjs = (state.projects || []).filter(p => !p.archived);
+  if (activeProjs.length > 0) {
     itemsHtml += `<div style="padding:8px 12px 4px 12px;font-size:11px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;">Projects</div>`;
-    state.projects.forEach(proj => {
+    activeProjs.forEach(proj => {
       const isSel = currentState.projectId === proj.id;
       itemsHtml += `
         <div class="qc-loc-opt" data-type="project" data-id="${proj.id}" style="padding:6px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;background:${isSel ? 'rgba(255,255,255,0.08)' : 'transparent'};">

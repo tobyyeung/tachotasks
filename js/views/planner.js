@@ -25,7 +25,7 @@ function renderPlanner() {
     const localDayEvents = state.events.filter(e => e.date === dateStr);
     const gcalDayEvents = getActiveGcalEvents().filter(e => e.date === dateStr);
     const dayEvents = [...localDayEvents, ...gcalDayEvents];
-    const dayTasks = state.tasks.filter(t => (t.dueDate === dateStr || t.plannedDate === dateStr));
+    const dayTasks = state.tasks.filter(t => (t.dueDate === dateStr || t.plannedDate === dateStr) && (!t.projectId || isProjectActive(t.projectId)));
 
     miniCalHtml += `
       <div class="planner-day-row" data-planner-date="${dateStr}" data-drop-target="planner" 
@@ -61,8 +61,8 @@ function renderPlanner() {
     `;
   });
 
-  // Unscheduled backlog (all standalone and project tasks)
-  const unscheduled = state.tasks.filter(t => !t.dueDate && !t.plannedDate && !t.completed);
+  // Unscheduled backlog (all standalone and project tasks, excluding deactivated projects)
+  const unscheduled = state.tasks.filter(t => !t.dueDate && !t.plannedDate && !t.completed && (!t.projectId || isProjectActive(t.projectId)));
 
   const backlogHtml = unscheduled.length > 0
     ? unscheduled.map(t => {

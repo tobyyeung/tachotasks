@@ -269,8 +269,8 @@ async function performSyncFromCloud() {
             item.profileId = item.profileId.replace('cat-', 'profile-');
             needsCloudFix = true;
           }
-          if (item.parentProjectId && typeof item.parentProjectId === 'object') {
-            item.parentProjectId = null;
+          if ('parentProjectId' in item) {
+            delete item.parentProjectId;
             needsCloudFix = true;
           }
         }

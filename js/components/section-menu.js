@@ -1,6 +1,7 @@
 // ===== SECTION OPTIONS DROPDOWN & MODALS =====
 /**
  * Opens the section options context menu for a specific section.
+ * Supports both standalone Task sections and Project sections.
  * Options: Edit, Duplicate, Archive, Delete.
  *
  * @param {string} secId - Section ID.
@@ -10,7 +11,12 @@ function openSectionMenu(secId, triggerBtn) {
   const menu = document.getElementById('context-menu');
   if (!menu) return;
 
-  const sec = (state.settings && state.settings.taskSections || []).find(s => s.id === secId);
+  let isProjectSec = false;
+  let sec = (state.settings && state.settings.taskSections || []).find(s => s.id === secId);
+  if (!sec) {
+    sec = (state.settings && state.settings.projectSections || []).find(s => s.id === secId);
+    if (sec) isProjectSec = true;
+  }
   if (!sec) return;
 
   menu.innerHTML = `
@@ -54,12 +60,14 @@ function openSectionMenu(secId, triggerBtn) {
         <h2 style="font-size:16px;margin-bottom:14px;font-weight:600;">Edit Section</h2>
         <div style="margin-bottom:12px;">
           <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:500;">Section Name</label>
-          <input type="text" id="modal-edit-sec-name" value="${escAttr(sec.name)}" placeholder="e.g. CS374" style="width:100%;padding:8px 12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);outline:none;font-size:13px;" />
+          <input type="text" id="modal-edit-sec-name" value="${escAttr(sec.name)}" placeholder="e.g. Planning" style="width:100%;padding:8px 12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);outline:none;font-size:13px;" />
         </div>
+        ${!isProjectSec ? `
         <div style="margin-bottom:16px;">
           <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:500;">Website / Link (optional)</label>
           <input type="text" id="modal-edit-sec-link" value="${escAttr(sec.link || '')}" placeholder="e.g. https://canvas.illinois.edu" style="width:100%;padding:8px 12px;background:var(--bg-glass);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);outline:none;font-size:13px;" />
         </div>
+        ` : ''}
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button id="modal-cancel-edit-sec" style="padding:6px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text-primary);cursor:pointer;font-size:13px;">Cancel</button>
           <button id="modal-confirm-edit-sec" class="btn-primary" style="padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;">Save</button>
@@ -73,13 +81,15 @@ function openSectionMenu(secId, triggerBtn) {
     input.select();
     const save = async () => {
       const newName = input.value.trim();
-      let newLink = linkInput.value.trim();
-      if (newLink && !newLink.startsWith('http://') && !newLink.startsWith('https://')) {
-        newLink = 'https://' + newLink;
-      }
       if (newName) {
         sec.name = newName;
-        sec.link = newLink || null;
+        if (linkInput) {
+          let newLink = linkInput.value.trim();
+          if (newLink && !newLink.startsWith('http://') && !newLink.startsWith('https://')) {
+            newLink = 'https://' + newLink;
+          }
+          sec.link = newLink || null;
+        }
         await window.api.saveSettings(state.settings);
         renderView();
         closeModal();
@@ -88,23 +98,28 @@ function openSectionMenu(secId, triggerBtn) {
     document.getElementById('modal-confirm-edit-sec').addEventListener('click', save);
     document.getElementById('modal-cancel-edit-sec').addEventListener('click', closeModal);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
-    linkInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+    if (linkInput) linkInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
   });
 
   // 2. Duplicate Section
   document.getElementById('sec-menu-duplicate').addEventListener('click', async () => {
     menu.classList.add('hidden');
-    const newSecId = 'sec-' + generateId();
+    const newSecId = (isProjectSec ? 'psec-' : 'sec-') + generateId();
     const newSec = {
       id: newSecId,
       name: sec.name + ' (Copy)',
-      profileId: sec.profileId
+      ...(isProjectSec ? { projectId: sec.projectId } : { profileId: sec.profileId })
     };
-    const secIndex = state.settings.taskSections.findIndex(s => s.id === sec.id);
+
+    const targetList = isProjectSec
+      ? (state.settings.projectSections = state.settings.projectSections || [])
+      : (state.settings.taskSections = state.settings.taskSections || []);
+
+    const secIndex = targetList.findIndex(s => s.id === sec.id);
     if (secIndex >= 0) {
-      state.settings.taskSections.splice(secIndex + 1, 0, newSec);
+      targetList.splice(secIndex + 1, 0, newSec);
     } else {
-      state.settings.taskSections.push(newSec);
+      targetList.push(newSec);
     }
 
     // Duplicate all tasks belonging to this section
@@ -166,7 +181,11 @@ function openSectionMenu(secId, triggerBtn) {
     openModal(html);
     document.getElementById('modal-cancel-del-sec').addEventListener('click', closeModal);
     document.getElementById('modal-confirm-del-sec').addEventListener('click', async () => {
-      state.settings.taskSections = state.settings.taskSections.filter(s => s.id !== sec.id);
+      if (isProjectSec) {
+        state.settings.projectSections = (state.settings.projectSections || []).filter(s => s.id !== sec.id);
+      } else {
+        state.settings.taskSections = (state.settings.taskSections || []).filter(s => s.id !== sec.id);
+      }
       state.tasks.forEach(t => {
         if (t.sectionId === sec.id) t.sectionId = null;
       });

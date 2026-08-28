@@ -70,6 +70,7 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
   // Collect tasks
   state.tasks.forEach(task => {
     if (!task.dueDate || !itemsByDate[task.dueDate]) return;
+    if (task.projectId && !isProjectActive(task.projectId)) return;
     let locPrefix = '';
     let locColor = '';
     if (task.projectId) {

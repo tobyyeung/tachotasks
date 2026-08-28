@@ -84,9 +84,6 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 ## Pending Updates & Roadmap
 
 - [ ] Create icon for quick change dates for tasks (find all svg imgs)
-- [ ] Fix projects UI and integration
 - [ ] Create a timestamp-based sync & conflict resolution system to ensure older device tasks never override newer updates
-- [ ] make the dashboard more customizable (add notes section and maybe fix daily reminders)
-- [ ] Weekly Planner fix 
 - [ ] Add a postpone function where it would move any old task to be due today instead etc
-
+- [ ] fix settings ui

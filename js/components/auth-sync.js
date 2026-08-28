@@ -123,7 +123,8 @@ function setSyncStatus(status) {
     el.textContent = 'Syncing...';
   } else if (status === 'synced') {
     el.classList.add('synced');
-    el.textContent = 'Synced just now';
+    const isCollapsed = document.getElementById('sidebar')?.classList.contains('collapsed');
+    el.textContent = isCollapsed ? 'Synced' : 'Synced just now';
   } else if (status === 'offline') {
     el.textContent = 'Offline';
   } else {

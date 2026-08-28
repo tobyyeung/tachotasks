@@ -23,11 +23,18 @@
         <div class="logo-icon"><img src="assets/brand/logo.png" alt="Tacho Tasks Logo" /></div>
         <span class="logo-text">Tacho Tasks</span>
         <div style="flex:1"></div>
-        <button class="icon-btn" id="header-settings-btn" title="Settings"
-          style="width: 18px; height: 18px; color: var(--text-secondary); flex-shrink: 0; margin-right: 0px; padding: 0; border: none; background: none; cursor: pointer;">
-          <img src="assets/icons/Settings.png" alt="Settings"
-            style="width: 100%; height: 100%; object-fit: contain; display: block; opacity: 0.75;" />
-        </button>
+        <div class="sidebar-header-actions" style="display:flex;align-items:center;gap:6px;">
+          <button class="icon-btn" id="header-settings-btn" title="Settings"
+            style="width: 22px; height: 22px; color: var(--text-secondary); flex-shrink: 0; padding: 2px; border: none; background: none; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;">
+            <img src="assets/icons/Settings.png" alt="Settings"
+              style="width: 16px; height: 16px; object-fit: contain; display: block; opacity: 0.75;" />
+          </button>
+          <button class="icon-btn" id="sidebar-toggle-btn" title="Collapse sidebar"
+            style="width: 22px; height: 22px; color: var(--text-secondary); flex-shrink: 0; padding: 2px; border: none; background: none; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;">
+            <img src="assets/icons/Down.png" alt="Toggle sidebar" class="sidebar-toggle-arrow"
+              style="width: 14px; height: 14px; object-fit: contain; display: block; opacity: 0.75; transform: rotate(90deg); transition: transform 0.25s ease;" />
+          </button>
+        </div>
       </div>
 
       <nav class="sidebar-nav" id="sidebar-nav">
@@ -58,6 +65,7 @@
           <img class="collapse-arrow" src="assets/icons/Down.png" alt="Toggle"
             style="width:18px;height:18px;object-fit:contain;transition:transform 0.2s;margin-right:4px;" />
           <span>Projects</span>
+          <span class="nav-wip-badge">WIP</span>
           <button class="sidebar-add-btn" id="add-project-btn" title="Add project"
             onclick="event.stopPropagation()">+</button>
         </div>
@@ -106,9 +114,9 @@
           <div id="user-profile" class="user-profile hidden">
             <img id="user-avatar" src="" alt="Avatar" class="user-avatar" />
             <div class="user-info">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="user-header-row" style="display:flex; justify-content:space-between; align-items:center;">
                 <div id="user-name" class="user-name">Name</div>
-                <div style="display:flex; gap:6px; align-items:center;">
+                <div class="user-actions-row" style="display:flex; gap:6px; align-items:center;">
                   <button id="manual-sync-btn" class="icon-btn" title="Sync with Cloud"
                     style="width:16px;height:16px;padding:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <img src="assets/icons/Refresh.png" alt="Sync" style="width:100%;height:100%;object-fit:contain;opacity:0.75;transition:opacity 0.15s;" />
@@ -120,10 +128,6 @@
                 </div>
               </div>
               <div id="user-email" class="user-email" style="font-size:11px;color:var(--text-tertiary);"></div>
-              <div id="gcal-status" class="gcal-connection-status" style="display:none;">
-                <span class="gcal-status-dot"></span>
-                <span class="gcal-status-text">Google Calendar connected</span>
-              </div>
             </div>
           </div>
 
@@ -131,7 +135,14 @@
             <img src="assets/icons/Add.png" alt="Sign in" style="width:20px;height:20px;object-fit:contain;margin-right:6px;" />
             Sign in with Google
           </button>
-          <div id="sync-status" class="sync-status" style="margin-top:4px;"></div>
+          
+          <div id="sidebar-statuses" class="sidebar-statuses" style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
+            <div id="gcal-status" class="gcal-connection-status" style="display:none;">
+              <span class="gcal-status-dot"></span>
+              <span class="gcal-status-text">Google Calendar connected</span>
+            </div>
+            <div id="sync-status" class="sync-status"></div>
+          </div>
         </div>
       </div>
     </aside>
@@ -184,35 +195,35 @@
   <!-- Context Menu -->
   <div id="context-menu" class="context-menu hidden"></div>
 
-  <script type="module" src="js/browser-api.js?v=42"></script>
-  <script src="js/state.js?v=42"></script>
-  <script src="js/utils.js?v=42"></script>
-  <script src="js/utils/nlp-parser.js?v=42"></script>
-  <script src="js/data.js?v=42"></script>
-  <script src="js/components/modal-base.js?v=42"></script>
-  <script src="js/components/date-selector.js?v=42"></script>
-  <script src="js/components/task-menu.js?v=42"></script>
-  <script src="js/components/inline-task-create.js?v=42"></script>
-  <script src="js/components/task-modal.js?v=51"></script>
-  <script src="js/components/project-modal.js?v=42"></script>
-  <script src="js/components/section-menu.js?v=42"></script>
-  <script src="js/components/auth-sync.js?v=42"></script>
-  <script src="js/components/task-item.js?v=42"></script>
-  <script src="js/components/event-popover.js?v=42"></script>
-  <script src="js/components/quick-add.js?v=42"></script>
-  <script src="js/components/drag-drop.js?v=42"></script>
-  <script src="js/components/sidebar.js?v=42"></script>
-  <script src="js/views/dashboard.js?v=42"></script>
-  <script src="js/views/tasks.js?v=42"></script>
-  <script src="js/views/project.js?v=42"></script>
-  <script src="js/views/archive.js?v=42"></script>
-  <script src="js/views/calendar-schedule.js?v=42"></script>
-  <script src="js/views/calendar-month.js?v=42"></script>
-  <script src="js/views/calendar-grid.js?v=42"></script>
-  <script src="js/views/calendar.js?v=42"></script>
-  <script src="js/views/planner.js?v=42"></script>
-  <script src="js/views/settings.js?v=42"></script>
-  <script src="js/app.js?v=42"></script>
+  <script type="module" src="js/browser-api.js?v=60"></script>
+  <script src="js/state.js?v=60"></script>
+  <script src="js/utils.js?v=60"></script>
+  <script src="js/utils/nlp-parser.js?v=60"></script>
+  <script src="js/data.js?v=60"></script>
+  <script src="js/components/modal-base.js?v=60"></script>
+  <script src="js/components/date-selector.js?v=60"></script>
+  <script src="js/components/task-menu.js?v=60"></script>
+  <script src="js/components/inline-task-create.js?v=60"></script>
+  <script src="js/components/task-modal.js?v=69"></script>
+  <script src="js/components/project-modal.js?v=60"></script>
+  <script src="js/components/section-menu.js?v=60"></script>
+  <script src="js/components/auth-sync.js?v=60"></script>
+  <script src="js/components/task-item.js?v=60"></script>
+  <script src="js/components/event-popover.js?v=60"></script>
+  <script src="js/components/quick-add.js?v=60"></script>
+  <script src="js/components/drag-drop.js?v=60"></script>
+  <script src="js/components/sidebar.js?v=60"></script>
+  <script src="js/views/dashboard.js?v=60"></script>
+  <script src="js/views/tasks.js?v=60"></script>
+  <script src="js/views/project.js?v=60"></script>
+  <script src="js/views/archive.js?v=60"></script>
+  <script src="js/views/calendar-schedule.js?v=60"></script>
+  <script src="js/views/calendar-month.js?v=60"></script>
+  <script src="js/views/calendar-grid.js?v=60"></script>
+  <script src="js/views/calendar.js?v=60"></script>
+  <script src="js/views/planner.js?v=60"></script>
+  <script src="js/views/settings.js?v=60"></script>
+  <script src="js/app.js?v=60"></script>
 </body>
 
 </html>

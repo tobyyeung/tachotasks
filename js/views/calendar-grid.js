@@ -86,9 +86,10 @@ function renderWeeklyDailyEvents(days, items) {
       pill.style.borderLeft = `3px solid ${item.color || '#00d4aa'}`;
       pill.style.color = '#d2e3fc';
     } else {
-      pill.style.background = item.color;
-      pill.style.border = `1px solid rgba(0, 0, 0, 0.25)`;
-      pill.style.color = textColor;
+      pill.style.background = darkenColor(item.color, 0.52);
+      pill.style.border = `1px solid rgba(0, 0, 0, 0.35)`;
+      pill.style.borderLeft = `3px solid ${item.color}`;
+      pill.style.color = '#ffffff';
     }
 
     if (item.completed) pill.style.opacity = '0.4';
@@ -225,18 +226,19 @@ function renderWeeklyDailyEvents(days, items) {
       el.style.height = `${height}px`;
       el.style.zIndex = zIndex;
 
-      const textColor = isTask ? '#d2e3fc' : getContrastTextColor(item.color);
+      const textColor = isTask ? '#d2e3fc' : '#ffffff';
 
       if (isTask) {
         el.style.background = '#162d4a';
         el.style.border = `1px solid rgba(0, 0, 0, 0.4)`;
         el.style.borderLeft = `3px solid ${item.color || '#00d4aa'}`;
+        el.style.color = textColor;
       } else {
-        el.style.background = item.color;
-        el.style.border = `1px solid rgba(0, 0, 0, 0.25)`;
+        el.style.background = darkenColor(item.color, 0.52);
+        el.style.border = `1px solid rgba(0, 0, 0, 0.35)`;
+        el.style.borderLeft = `3px solid ${item.color}`;
+        el.style.color = textColor;
       }
-
-      el.style.color = textColor;
 
       if (item.completed) el.style.opacity = '0.4';
 
