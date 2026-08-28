@@ -1,7 +1,45 @@
 /**
- * utils.js
- * Utility functions for date/time formatting, filtering, ID generation, and HTML escaping.
+ * Returns default profile templates (All, Personal, Work, School).
+ * @returns {Array} Default profiles array.
  */
+function getDefaultProfiles() {
+  return [
+    { id: 'all', name: 'All', icon: '', image: 'assets/brand/logo.png' },
+    { id: 'profile-personal', name: 'Personal', icon: '', image: 'assets/profiles/personal.png' },
+    { id: 'profile-work', name: 'Work', icon: '', image: 'assets/profiles/work.png' },
+    { id: 'profile-school', name: 'School', icon: '', image: 'assets/profiles/school.png' }
+  ];
+}
+
+/**
+ * Ensures required default profiles (Personal, Work, School) always exist in a profiles list.
+ * @param {Array} profiles - Existing profile list.
+ * @returns {Array} Profiles list with defaults guaranteed.
+ */
+function ensureDefaultProfiles(profiles = []) {
+  const defaults = getDefaultProfiles();
+  if (!Array.isArray(profiles) || profiles.length === 0) {
+    return defaults;
+  }
+  const result = [...profiles];
+  const defaultImages = {
+    'all': 'assets/brand/logo.png',
+    'profile-personal': 'assets/profiles/personal.png',
+    'profile-work': 'assets/profiles/work.png',
+    'profile-school': 'assets/profiles/school.png'
+  };
+  for (const def of defaults) {
+    const existing = result.find(p => p.id === def.id || (p.name && p.name.toLowerCase() === def.name.toLowerCase()));
+    if (!existing) {
+      result.push(def);
+    } else {
+      if (!existing.image && defaultImages[existing.id]) {
+        existing.image = defaultImages[existing.id];
+      }
+    }
+  }
+  return result;
+}
 
 /**
  * Returns the active profile ID or the configured default profile ID if currently in 'all' mode.

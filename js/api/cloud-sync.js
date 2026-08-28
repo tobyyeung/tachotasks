@@ -6,6 +6,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { ensureGsiClient, resetGsiClient } from './gcal-api.js';
 
 // ===== FIREBASE INITIALIZATION =====
 const firebaseConfig = {
@@ -23,10 +24,43 @@ const db = getFirestore(firebaseApp);
 
 let _currentUser = null;
 const _authCallbacks = [];
+let _lastUid = localStorage.getItem('auth.lastKnownUid') || null;
+let _hasPulledForUid = {};
+
+/**
+ * Clears all cached local user data and authentication tokens.
+ */
+export function clearLocalUserCache() {
+  const keys = [
+    'tachotasks.tasks',
+    'tachotasks.projects',
+    'tachotasks.profiles',
+    'tachotasks.archivedTasks',
+    'tachotasks.settings',
+    'tachotasks.gcalEventsCache',
+    'tachotasks.gcalCalendarsCache',
+    'tachotasks.lastSyncTimestamp',
+    'auth.googleAccessToken',
+    'auth.refreshToken',
+    'auth.clientId',
+    'auth.accessTokenExpiresAt',
+    'auth.gcalConnected'
+  ];
+  keys.forEach(k => localStorage.removeItem(k));
+}
 
 // Listen for Firebase auth state changes
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    const isAccountSwitch = _lastUid && _lastUid !== user.uid;
+    if (isAccountSwitch) {
+      console.log(`[cloud-sync] Account switch detected from ${_lastUid} to ${user.uid}. Clearing cached local data.`);
+      clearLocalUserCache();
+      try { resetGsiClient(); } catch (e) {}
+    }
+    _lastUid = user.uid;
+    localStorage.setItem('auth.lastKnownUid', user.uid);
+
     _currentUser = {
       uid: user.uid,
       email: user.email,
@@ -37,17 +71,14 @@ onAuthStateChanged(auth, (user) => {
     // Pre-initialize GSI client for silent token refresh
     setTimeout(() => { try { ensureGsiClient(); } catch (e) {} }, 1000);
   } else {
-    // Check if we have stored credentials before wiping
-    const storedUser = localStorage.getItem('auth.user');
-    const storedToken = localStorage.getItem('auth.googleAccessToken');
-    if (storedUser && storedToken) {
-      _currentUser = JSON.parse(storedUser);
-      // Pre-initialize GSI client even from stored credentials
-      setTimeout(() => { try { ensureGsiClient(); } catch (e) {} }, 1000);
-    } else {
-      _currentUser = null;
-      localStorage.removeItem('auth.user');
+    if (_lastUid) {
+      clearLocalUserCache();
+      try { resetGsiClient(); } catch (e) {}
     }
+    _lastUid = null;
+    localStorage.removeItem('auth.lastKnownUid');
+    _currentUser = null;
+    localStorage.removeItem('auth.user');
   }
   _authCallbacks.forEach(cb => {
     try { cb(_currentUser); } catch (e) { console.error('Auth callback error:', e); }
@@ -85,13 +116,13 @@ export async function signInWithGoogle() {
 }
 export async function signOutUser() {
   await firebaseSignOut(auth);
+  clearLocalUserCache();
+  try { resetGsiClient(); } catch (e) {}
+  _lastUid = null;
+  localStorage.removeItem('auth.lastKnownUid');
   localStorage.removeItem('auth.user');
-  localStorage.removeItem('auth.googleAccessToken');
-  localStorage.removeItem('auth.refreshToken');
-  localStorage.removeItem('auth.clientId');
-  localStorage.removeItem('auth.accessTokenExpiresAt');
-  localStorage.removeItem('auth.gcalConnected');
   _currentUser = null;
+  _hasPulledForUid = {};
 }
 
 // ===== LOCAL STORAGE HELPERS =====
@@ -153,6 +184,40 @@ function waitForFirebaseAuth(maxWaitMs = 5000) {
   });
 }
 
+function getDefaultProfilesLocal() {
+  return [
+    { id: 'all', name: 'All', icon: '', image: 'assets/brand/logo.png' },
+    { id: 'profile-personal', name: 'Personal', icon: '', image: 'assets/profiles/personal.png' },
+    { id: 'profile-work', name: 'Work', icon: '', image: 'assets/profiles/work.png' },
+    { id: 'profile-school', name: 'School', icon: '', image: 'assets/profiles/school.png' }
+  ];
+}
+
+function ensureDefaultProfilesLocal(profiles = []) {
+  const defaults = getDefaultProfilesLocal();
+  if (!Array.isArray(profiles) || profiles.length === 0) {
+    return defaults;
+  }
+  const result = [...profiles];
+  const defaultImages = {
+    'all': 'assets/brand/logo.png',
+    'profile-personal': 'assets/profiles/personal.png',
+    'profile-work': 'assets/profiles/work.png',
+    'profile-school': 'assets/profiles/school.png'
+  };
+  for (const def of defaults) {
+    const existing = result.find(p => p.id === def.id || (p.name && p.name.toLowerCase() === def.name.toLowerCase()));
+    if (!existing) {
+      result.push(def);
+    } else {
+      if (!existing.image && defaultImages[existing.id]) {
+        existing.image = defaultImages[existing.id];
+      }
+    }
+  }
+  return result;
+}
+
 async function performSyncToCloud() {
   if (!_currentUser) throw new Error('Not signed in with Google');
   // Wait for Firebase to actually be authenticated before hitting Firestore
@@ -161,19 +226,31 @@ async function performSyncToCloud() {
     if (!ready) throw new Error('Firebase authentication connecting... Please retry in a second');
   }
 
+  const uid = (auth.currentUser && auth.currentUser.uid) || (_currentUser && _currentUser.uid);
+  if (!uid) throw new Error('User UID missing');
+
+  // CRITICAL SAFETY GUARD: Never push local state before initial pull for this user's UID!
+  if (!_hasPulledForUid[uid]) {
+    console.log('[cloud-sync] Initial pull required before push for UID:', uid);
+    const pullRes = await performSyncFromCloud();
+    if (pullRes && pullRes.error) {
+      throw new Error('Initial sync pull failed before push: ' + pullRes.error);
+    }
+  }
+
   if (_isSyncing) {
     _isSyncQueued = true;
     return;
   }
   _isSyncing = true;
 
-  const uid = (auth.currentUser && auth.currentUser.uid) || (_currentUser && _currentUser.uid);
-  if (!uid) throw new Error('User UID missing');
-
   try {
     const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
     for (const collName of collections) {
-      const items = lsGet(collName, []);
+      let items = lsGet(collName, []);
+      if (collName === 'profiles') {
+        items = ensureDefaultProfilesLocal(items);
+      }
       const itemIds = new Set(items.map(i => i.id).filter(Boolean));
 
       const collRef = collection(db, `users/${uid}/${collName}`);
@@ -201,10 +278,17 @@ async function performSyncToCloud() {
       }
     }
 
-    const settings = lsGet('settings', {});
-    if (settings) {
-      await setDoc(doc(db, `users/${uid}/settings`, 'preferences'), cleanObjectForFirestore(settings));
+    let settings = lsGet('settings', {});
+    if (!settings || typeof settings !== 'object') settings = {};
+    if (!settings.defaultProfileId) settings.defaultProfileId = 'profile-personal';
+    if (!settings.taskSections || settings.taskSections.length === 0) {
+      settings.taskSections = [
+        { id: 'sec-todo', name: 'To Do' },
+        { id: 'sec-in-progress', name: 'In Progress' },
+        { id: 'sec-done', name: 'Done' }
+      ];
     }
+    await setDoc(doc(db, `users/${uid}/settings`, 'preferences'), cleanObjectForFirestore(settings));
     lsSet('lastSyncTimestamp', Date.now());
   } catch (err) {
     console.error('syncToCloud error:', err);
@@ -280,34 +364,75 @@ async function performSyncFromCloud() {
         }
         items.push(item);
       });
-      lsSet(collName, items);
-      newData[collName] = items;
+
+      if (collName === 'profiles') {
+        const ensured = ensureDefaultProfilesLocal(items);
+        lsSet('profiles', ensured);
+        newData.profiles = ensured;
+        if (ensured.length !== items.length) {
+          needsCloudFix = true;
+        }
+      } else {
+        lsSet(collName, items);
+        newData[collName] = items;
+      }
     }
 
     // Settings
     const settingsSnap = await getDocs(collection(db, `users/${uid}/settings`));
+    let settingsData = null;
     for (const docSnap of settingsSnap.docs) {
       if (docSnap.id === 'preferences') {
-        const data = docSnap.data();
+        const data = docSnap.data() || {};
         if (data.profiles) {
           needsCloudFix = true;
-          if (!newData.profiles || newData.profiles.length === 0) {
-            const migrated = data.profiles.map(p => {
-              if (p.id.startsWith('cat-')) p.id = p.id.replace('cat-', 'profile-');
-              return p;
-            });
-            lsSet('profiles', migrated);
-            newData.profiles = migrated;
-          }
           delete data.profiles;
         }
-        lsSet('settings', data);
-        newData.settings = data;
+        settingsData = data;
       }
     }
 
+    if (!settingsData) {
+      settingsData = {
+        defaultProfileId: 'profile-personal',
+        activeProfileId: 'all',
+        tasksViewMode: 'board',
+        tasksSortMode: 'manual',
+        dashboardUpcomingRange: '7',
+        taskSections: [
+          { id: 'sec-todo', name: 'To Do' },
+          { id: 'sec-in-progress', name: 'In Progress' },
+          { id: 'sec-done', name: 'Done' }
+        ],
+        projectSections: [
+          { id: 'psec-todo', name: 'To Do' },
+          { id: 'psec-in-progress', name: 'In Progress' },
+          { id: 'psec-done', name: 'Done' }
+        ]
+      };
+      needsCloudFix = true;
+    } else {
+      if (!settingsData.defaultProfileId) {
+        settingsData.defaultProfileId = 'profile-personal';
+        needsCloudFix = true;
+      }
+      if (!settingsData.taskSections || settingsData.taskSections.length === 0) {
+        settingsData.taskSections = [
+          { id: 'sec-todo', name: 'To Do' },
+          { id: 'sec-in-progress', name: 'In Progress' },
+          { id: 'sec-done', name: 'Done' }
+        ];
+        needsCloudFix = true;
+      }
+    }
+
+    lsSet('settings', settingsData);
+    newData.settings = settingsData;
+
     lsSet('lastSyncTimestamp', Date.now());
     const timestamp = lsGet('lastSyncTimestamp');
+
+    _hasPulledForUid[uid] = true;
 
     if (needsCloudFix) {
       performSyncToCloud().catch(err => console.error('Cloud fix error:', err));

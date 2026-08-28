@@ -54,7 +54,24 @@ function initAuthUI() {
     signOutBtn.addEventListener('click', async () => {
       try {
         await window.api.signOut();
+        state.tasks = [];
+        state.projects = [];
+        state.archivedTasks = [];
+        state.events = [];
+        state.floatingGoals = [];
+        state.gcalEvents = [];
+        state.gcalCalendars = [];
+        state.activeGcalIds = [];
+        state.fetchedGcalIds.clear();
+        state.filterProject = null;
+        state.filterTag = null;
+        state.profiles = typeof getDefaultProfiles === 'function' ? getDefaultProfiles() : [];
+        
+        renderSidebarProjects();
+        renderSidebarTags();
+        renderSidebarGcals();
         showLoginOverlay();
+        renderView();
         showToast('Signed out', 'success');
       } catch (err) {
         console.error(err);
@@ -147,7 +164,25 @@ async function refreshDataFromStore() {
   state.floatingGoals = [];
   state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
-  state.profiles = await window.api.getProfiles() || [];
+  state.profiles = typeof ensureDefaultProfiles === 'function' ? ensureDefaultProfiles(await window.api.getProfiles() || []) : (await window.api.getProfiles() || []);
+
+  if (!state.settings.defaultProfileId) {
+    state.settings.defaultProfileId = 'profile-personal';
+  }
+  if (!state.settings.taskSections || state.settings.taskSections.length === 0) {
+    state.settings.taskSections = [
+      { id: 'sec-todo', name: 'To Do' },
+      { id: 'sec-in-progress', name: 'In Progress' },
+      { id: 'sec-done', name: 'Done' }
+    ];
+  }
+  if (!state.settings.projectSections || state.settings.projectSections.length === 0) {
+    state.settings.projectSections = [
+      { id: 'psec-todo', name: 'To Do' },
+      { id: 'psec-in-progress', name: 'In Progress' },
+      { id: 'psec-done', name: 'Done' }
+    ];
+  }
 
   if (state.settings.tasksViewMode) {
     state.tasksViewMode = state.settings.tasksViewMode === 'section' ? 'board' : state.settings.tasksViewMode;

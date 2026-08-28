@@ -64,26 +64,8 @@ async function init() {
     'profile-school': 'assets/profiles/school.png'
   };
 
-  if (!state.profiles || state.profiles.length === 0) {
-    state.profiles = [
-      { id: 'all', name: 'All', icon: '', image: 'assets/brand/logo.png' },
-      { id: 'profile-personal', name: 'Personal', icon: '', image: 'assets/profiles/personal.png' },
-      { id: 'profile-work', name: 'Work', icon: '', image: 'assets/profiles/work.png' },
-      { id: 'profile-school', name: 'School', icon: '', image: 'assets/profiles/school.png' }
-    ];
-    await window.api.saveProfiles(state.profiles);
-  } else {
-    let profilesChanged = false;
-    state.profiles.forEach(p => {
-      if (!p.image && defaultProfileImages[p.id]) {
-        p.image = defaultProfileImages[p.id];
-        profilesChanged = true;
-      }
-    });
-    if (profilesChanged) {
-      await window.api.saveProfiles(state.profiles);
-    }
-  }
+  state.profiles = ensureDefaultProfiles(state.profiles || []);
+  await window.api.saveProfiles(state.profiles);
 
   // Ensure defaultProfileId is set and migrate any unprofiled items
   if (!state.settings.defaultProfileId) {
@@ -277,7 +259,37 @@ function setupAuth() {
       
       const gcalSection = document.getElementById('gcal-sidebar-section');
       if (gcalSection) gcalSection.classList.add('hidden');
+      
+      state.tasks = [];
+      state.projects = [];
+      state.archivedTasks = [];
+      state.events = [];
+      state.floatingGoals = [];
       state.gcalEvents = [];
+      state.gcalCalendars = [];
+      state.activeGcalIds = [];
+      state.fetchedGcalIds.clear();
+      state.filterProject = null;
+      state.filterTag = null;
+      state.profiles = getDefaultProfiles();
+      state.settings = {
+        defaultProfileId: 'profile-personal',
+        activeProfileId: 'all',
+        taskSections: [
+          { id: 'sec-todo', name: 'To Do' },
+          { id: 'sec-in-progress', name: 'In Progress' },
+          { id: 'sec-done', name: 'Done' }
+        ],
+        projectSections: [
+          { id: 'psec-todo', name: 'To Do' },
+          { id: 'psec-in-progress', name: 'In Progress' },
+          { id: 'psec-done', name: 'Done' }
+        ]
+      };
+      
+      renderSidebarProjects();
+      renderSidebarTags();
+      renderSidebarGcals();
       showLoginOverlay();
       renderView();
     }

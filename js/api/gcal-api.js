@@ -12,6 +12,15 @@ let _gsiInitialized = false;
 let _gsiPendingResolve = null;
 
 /**
+ * Reset GSI client instance when switching or signing out accounts.
+ */
+function resetGsiClient() {
+  _gsiTokenClient = null;
+  _gsiInitialized = false;
+  _gsiPendingResolve = null;
+}
+
+/**
  * Initialize the GSI token client once and reuse it.
  * Returns true if client is ready, false otherwise.
  */
@@ -341,6 +350,7 @@ async function reconnectGoogleCalendar() {
 
 export {
   ensureGsiClient,
+  resetGsiClient,
   requestGsiToken,
   refreshAccessToken,
   reconnectGoogleCalendar,
