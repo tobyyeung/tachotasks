@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=49">
+  <link rel="stylesheet" href="styles.css?v=50">
   <link rel="icon" href="assets/brand/logo.png" type="image/png">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <title>Tacho Tasks</title>
@@ -138,7 +138,7 @@
     <!-- ===== MAIN CONTENT ===== -->
     <main id="main">
       <div id="view-container"></div>
-      <div id="quick-add-bar">
+      <div id="quick-add-bar" style="display: none;">
         <div class="quick-add-icon" style="width:32px;height:32px;">
           <img src="assets/icons/Add.png" alt="Add" style="width:22px;height:22px;object-fit:contain;" />
         </div>
@@ -183,27 +183,31 @@
   <!-- Context Menu -->
   <div id="context-menu" class="context-menu hidden"></div>
 
-  <script type="module" src="js/browser-api.js?v=9"></script>
-  <script src="js/state.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/data.js?v=2"></script>
-  <script src="js/components/date-selector.js"></script>
-  <script src="js/components/task-menu.js"></script>
-  <script src="js/components/modal-base.js"></script>
-  <script src="js/components/task-modal.js?v=20"></script>
-  <script src="js/components/project-modal.js"></script>
-  <script src="js/components/event-popover.js"></script>
-  <script src="js/components/quick-add.js"></script>
-  <script src="js/components/drag-drop.js"></script>
-  <script src="js/components/sidebar.js"></script>
-  <script src="js/views/dashboard.js"></script>
-  <script src="js/views/tasks.js"></script>
-  <script src="js/views/project.js?v=2"></script>
-  <script src="js/views/archive.js"></script>
-  <script src="js/views/calendar.js"></script>
-  <script src="js/views/planner.js"></script>
-  <script src="js/views/settings.js?v=2"></script>
-  <script src="js/app.js?v=4"></script>
+  <script type="module" src="js/browser-api.js?v=15"></script>
+  <script src="js/state.js?v=15"></script>
+  <script src="js/utils.js?v=15"></script>
+  <script src="js/data.js?v=15"></script>
+  <script src="js/components/date-selector.js?v=15"></script>
+  <script src="js/components/task-menu.js?v=15"></script>
+  <script src="js/components/modal-base.js?v=15"></script>
+  <script src="js/components/task-modal.js?v=24"></script>
+  <script src="js/components/project-modal.js?v=15"></script>
+  <script src="js/components/section-menu.js?v=15"></script>
+  <script src="js/components/auth-sync.js?v=15"></script>
+  <script src="js/components/task-item.js?v=15"></script>
+  <script src="js/components/event-popover.js?v=15"></script>
+  <script src="js/components/quick-add.js?v=15"></script>
+  <script src="js/components/drag-drop.js?v=15"></script>
+  <script src="js/components/sidebar.js?v=15"></script>
+  <script src="js/views/dashboard.js?v=15"></script>
+  <script src="js/views/tasks.js?v=15"></script>
+  <script src="js/views/project.js?v=15"></script>
+  <script src="js/views/archive.js?v=15"></script>
+  <script src="js/views/calendar-schedule.js?v=15"></script>
+  <script src="js/views/calendar.js?v=15"></script>
+  <script src="js/views/planner.js?v=15"></script>
+  <script src="js/views/settings.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 
 </html>

@@ -142,6 +142,7 @@ function renderSidebarProjects() {
         state.currentView = 'project';
         document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       }
+      persistUIState();
       renderSidebarProjects();
       renderView();
     });

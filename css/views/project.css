@@ -1,0 +1,21 @@
+/* ===== PROJECT VIEW & ANCHORED SIDEBAR ===== */
+.project-view {
+  animation: fadeInUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-badge {
+  box-shadow: 0 0 12px rgba(72, 219, 251, 0.15);
+}
+
+.project-sublists-bar .tag-pill {
+  transition: all var(--t-fast);
+}
+
+.project-sublists-bar .tag-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.project-deadlines-sidebar {
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+}

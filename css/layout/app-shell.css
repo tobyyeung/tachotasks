@@ -1,0 +1,106 @@
+/* ============================================================
+   TACHO TASKS — App Layout, Sidebar & Task Inspector
+   ============================================================ */
+
+/* ===== APP LAYOUT ===== */
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+
+/* ===== MAIN CONTENT ===== */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  transition: margin-right var(--t-normal);
+}
+
+#main.inspector-open {
+  margin-right: var(--inspector-width);
+}
+
+/* Quick Add Bar (Temporarily hidden) */
+#quick-add-bar {
+  display: none !important;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-lg);
+  height: var(--quick-add-height);
+  min-height: var(--quick-add-height);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.quick-add-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.quick-add-icon:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.quick-add-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--bg-primary);
+}
+
+#quick-add-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 var(--sp-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  transition: all var(--t-normal);
+}
+
+#quick-add-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+#quick-add-input:focus {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.quick-add-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-add-hint kbd {
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+#view-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--sp-lg);
+}

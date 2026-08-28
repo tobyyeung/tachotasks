@@ -1,0 +1,6 @@
+/* Views Master Stylesheet */
+@import './views/dashboard.css';
+@import './views/tasks.css';
+@import './views/project.css';
+@import './views/calendar.css';
+@import './views/planner.css';

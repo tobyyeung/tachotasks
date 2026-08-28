@@ -290,3 +290,32 @@ function formatLocationShort(locStr) {
   }
   return clean;
 }
+
+/**
+ * Persists the user's active UI state (current view, tasks view mode, sort mode, active profile,
+ * active project, calendar mode, calendar date, filter tag) to local settings.
+ */
+function persistUIState() {
+  if (!state.settings) state.settings = {};
+  state.settings.currentView = state.currentView || 'dashboard';
+  state.settings.activeProfileId = state.activeProfileId || 'all';
+  state.settings.tasksViewMode = state.tasksViewMode || 'board';
+  state.settings.tasksSortMode = state.tasksSortMode || 'dueDate';
+  state.settings.filterTag = state.filterTag || null;
+  state.settings.activeProjectId = state.filterProject || null;
+  state.settings.calendarViewMode = state.calendarViewMode || 'weekly';
+
+  if (state.calendarDate instanceof Date && !isNaN(state.calendarDate.getTime())) {
+    state.settings.calendarDate = toDateStr(state.calendarDate);
+  }
+  if (state.plannerDate instanceof Date && !isNaN(state.plannerDate.getTime())) {
+    state.settings.plannerDate = toDateStr(state.plannerDate);
+  }
+  if (state.dashboardUpcomingRange) {
+    state.settings.dashboardUpcomingRange = state.dashboardUpcomingRange;
+  }
+
+  if (window.api && window.api.saveSettings) {
+    window.api.saveSettings(state.settings);
+  }
+}

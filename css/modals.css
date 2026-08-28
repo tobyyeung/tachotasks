@@ -1,0 +1,6 @@
+/* Modals Master Stylesheet */
+@import './modals/task-modal.css';
+@import './modals/date-selector.css';
+@import './modals/context-menu.css';
+@import './modals/event-popover.css';
+@import './modals/dialogs-toasts.css';

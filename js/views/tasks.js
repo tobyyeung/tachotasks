@@ -109,6 +109,25 @@ function renderTasks() {
   `;
 }
 
+function getSectionHeaderHtml(sec) {
+  if (!sec) return '';
+  const isAllProfile = !state.activeProfileId || state.activeProfileId === 'all';
+  if (isAllProfile && sec.profileId) {
+    const prof = (state.profiles || []).find(p => p.id === sec.profileId);
+    const profName = prof ? prof.name : 'Personal';
+    let profImg = (prof && prof.image) ? prof.image : null;
+    if (!profImg) {
+      const pid = String(sec.profileId).toLowerCase();
+      const nameLower = String(profName).toLowerCase();
+      if (pid.includes('school') || nameLower.includes('school')) profImg = 'assets/profiles/school.png';
+      else if (pid.includes('work') || nameLower.includes('work')) profImg = 'assets/profiles/work.png';
+      else profImg = 'assets/profiles/personal.png';
+    }
+    return `<span style="display:inline-flex;align-items:center;gap:7px;"><img src="${profImg}" alt="${escAttr(profName)}" class="custom-emoji" style="width:20px;height:20px;object-fit:contain;display:block;flex-shrink:0;" /><span>${escHtml(sec.name)}</span></span>`;
+  }
+  return escHtml(sec.name);
+}
+
 function renderTaskList(tasks) {
   const isList = state.tasksViewMode === 'list';
   const incomplete = tasks.filter(t => !t.completed && !t.isCompleting);
@@ -172,10 +191,20 @@ function renderTaskList(tasks) {
         <div class="task-section" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}">
           <div class="task-group-header">
             <div class="section-title-wrap">
-              <span class="section-name">${escHtml(sec.name)}</span>
+              <span class="section-name">${getSectionHeaderHtml(sec)}</span>
               ${count > 0 ? `<span class="section-count">${count}</span>` : ''}
             </div>
-            <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="font-size:14px;opacity:0.4;">•••</button>
+            <div style="display:flex;align-items:center;gap:4px;">
+              ${sec.link ? `
+                <a href="${escAttr(sec.link)}" target="_blank" rel="noopener noreferrer" class="icon-btn section-link-btn" title="Open ${escAttr(sec.link)}" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);opacity:0.6;transition:all var(--t-fast);text-decoration:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="event.stopPropagation();">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                </a>
+              ` : ''}
+              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="font-size:14px;opacity:0.4;">•••</button>
+            </div>
           </div>
           <div class="task-section-list">
             ${secTasks.map(t => renderTaskItem(t, true)).join('')}
@@ -210,10 +239,20 @@ function renderTaskList(tasks) {
         <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}">
           <div class="task-group-header">
             <div class="section-title-wrap">
-              <span class="section-name">${escHtml(sec.name)}</span>
+              <span class="section-name">${getSectionHeaderHtml(sec)}</span>
               <span class="section-count">${count}</span>
             </div>
-            <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Delete section" style="font-size:12px;opacity:0.4;">•••</button>
+            <div style="display:flex;align-items:center;gap:4px;">
+              ${sec.link ? `
+                <a href="${escAttr(sec.link)}" target="_blank" rel="noopener noreferrer" class="icon-btn section-link-btn" title="Open ${escAttr(sec.link)}" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);opacity:0.6;transition:all var(--t-fast);text-decoration:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="event.stopPropagation();">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                </a>
+              ` : ''}
+              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="font-size:12px;opacity:0.4;">•••</button>
+            </div>
           </div>
           <div class="task-section-list">
             ${secTasks.map(t => renderTaskItem(t, false)).join('')}
@@ -259,70 +298,3 @@ function renderTaskList(tasks) {
     return html;
   }
 }
-
-function renderTaskItem(task, isListView = false) {
-  const pColor = getPriorityColor(task.priority);
-  const dueLabel = getDueLabel(task);
-
-  let plannedLabel = '';
-  if (task.plannedDate) {
-    const timeStr = task.plannedTime ? ' ' + formatTime12(task.plannedTime) : '';
-    plannedLabel = `<span class="task-date-pill planned" style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;" title="Planned Date & Time">📅 ${formatDateShort(task.plannedDate)}${timeStr}</span>`;
-  }
-
-  let dueHtml = '';
-  if (dueLabel) {
-    const dueTimeStr = task.dueTime ? ' ' + formatTime12(task.dueTime) : '';
-    dueHtml = `<span class="task-date-pill ${dueLabel.class}" style="font-size:11px;padding:2px 8px;border-radius:4px;" title="Due Date & Time">⏰ ${dueLabel.text}${dueTimeStr}</span>`;
-  }
-
-  const locHtml = getTaskLocationHtml(task);
-  const hasMeta = plannedLabel || dueHtml || (task.tags && task.tags.length > 0);
-
-  if (isListView) {
-    return `
-      <div class="task-item-card list-row ${task.completed ? 'completed' : ''}" data-task-id="${task.id}" draggable="true">
-        <div class="task-circle-check" data-task-toggle="${task.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || 'rgba(255,255,255,0.35)'};color:${pColor || 'var(--text-primary)'};${task.completed ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="Priority ${task.priority ? task.priority.replace('P', '') : 'Default'}">
-          ${task.completed ? '✓' : ''}
-        </div>
-        <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;" data-task-edit="${task.id}">
-          <div style="font-size:14px;font-weight:400;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${escHtml(task.title)}
-          </div>
-          ${hasMeta ? `
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-              ${plannedLabel}
-              ${dueHtml}
-              ${task.tags.map(tag => `<span style="font-size:11px;color:var(--accent);background:rgba(72,219,251,0.08);padding:1px 6px;border-radius:4px;">${escHtml(tag)}</span>`).join('')}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  // Board card layout
-  return `
-    <div class="task-item-card board-card ${task.completed ? 'completed' : ''}" data-task-id="${task.id}" draggable="true">
-      <div class="task-circle-check" data-task-toggle="${task.id}" style="width:20px;height:20px;border-radius:50%;border:2px solid ${pColor || 'var(--text-tertiary)'};color:${pColor || 'var(--text-primary)'};${task.completed ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="Priority ${task.priority ? task.priority.replace('P', '') : 'Default'}">
-        ${task.completed ? '✓' : ''}
-      </div>
-      <div style="flex:1;min-width:0;" data-task-edit="${task.id}">
-        <div style="font-size:14px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          ${escHtml(task.title)}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap;">
-          <span style="font-size:11px;">${locHtml}</span>
-          ${plannedLabel}
-          ${dueHtml}
-          ${task.tags.map(tag => `<span style="font-size:11px;color:var(--accent);">${escHtml(tag)}</span>`).join('')}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-
-
-
-

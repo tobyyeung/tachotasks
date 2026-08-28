@@ -56,6 +56,32 @@ function renderSettings() {
       </div>
 
       <div class="settings-section" style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);border-bottom:1px solid var(--border);padding-bottom:8px;">Dashboard Quick Links</h2>
+        <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:16px;">Customize the shortcut website links displayed in the top right of your Dashboard.</p>
+        <div id="settings-quick-links-list" style="display:flex;flex-direction:column;gap:8px;">
+          ${((state.settings && state.settings.dashboardQuickLinks) || [
+            { title: 'Gmail', url: 'https://mail.google.com' },
+            { title: 'Google Calendar', url: 'https://calendar.google.com' },
+            { title: 'Canvas', url: 'https://canvas.instructure.com' },
+            { title: 'GitHub', url: 'https://github.com' }
+          ]).map((link, idx) => `
+            <div class="settings-quick-link-row" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg-glass);border-radius:var(--radius-md);border:1px solid var(--border);">
+              <input type="text" class="form-input quick-link-edit-title" data-link-idx="${idx}" value="${escAttr(link.title)}" placeholder="Title (e.g. Canvas)" style="width:140px;padding:6px 10px;font-size:13px;" />
+              <input type="url" class="form-input quick-link-edit-url" data-link-idx="${idx}" value="${escAttr(link.url)}" placeholder="URL (e.g. https://canvas.instructure.com)" style="flex:1;padding:6px 10px;font-size:13px;" />
+              <button class="icon-btn delete-quick-link-btn" data-link-idx="${idx}" title="Delete Link" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;opacity:0.75;">
+                <img src="assets/icons/Trash.png" alt="Delete" style="width:16px;height:16px;object-fit:contain;" />
+              </button>
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;align-items:center;">
+          <input type="text" id="new-quick-link-title" placeholder="Title (e.g. Canvas)" class="form-input" style="width:150px;padding:8px 12px;font-size:13px;">
+          <input type="url" id="new-quick-link-url" placeholder="URL (e.g. https://canvas.instructure.com)" class="form-input" style="flex:1;padding:8px 12px;font-size:13px;">
+          <button id="add-quick-link-settings-btn" class="btn-primary" style="padding:8px 18px;font-size:13px;white-space:nowrap;">Add Link</button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="margin-bottom:32px;">
         <h2 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);border-bottom:1px solid var(--border);padding-bottom:8px;">Default Creation Profile</h2>
         <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:16px;">Items created while viewing 'All' will automatically be assigned to this profile.</p>
         <select id="settings-default-profile-select" class="form-select" style="max-width:300px;padding:8px 12px;">
