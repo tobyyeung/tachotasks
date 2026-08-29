@@ -146,8 +146,8 @@ function renderDashboard() {
           <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : `Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}`}">
             ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
           </div>
-          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;" data-task-edit="${t.id}">
-            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" data-task-edit="${t.id}">
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
               <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
@@ -155,7 +155,7 @@ function renderDashboard() {
                 ${locHtml}
               </div>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;opacity:${isDone ? '0.6' : '1'};">
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
               ${dueHtml}
             </div>
@@ -193,8 +193,8 @@ function renderDashboard() {
           <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : `Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}`}">
             ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
           </div>
-          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;" data-task-edit="${t.id}">
-            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" data-task-edit="${t.id}">
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
               <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
@@ -202,7 +202,7 @@ function renderDashboard() {
                 ${locHtml}
               </div>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
               ${t.dueTime ? `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">⏰ ${formatTime12(t.dueTime)}</span>` : ''}
               <span style="font-size:11px;color:var(--accent);background:rgba(72,219,251,0.08);padding:2px 6px;border-radius:4px;">Daily</span>
             </div>

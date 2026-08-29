@@ -34,12 +34,12 @@ function renderTaskItem(task, isListView = false) {
         <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${task.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : 'Mark Complete'}">
           ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
         </div>
-        <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;" data-task-edit="${task.id}">
-          <div class="task-title-text" style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" data-task-edit="${task.id}">
+          <div class="task-title-text" style="flex:1;min-width:0;font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
             ${escHtml(task.title)}
           </div>
           ${hasMeta ? `
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;opacity:${isDone ? '0.6' : '1'};">
+            <div class="task-meta-right" style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
               ${dueHtml}
               ${(task.tags || []).map(tag => `<span style="font-size:11px;color:var(--accent);background:rgba(72,219,251,0.08);padding:1px 6px;border-radius:4px;">${escHtml(tag)}</span>`).join('')}
@@ -60,11 +60,15 @@ function renderTaskItem(task, isListView = false) {
         <div class="task-title-text" style="font-size:14px;font-weight:500;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
           ${escHtml(task.title)}
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap;opacity:${isDone ? '0.6' : '1'};">
-          <span style="font-size:11px;">${locHtml}</span>
-          ${plannedLabel}
-          ${dueHtml}
-          ${(task.tags || []).map(tag => `<span style="font-size:11px;color:var(--accent);">${escHtml(tag)}</span>`).join('')}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;width:100%;opacity:${isDone ? '0.6' : '1'};">
+          <div style="display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden;flex:1;">
+            <span style="font-size:11px;">${locHtml}</span>
+            ${(task.tags || []).map(tag => `<span style="font-size:11px;color:var(--accent);">${escHtml(tag)}</span>`).join('')}
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
+            ${plannedLabel}
+            ${dueHtml}
+          </div>
         </div>
       </div>
     </div>
