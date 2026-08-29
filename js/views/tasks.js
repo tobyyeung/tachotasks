@@ -158,6 +158,46 @@ function renderTaskList(tasks) {
     }
   });
 
+  const completedTasks = (state.archivedTasks || []).filter(t => {
+    if (t.projectId) return false;
+    if (state.activeProfileId && state.activeProfileId !== 'all') {
+      return t.profileId === state.activeProfileId;
+    }
+    return true;
+  });
+
+  const sectionedCompletedTasks = {};
+  sections.forEach(s => sectionedCompletedTasks[s.id] = []);
+  const unsectionedCompletedTasks = [];
+
+  completedTasks.forEach(t => {
+    if (t.sectionId && sectionedCompletedTasks[t.sectionId]) {
+      sectionedCompletedTasks[t.sectionId].push(t);
+    } else {
+      unsectionedCompletedTasks.push(t);
+    }
+  });
+
+  const renderSectionCompletedAccordion = (secId, compTasks, isListView) => {
+    if (!compTasks || compTasks.length === 0) return '';
+    const openMap = (state.settings && state.settings.completedSectionsOpen) || {};
+    const isOpen = Boolean(openMap[secId]);
+    return `
+      <div class="completed-tasks-collapsible ${isOpen ? 'open' : ''}">
+        <div class="completed-tasks-header" data-toggle-section-completed="${secId}" role="button" tabindex="0">
+          <span class="completed-caret">${isOpen ? '▾' : '▸'}</span>
+          <span class="completed-label">Completed</span>
+          <span class="completed-count">(${compTasks.length})</span>
+        </div>
+        <div class="completed-tasks-content ${isOpen ? '' : 'hidden'}">
+          <div class="task-section-list">
+            ${compTasks.map(t => renderTaskItem(t, isListView)).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
   if (isList) {
     // ===== LIST VIEW (Vertical sectioned agenda list) =====
     let html = '<div class="tasks-sections-wrapper list-view">';
@@ -171,6 +211,7 @@ function renderTaskList(tasks) {
         <button class="add-task-inline-btn" data-add-task-section="unsectioned">
           <span class="plus-icon">+</span> Add task
         </button>
+        ${renderSectionCompletedAccordion('unsectioned', unsectionedCompletedTasks, true)}
       </div>
     `;
 
@@ -186,6 +227,7 @@ function renderTaskList(tasks) {
     // 3. Named sections (e.g. UIUC, Personal 9)
     sections.forEach((sec, idx) => {
       const secTasks = sectionedTasks[sec.id] || [];
+      const secCompleted = sectionedCompletedTasks[sec.id] || [];
       const count = secTasks.length;
       html += `
         <div class="task-section" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}">
@@ -212,6 +254,7 @@ function renderTaskList(tasks) {
           <button class="add-task-inline-btn" data-add-task-section="${sec.id}">
             <span class="plus-icon">+</span> Add task
           </button>
+          ${renderSectionCompletedAccordion(sec.id, secCompleted, true)}
         </div>
       `;
 
@@ -234,6 +277,7 @@ function renderTaskList(tasks) {
     // Render sections as columns
     sections.forEach(sec => {
       const secTasks = sectionedTasks[sec.id] || [];
+      const secCompleted = sectionedCompletedTasks[sec.id] || [];
       const count = secTasks.length;
       html += `
         <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="${sec.id}" draggable="true" data-section-drag="${sec.id}">
@@ -260,12 +304,13 @@ function renderTaskList(tasks) {
           <button class="add-task-inline-btn" data-add-task-section="${sec.id}">
             <span class="plus-icon">+</span> Add task
           </button>
+          ${renderSectionCompletedAccordion(sec.id, secCompleted, false)}
         </div>
       `;
     });
 
     // Render unsectioned tasks if not empty (or if no sections exist)
-    if (unsectionedTasks.length > 0 || sections.length === 0) {
+    if (unsectionedTasks.length > 0 || unsectionedCompletedTasks.length > 0 || sections.length === 0) {
       const count = unsectionedTasks.length;
       html += `
         <div class="task-section ${count > 0 ? 'has-tasks' : ''}" data-section-drop="unsectioned">
@@ -282,6 +327,7 @@ function renderTaskList(tasks) {
           <button class="add-task-inline-btn" data-add-task-section="unsectioned">
             <span class="plus-icon">+</span> Add task
           </button>
+          ${renderSectionCompletedAccordion('unsectioned', unsectionedCompletedTasks, false)}
         </div>
       `;
     }

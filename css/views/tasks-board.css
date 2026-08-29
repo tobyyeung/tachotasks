@@ -174,7 +174,120 @@
 
 .task-item.completed,
 .task-item-card.completed {
-  opacity: 0.35;
+  opacity: 0.55;
+}
+
+.task-item-card.completed .task-title,
+.task-item-card.completed .task-title-text {
+  text-decoration: line-through;
+  color: var(--text-tertiary) !important;
+}
+
+.task-item-card.is-completing {
+  animation: taskCompletingFade 1.5s forwards ease-in-out;
+}
+
+.task-check-mark {
+  display: inline-block;
+  animation: taskCheckPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes taskCheckPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes taskCompletingFade {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  20% {
+    opacity: 0.85;
+    transform: translateX(2px);
+  }
+  75% {
+    opacity: 0.65;
+    transform: translateX(0);
+    max-height: 80px;
+    margin-bottom: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(12px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+  }
+}
+
+/* ===== COMPLETED TASKS COLLAPSIBLE ACCORDION ===== */
+.completed-tasks-collapsible {
+  margin-top: 10px;
+  padding-top: 2px;
+  user-select: none;
+  width: 100%;
+}
+
+.completed-tasks-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  transition: all var(--t-fast);
+}
+
+.completed-tasks-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+.completed-caret {
+  font-size: 10px;
+  opacity: 0.65;
+  transition: transform var(--t-fast);
+  display: inline-block;
+  width: 8px;
+  text-align: center;
+}
+
+.completed-label {
+  font-weight: 500;
+  color: inherit;
+}
+
+.completed-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  opacity: 0.85;
+}
+
+.completed-tasks-content {
+  margin-top: 4px;
+}
+
+.completed-tasks-content.hidden {
+  display: none !important;
+}
+
+.completed-tasks-content .task-item-card {
+  opacity: 0.55;
+  transition: opacity var(--t-fast);
+}
+
+.completed-tasks-content .task-item-card:hover {
+  opacity: 0.95;
 }
 
 .task-circle-check {

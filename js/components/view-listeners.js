@@ -589,6 +589,30 @@ function attachViewListeners() {
     });
   });
 
+  // Completed tasks collapsible accordions (Per-section in Tasks view & Project view)
+  document.querySelectorAll('[data-toggle-section-completed]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const secId = btn.dataset.toggleSectionCompleted;
+      if (!state.settings) state.settings = {};
+      if (!state.settings.completedSectionsOpen) state.settings.completedSectionsOpen = {};
+      state.settings.completedSectionsOpen[secId] = !state.settings.completedSectionsOpen[secId];
+      await window.api.saveSettings(state.settings);
+      renderView();
+    });
+  });
+
+  const toggleProjCompletedBtn = document.getElementById('toggle-project-completed-btn');
+  if (toggleProjCompletedBtn) {
+    toggleProjCompletedBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.settings) state.settings = {};
+      state.settings.projectCompletedOpen = !state.settings.projectCompletedOpen;
+      await window.api.saveSettings(state.settings);
+      renderView();
+    });
+  }
+
   // Task checkboxes
   document.querySelectorAll('[data-task-toggle]').forEach(el => {
     el.addEventListener('click', (e) => {

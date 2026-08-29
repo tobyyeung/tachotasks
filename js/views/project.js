@@ -21,6 +21,26 @@ function renderProject() {
   const completingTasks = projTasks.filter(t => t.isCompleting);
   const visibleTasks = [...activeTasks, ...completingTasks];
 
+  // Completed project tasks collapsible
+  let projCompletedHtml = '';
+  if (completedProjTasks.length > 0) {
+    const isProjCompletedOpen = Boolean(state.settings && state.settings.projectCompletedOpen);
+    projCompletedHtml = `
+      <div class="completed-tasks-collapsible ${isProjCompletedOpen ? 'open' : ''}" style="margin-top:16px;">
+        <div class="completed-tasks-header" id="toggle-project-completed-btn" role="button" tabindex="0">
+          <span class="completed-caret">${isProjCompletedOpen ? '▾' : '▸'}</span>
+          <span class="completed-label">Completed</span>
+          <span class="completed-count">(${completedProjTasks.length})</span>
+        </div>
+        <div class="completed-tasks-content ${isProjCompletedOpen ? '' : 'hidden'}">
+          <div class="task-section-list" style="display:flex; flex-direction:column; gap:2px;">
+            ${completedProjTasks.map(t => renderTaskItem(t, true)).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // Left Column Tasks Card with inline Add task button under the list
   const leftColumnHtml = `
     <div class="project-section-card itinerary-card dashboard-card">
@@ -39,6 +59,7 @@ function renderProject() {
       <button class="add-task-inline-btn" data-add-task-section="unsectioned" style="--proj-color:${proj.color || '#5cb8ff'};">
         <span class="plus-icon" style="color:${proj.color || '#5cb8ff'};">+</span> Add task
       </button>
+      ${projCompletedHtml}
     </div>
   `;
 
@@ -70,16 +91,18 @@ function renderProject() {
 
   const renderDeadlineItem = (t, urgencyClass, urgencyLabel) => {
     const pColor = getPriorityColor(t.priority);
+    const isDone = Boolean(t.completed || t.isCompleting);
+    const isCompleting = Boolean(t.isCompleting);
     const dateDisplay = t.dueDate ? formatDateShort(t.dueDate) : (t.plannedDate ? 'Planned: ' + formatDateShort(t.plannedDate) : '');
     const timeDisplay = t.dueTime ? formatTime12(t.dueTime) : (t.plannedTime ? formatTime12(t.plannedTime) : '');
 
     return `
-      <div class="deadline-item-card ${urgencyClass} ${t.completed ? 'completed' : ''}" data-task-id="${t.id}">
-        <div class="task-circle-check" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || 'rgba(255,255,255,0.35)'};color:${pColor || 'var(--text-primary)'};${t.completed ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="Toggle Complete">
-          ${t.completed ? '✓' : ''}
+      <div class="deadline-item-card ${urgencyClass} ${isDone ? 'completed' : ''} ${isCompleting ? 'is-completing' : ''}" data-task-id="${t.id}">
+        <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : 'Toggle Complete'}">
+          ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
         </div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;cursor:pointer;" data-task-edit="${t.id}">
-          <div style="font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${t.completed ? 'text-decoration:line-through;opacity:0.6;' : ''}">
+          <div style="font-size:13px;font-weight:500;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
             ${escHtml(t.title)}
           </div>
           ${timeDisplay ? `

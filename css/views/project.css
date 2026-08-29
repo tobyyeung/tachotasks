@@ -237,7 +237,11 @@
 }
 
 .deadline-item-card.completed {
-  opacity: 0.45;
+  opacity: 0.55;
+}
+
+.deadline-item-card.is-completing {
+  animation: taskCompletingFade 1.5s forwards ease-in-out;
 }
 
 .deadline-tag-pill {

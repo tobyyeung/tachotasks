@@ -138,22 +138,24 @@ function renderDashboard() {
       }
 
       const locHtml = getTaskLocationHtml(t);
+      const isDone = Boolean(t.completed || t.isCompleting);
+      const isCompleting = Boolean(t.isCompleting);
 
       return `
-        <div class="task-item-card list-row ${t.completed ? 'completed' : ''}" data-task-id="${t.id}">
-          <div class="task-circle-check" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || 'rgba(255,255,255,0.35)'};color:${pColor || 'var(--text-primary)'};${t.completed ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}">
-            ${t.completed ? '✓' : ''}
+        <div class="task-item-card list-row ${isDone ? 'completed' : ''} ${isCompleting ? 'is-completing' : ''}" data-task-id="${t.id}">
+          <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : `Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}`}">
+            ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
           </div>
           <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;" data-task-edit="${t.id}">
             <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-              <div style="font-size:14px;font-weight:400;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
                 ${locHtml}
               </div>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
               ${dueHtml}
             </div>
@@ -182,17 +184,18 @@ function renderDashboard() {
   const dailyHtml = dailyTasks.length > 0
     ? dailyTasks.map(t => {
       const pColor = getPriorityColor(t.priority);
-      const isDone = t.completed || t.isCompleting;
+      const isDone = Boolean(t.completed || t.isCompleting);
+      const isCompleting = Boolean(t.isCompleting);
       const locHtml = getTaskLocationHtml(t);
 
       return `
-        <div class="task-item-card list-row ${isDone ? 'completed' : ''}" data-task-id="${t.id}">
-          <div class="task-circle-check" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || 'rgba(255,255,255,0.35)'};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '33;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;" title="${isDone ? 'Mark Incomplete' : `Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}`}">
-            ${isDone ? '✓' : ''}
+        <div class="task-item-card list-row ${isDone ? 'completed' : ''} ${isCompleting ? 'is-completing' : ''}" data-task-id="${t.id}">
+          <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : `Priority ${t.priority ? t.priority.replace('P', '') : 'Default'}`}">
+            ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
           </div>
           <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;" data-task-edit="${t.id}">
             <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-              <div style="font-size:14px;font-weight:400;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''}">
+              <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
