@@ -34,7 +34,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
   const profName = prof ? prof.name : 'Personal';
 
   const projectOptions = (state.projects || []).filter(p => !p.archived).map(p =>
-    `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>📂 ${escHtml(p.name)}</option>`
+    `<option value="${p.id}" ${activeProjId === p.id ? 'selected' : ''}>● ${escHtml(p.name)}</option>`
   ).join('');
 
   const currentTags = task ? task.tags.join(', ') : ((initialData && initialData.tags) ? initialData.tags.join(', ') : '');
@@ -67,7 +67,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
           </div>
           <div class="task-top-actions">
             <div class="more-options-wrapper" style="position:relative;">
-              <button class="task-action-btn" id="modal-more-options-btn" title="More options">•••</button>
+              <button class="task-action-btn" id="modal-more-options-btn" title="More options" style="display:inline-flex;align-items:center;justify-content:center;">
+                <img src="assets/icons/Dots.png" alt="Options" style="width:16px;height:16px;object-fit:contain;" />
+              </button>
               
               <!-- Options Dropdown Menu (•••) -->
               <div id="task-options-menu" class="task-options-menu hidden">
@@ -87,7 +89,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
               </div>
             </div>
 
-            <button class="task-action-btn modal-close" id="modal-close-btn" title="Close">✕</button>
+            <button class="task-action-btn modal-close" id="modal-close-btn" title="Close" style="display:inline-flex;align-items:center;justify-content:center;">
+              <img src="assets/icons/Cross.png" alt="Close" style="width:14px;height:14px;object-fit:contain;" />
+            </button>
           </div>
         </div>
 
@@ -100,7 +104,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
 
         <div class="task-desc-container">
           <div class="task-desc-icon">
-            <img src="assets/icons/Edit.png" alt="Desc" style="width:20px;height:20px;object-fit:contain;" />
+            <img src="assets/icons/Description.png" alt="Desc" style="width:18px;height:18px;object-fit:contain;" />
           </div>
           <textarea class="task-desc-textarea" id="modal-desc" placeholder="Description" ${ro}>${task ? escHtml(task.description) : ''}</textarea>
         </div>

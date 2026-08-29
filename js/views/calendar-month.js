@@ -52,7 +52,7 @@ function showMonthDayOverflowPopover(dateStr, dayItems, anchorEl) {
         <div class="month-popover-timed-row ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" title="${escAttr(item.title)}">
           <span class="month-popover-dot" style="background:${dotColor};"></span>
           ${timeStr ? `<span class="month-popover-time">${timeStr}</span>` : ''}
-          ${isDone ? `<span class="month-popover-check">✔</span>` : ''}
+          ${isDone ? `<span class="month-popover-check" style="display:inline-flex;align-items:center;"><img src="assets/icons/Checkmark.png" alt="✓" style="width:11px;height:11px;object-fit:contain;" /></span>` : ''}
           <span class="month-popover-title">${escHtml(item.title)}</span>
         </div>
       `;

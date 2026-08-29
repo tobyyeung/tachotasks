@@ -16,15 +16,17 @@ function renderTaskItem(task, isListView = false) {
   let plannedLabel = '';
   if (task.plannedDate) {
     const timeStr = task.plannedTime ? ' ' + formatTime12(task.plannedTime) : '';
-    plannedLabel = `<span class="task-date-pill planned" style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;" title="Planned Date & Time">📅 ${formatDateShort(task.plannedDate)}${timeStr}</span>`;
+    plannedLabel = `<span class="task-date-pill planned" title="Planned Date & Time"><img src="assets/icons/Calendar.png" alt="Planned" style="width:12px;height:12px;object-fit:contain;vertical-align:-1px;margin-right:3px;" />${formatDateShort(task.plannedDate)}${timeStr}</span>`;
   }
 
   let dueHtml = '';
   if (dueLabel) {
     const dueTimeStr = task.dueTime ? ' ' + formatTime12(task.dueTime) : '';
-    dueHtml = `<span class="task-date-pill ${dueLabel.class}" style="font-size:11px;padding:2px 8px;border-radius:4px;" title="Due Date & Time">⏰ ${dueLabel.text}${dueTimeStr}</span>`;
+    const clockIcon = dueLabel.showClock ? '<img src="assets/icons/Clock.png" alt="Due" style="width:12px;height:12px;object-fit:contain;vertical-align:-1px;margin-right:3px;" />' : '';
+    dueHtml = `<span class="task-date-pill ${dueLabel.class}" title="Due Date & Time">${clockIcon}${dueLabel.text}${dueTimeStr}</span>`;
   }
 
+  const dateDivider = (plannedLabel && dueHtml) ? '<span class="task-date-divider" style="color:var(--text-tertiary);opacity:0.4;font-size:11px;user-select:none;">|</span>' : '';
   const locHtml = getTaskLocationHtml(task);
   const hasMeta = plannedLabel || dueHtml || (task.tags && task.tags.length > 0);
 
@@ -41,6 +43,7 @@ function renderTaskItem(task, isListView = false) {
           ${hasMeta ? `
             <div class="task-meta-right" style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
+              ${dateDivider}
               ${dueHtml}
               ${(task.tags || []).map(tag => `<span style="font-size:11px;color:var(--accent);background:rgba(72,219,251,0.08);padding:1px 6px;border-radius:4px;">${escHtml(tag)}</span>`).join('')}
             </div>
@@ -67,6 +70,7 @@ function renderTaskItem(task, isListView = false) {
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
             ${plannedLabel}
+            ${dateDivider}
             ${dueHtml}
           </div>
         </div>

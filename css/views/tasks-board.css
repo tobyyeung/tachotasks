@@ -290,6 +290,52 @@
   opacity: 0.95;
 }
 
+/* ===== TASK DATE PILL COLORS ===== */
+.task-date-pill {
+  font-size: 11px;
+  padding: 0;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent !important;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 500;
+  transition: color var(--t-fast);
+}
+
+.task-date-pill.due-today,
+.task-date-pill.today,
+.task-date-pill.due-overdue,
+.task-date-pill.overdue {
+  color: #ff5252 !important;
+  background: transparent !important;
+}
+
+.task-date-pill.due-tomorrow,
+.task-date-pill.tomorrow {
+  color: #ffa502 !important;
+  background: transparent !important;
+}
+
+.task-date-pill.due-week,
+.task-date-pill.week {
+  color: #2ed573 !important;
+  background: transparent !important;
+}
+
+.task-date-pill.due-default,
+.task-date-pill.default {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.task-date-pill.planned {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
 .task-circle-check {
   width: 18px;
   height: 18px;

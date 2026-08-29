@@ -33,6 +33,9 @@ var icons = {
   heart: '<img src="assets/icons/Heart.png" alt="Heart" style="width:100%;height:100%;object-fit:contain;" />',
   star: '<img src="assets/icons/Star.png" alt="Star" style="width:100%;height:100%;object-fit:contain;" />',
   box: '<img src="assets/icons/Box.png" alt="Box" style="width:100%;height:100%;object-fit:contain;" />',
+  mailbox: '<img src="assets/icons/Mailbox.png" alt="Mailbox" style="width:100%;height:100%;object-fit:contain;" />',
+  pin: '<img src="assets/icons/Pin.png" alt="Pin" style="width:100%;height:100%;object-fit:contain;" />',
+  caution: '<img src="assets/icons/Caution.png" alt="Caution" style="width:100%;height:100%;object-fit:contain;" />',
   party: '<img src="assets/icons/Party.png" alt="Party Horn" style="width:100%;height:100%;object-fit:contain;" />',
   calendar: '<img src="assets/icons/Calendar.png" alt="Calendar" style="width:100%;height:100%;object-fit:contain;" />',
   target: '<img src="assets/icons/Target.png" alt="Target" style="width:100%;height:100%;object-fit:contain;" />'

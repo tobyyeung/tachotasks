@@ -69,8 +69,8 @@
           <button class="ctx-icon-btn purple" id="ctx-date-nextweek" title="Next Week">
             <img src="assets/icons/Calendar.png" alt="Next Week" style="width:22px;height:22px;object-fit:contain;" />
           </button>
-          <button class="ctx-icon-btn grey" id="ctx-date-custom" title="More Dates & Times">
-            •••
+          <button class="ctx-icon-btn grey" id="ctx-date-custom" title="More Dates & Times" style="display:inline-flex;align-items:center;justify-content:center;">
+            <img src="assets/icons/Dots.png" alt="More" style="width:16px;height:16px;object-fit:contain;" />
           </button>
         </div>
       </div>
@@ -156,25 +156,25 @@
       showTaskModal(task.id);
     });
 
-    // 2. Date Quick Buttons
+    // 2. Date Quick Buttons (Modifies Due Date)
     menu.querySelector('#ctx-date-today').addEventListener('click', async (e) => {
       e.stopPropagation();
-      task.plannedDate = getTodayStr();
+      task.dueDate = getTodayStr();
       await saveTasks();
       closeTaskMenu();
       renderView();
-      showToast('Date set to Today', 'success');
+      showToast('Due date set to Today', 'success');
     });
 
     menu.querySelector('#ctx-date-tomorrow').addEventListener('click', async (e) => {
       e.stopPropagation();
       const tmrw = new Date();
       tmrw.setDate(tmrw.getDate() + 1);
-      task.plannedDate = toDateStr(tmrw);
+      task.dueDate = toDateStr(tmrw);
       await saveTasks();
       closeTaskMenu();
       renderView();
-      showToast('Date set to Tomorrow', 'success');
+      showToast('Due date set to Tomorrow', 'success');
     });
 
     menu.querySelector('#ctx-date-weekend').addEventListener('click', async (e) => {
@@ -183,11 +183,11 @@
       const day = d.getDay(); // 0 is Sun, 6 is Sat
       const dist = (6 - day + 7) % 7 || 7;
       d.setDate(d.getDate() + dist);
-      task.plannedDate = toDateStr(d);
+      task.dueDate = toDateStr(d);
       await saveTasks();
       closeTaskMenu();
       renderView();
-      showToast('Date set to This Weekend', 'success');
+      showToast('Due date set to This Weekend', 'success');
     });
 
     menu.querySelector('#ctx-date-nextweek').addEventListener('click', async (e) => {
@@ -196,11 +196,11 @@
       const day = d.getDay();
       const dist = (1 - day + 7) % 7 || 7;
       d.setDate(d.getDate() + dist);
-      task.plannedDate = toDateStr(d);
+      task.dueDate = toDateStr(d);
       await saveTasks();
       closeTaskMenu();
       renderView();
-      showToast('Date set to Next Week', 'success');
+      showToast('Due date set to Next Week', 'success');
     });
 
     // Custom Date Picker (•••)
@@ -209,25 +209,25 @@
       e.stopPropagation();
       showDateSelector({
         targetElement: customDateBtn,
-        initialDate: task.plannedDate,
-        initialTime: task.plannedTime,
+        initialDate: task.dueDate,
+        initialTime: task.dueTime,
         initialRepeat: task.recurring,
         onSelect: async ({ date, time, repeat }) => {
-          task.plannedDate = date || null;
-          task.plannedTime = time || null;
+          task.dueDate = date || null;
+          task.dueTime = time || null;
           if (repeat !== undefined) task.recurring = repeat;
           await saveTasks();
           closeTaskMenu();
           renderView();
-          showToast('Date & time updated', 'success');
+          showToast('Due date & time updated', 'success');
         },
         onClear: async () => {
-          task.plannedDate = null;
-          task.plannedTime = null;
+          task.dueDate = null;
+          task.dueTime = null;
           await saveTasks();
           closeTaskMenu();
           renderView();
-          showToast('Date & time cleared', 'success');
+          showToast('Due date & time cleared', 'success');
         }
       });
     });
@@ -281,12 +281,13 @@
       });
 
       (state.projects || []).filter(p => !p.archived).forEach(p => {
+        const dot = `<span style="color:${p.color || '#5cb8ff'};margin-right:4px;">●</span>`;
         if (p.sections && p.sections.length > 0) {
           p.sections.forEach(s => {
-            subHtml += `<div class="ctx-submenu-item" data-proj-id="${p.id}" data-section-id="${s.id}">📂 ${escHtml(p.name)} / ${escHtml(s.name)}</div>`;
+            subHtml += `<div class="ctx-submenu-item" data-proj-id="${p.id}" data-section-id="${s.id}">${dot}${escHtml(p.name)} / ${escHtml(s.name)}</div>`;
           });
         } else {
-          subHtml += `<div class="ctx-submenu-item" data-proj-id="${p.id}" data-section-id="unsectioned">📂 ${escHtml(p.name)} / Uncategorized</div>`;
+          subHtml += `<div class="ctx-submenu-item" data-proj-id="${p.id}" data-section-id="unsectioned">${dot}${escHtml(p.name)} / Uncategorized</div>`;
         }
       });
 

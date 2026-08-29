@@ -239,13 +239,12 @@ function renderTaskList(tasks) {
             <div style="display:flex;align-items:center;gap:4px;">
               ${sec.link ? `
                 <a href="${escAttr(sec.link)}" target="_blank" rel="noopener noreferrer" class="icon-btn section-link-btn" title="Open ${escAttr(sec.link)}" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);opacity:0.6;transition:all var(--t-fast);text-decoration:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="event.stopPropagation();">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                  </svg>
+                  <img src="assets/icons/Link.png" alt="Link" style="width:13px;height:13px;object-fit:contain;" />
                 </a>
               ` : ''}
-              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="font-size:14px;opacity:0.4;">•••</button>
+              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="display:inline-flex;align-items:center;justify-content:center;opacity:0.6;">
+                <img src="assets/icons/Dots.png" alt="Options" style="width:14px;height:14px;object-fit:contain;" />
+              </button>
             </div>
           </div>
           <div class="task-section-list">
@@ -289,13 +288,12 @@ function renderTaskList(tasks) {
             <div style="display:flex;align-items:center;gap:4px;">
               ${sec.link ? `
                 <a href="${escAttr(sec.link)}" target="_blank" rel="noopener noreferrer" class="icon-btn section-link-btn" title="Open ${escAttr(sec.link)}" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);opacity:0.6;transition:all var(--t-fast);text-decoration:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="event.stopPropagation();">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                  </svg>
+                  <img src="assets/icons/Link.png" alt="Link" style="width:13px;height:13px;object-fit:contain;" />
                 </a>
               ` : ''}
-              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="font-size:12px;opacity:0.4;">•••</button>
+              <button class="icon-btn delete-section-btn" data-section-id="${sec.id}" title="Section options" style="display:inline-flex;align-items:center;justify-content:center;opacity:0.6;">
+                <img src="assets/icons/Dots.png" alt="Options" style="width:14px;height:14px;object-fit:contain;" />
+              </button>
             </div>
           </div>
           <div class="task-section-list">

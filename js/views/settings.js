@@ -43,8 +43,8 @@ function renderSettings() {
                 <span style="font-size:14px;font-weight:500;">${escHtml(p.name)}</span>
               </div>
               <div style="display:flex;gap:8px;">
-                ${p.id !== 'all' ? `<button class="icon-btn edit-profile-btn" data-profile-id="${p.id}" title="Edit Profile" style="color:var(--text-secondary);">✎</button>` : ''}
-                ${p.id !== 'all' ? `<button class="icon-btn delete-profile-btn" data-profile-id="${p.id}" title="Delete Profile" style="color:var(--danger);">✕</button>` : '<span style="font-size:12px;color:var(--text-tertiary);">Default</span>'}
+                ${p.id !== 'all' ? `<button class="icon-btn edit-profile-btn" data-profile-id="${p.id}" title="Edit Profile" style="display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);"><img src="assets/icons/Pencil.png" alt="Edit" style="width:14px;height:14px;object-fit:contain;" /></button>` : ''}
+                ${p.id !== 'all' ? `<button class="icon-btn delete-profile-btn" data-profile-id="${p.id}" title="Delete Profile" style="display:inline-flex;align-items:center;justify-content:center;color:var(--danger);"><img src="assets/icons/Trash.png" alt="Delete" style="width:14px;height:14px;object-fit:contain;" /></button>` : '<span style="font-size:12px;color:var(--text-tertiary);">Default</span>'}
               </div>
             </div>
           `).join('')}

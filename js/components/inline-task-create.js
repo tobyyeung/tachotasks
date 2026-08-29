@@ -182,16 +182,18 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       <div class="inline-create-date-btn ${inlineState.dueDate ? 'has-date' : ''}" id="inline-date-btn" title="Set date">
         <img src="assets/icons/Calendar.png" alt="Calendar" style="width:14px;height:14px;object-fit:contain;" />
         <span id="inline-date-label">${escHtml(getDateChipLabel(inlineState.dueDate, inlineState.dueTime))}</span>
-        ${inlineState.dueDate ? '<span class="chip-close" id="inline-date-clear" style="margin-left:4px;opacity:0.7;font-size:12px;">✕</span>' : ''}
+        ${inlineState.dueDate ? '<span class="chip-close" id="inline-date-clear" style="margin-left:4px;display:inline-flex;align-items:center;"><img src="assets/icons/Cross.png" alt="Clear" style="width:10px;height:10px;object-fit:contain;opacity:0.7;" /></span>' : ''}
       </div>
       <div id="inline-extra-chips" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
       <button class="inline-create-plus-btn" id="inline-expand-btn" title="Open full task editor">+</button>
     </div>
 
     <div class="inline-create-actions">
-      <button class="inline-create-cancel-btn" id="inline-cancel-btn" title="Cancel">✕</button>
+      <button class="inline-create-cancel-btn" id="inline-cancel-btn" title="Cancel">
+        <img src="assets/icons/Cross.png" alt="Cancel" style="width:14px;height:14px;object-fit:contain;" />
+      </button>
       <button class="inline-create-submit-btn" id="inline-submit-btn" title="Add task">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <img src="assets/icons/Submit.png" alt="Submit" style="width:16px;height:16px;object-fit:contain;" />
       </button>
     </div>
   `;

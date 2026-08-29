@@ -10,7 +10,7 @@ function renderCalendar() {
     `<button class="view-mode-btn ${viewMode === mode ? 'active' : ''}" data-cal-view="${mode}">${mode.charAt(0).toUpperCase() + mode.slice(1)}</button>`
   ).join('');
 
-  const sessionBanner = state.sessionExpired ? `<div class="gcal-expired-banner" onclick="window.reconnectGoogleCalendar()" style="cursor:pointer;" title="Click to reconnect Google Calendar">⚠️ Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>` : '';
+  const sessionBanner = state.sessionExpired ? `<div class="gcal-expired-banner" onclick="window.reconnectGoogleCalendar()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;" title="Click to reconnect Google Calendar"><img src="assets/icons/Caution.png" alt="Warning" style="width:14px;height:14px;object-fit:contain;" /> Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>` : '';
 
   if (viewMode === 'schedule') {
     return renderScheduleView(date, today, sessionBanner, viewBtns, monthYear);
@@ -772,7 +772,7 @@ function showMonthDayOverflowPopover(dateStr, dayItems, anchorEl) {
         <div class="month-popover-timed-row ${isDone ? 'completed' : ''}" data-item-id="${item.id}" data-item-type="${item.type}" title="${escAttr(item.title)}">
           <span class="month-popover-dot" style="background:${dotColor};"></span>
           ${timeStr ? `<span class="month-popover-time">${timeStr}</span>` : ''}
-          ${isDone ? `<span class="month-popover-check">✔</span>` : ''}
+          ${isDone ? `<span class="month-popover-check" style="display:inline-flex;align-items:center;"><img src="assets/icons/Checkmark.png" alt="✓" style="width:11px;height:11px;object-fit:contain;" /></span>` : ''}
           <span class="month-popover-title">${escHtml(item.title)}</span>
         </div>
       `;

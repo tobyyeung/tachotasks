@@ -82,19 +82,19 @@ function showEventPopover(eventId, eventType, triggerEl) {
   const html = `
     <div class="popover-header">
       <button class="popover-action" id="popover-edit-btn" title="Edit event">
-        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        <img src="assets/icons/Pencil.png" alt="Edit" style="width:16px;height:16px;object-fit:contain;" />
       </button>
       <button class="popover-action" id="popover-delete-btn" title="Delete event">
-        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        <img src="assets/icons/Trash.png" alt="Delete" style="width:16px;height:16px;object-fit:contain;" />
       </button>
       <button class="popover-action" id="popover-email-btn" title="Email">
-        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        <img src="assets/icons/Mail.png" alt="Email" style="width:16px;height:16px;object-fit:contain;" />
       </button>
       <button class="popover-action" id="popover-more-btn" title="More options">
-        <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        <img src="assets/icons/Dots.png" alt="More" style="width:16px;height:16px;object-fit:contain;" />
       </button>
       <button class="popover-action" id="popover-close-btn" title="Close">
-        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <img src="assets/icons/Cross.png" alt="Close" style="width:16px;height:16px;object-fit:contain;" />
       </button>
     </div>
 
@@ -111,7 +111,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
       ${locLine1 ? `
         <div class="popover-detail-row">
           <div class="popover-detail-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <img src="assets/icons/Pinpoint.png" alt="Location" style="width:18px;height:18px;object-fit:contain;" />
           </div>
           <div class="popover-detail-content">
             <div class="popover-detail-primary">${escHtml(locLine1)}</div>
@@ -123,7 +123,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
       ${cleanDesc.trim() ? `
         <div class="popover-detail-row">
           <div class="popover-detail-icon">
-            <svg viewBox="0 0 24 24"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/></svg>
+            <img src="assets/icons/Description.png" alt="Description" style="width:18px;height:18px;object-fit:contain;" />
           </div>
           <div class="popover-detail-content">
             <div class="popover-detail-primary" style="white-space:pre-wrap;">${escHtml(cleanDesc.trim())}</div>
@@ -133,7 +133,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
 
       <div class="popover-detail-row">
         <div class="popover-detail-icon">
-          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+          <img src="assets/icons/Calendar.png" alt="Calendar" style="width:18px;height:18px;object-fit:contain;" />
         </div>
         <div class="popover-detail-content">
           <div class="popover-detail-primary">${escHtml(calName)}</div>

@@ -468,7 +468,7 @@ function updateDashboardItinerary() {
           `;
         }
       }).join('')
-    : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No items scheduled for today</div></div>';
+    : '<div class="empty-state"><div class="empty-icon"><img src="assets/icons/Mailbox.png" alt="Empty" style="width:30px;height:30px;object-fit:contain;opacity:0.6;" /></div><div class="empty-text">No items scheduled for today</div></div>';
     
   const headerCount = document.querySelector('.itinerary-card .card-count');
   if (headerCount) {

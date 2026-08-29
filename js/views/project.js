@@ -93,7 +93,8 @@ function renderProject() {
     const pColor = getPriorityColor(t.priority);
     const isDone = Boolean(t.completed || t.isCompleting);
     const isCompleting = Boolean(t.isCompleting);
-    const dateDisplay = t.dueDate ? formatDateShort(t.dueDate) : (t.plannedDate ? 'Planned: ' + formatDateShort(t.plannedDate) : '');
+    const dueLbl = getDueLabel(t);
+    const dateDisplay = dueLbl ? dueLbl.text : (t.plannedDate ? 'Planned: ' + formatDateShort(t.plannedDate) : '');
     const timeDisplay = t.dueTime ? formatTime12(t.dueTime) : (t.plannedTime ? formatTime12(t.plannedTime) : '');
 
     return `
@@ -107,7 +108,7 @@ function renderProject() {
           </div>
           ${timeDisplay ? `
             <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-tertiary);">
-              <span>⏰ ${timeDisplay}</span>
+              <span><img src="assets/icons/Clock.png" alt="Time" style="width:11px;height:11px;object-fit:contain;vertical-align:-1px;margin-right:2px;" />${timeDisplay}</span>
             </div>
           ` : ''}
         </div>
@@ -124,7 +125,7 @@ function renderProject() {
   if (activeDatedTasks.length === 0) {
     deadlinesTimelineHtml = `
       <div class="empty-state" style="padding:var(--sp-xl); text-align:center;">
-        <div class="empty-icon">📅</div>
+        <div class="empty-icon"><img src="assets/icons/Calendar.png" alt="Calendar" style="width:32px;height:32px;object-fit:contain;opacity:0.6;" /></div>
         <div class="empty-text" style="font-size:13px; color:var(--text-secondary);">No upcoming deadlines tracked for this project.</div>
         <div style="font-size:11px; color:var(--text-tertiary); margin-top:4px;">Add due dates to tasks to track milestones here!</div>
       </div>
@@ -134,8 +135,9 @@ function renderProject() {
     if (overdueTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header overdue">
-            <span>⚠️ Overdue (${overdueTasks.length})</span>
+          <div class="deadline-group-header overdue" style="display:flex;align-items:center;gap:4px;">
+            <img src="assets/icons/Caution.png" alt="Overdue" style="width:14px;height:14px;object-fit:contain;" />
+            <span>Overdue (${overdueTasks.length})</span>
           </div>
           ${sortByDate(overdueTasks).map(t => renderDeadlineItem(t, 'overdue', 'Overdue')).join('')}
         </div>
@@ -146,8 +148,9 @@ function renderProject() {
     if (todayTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header today">
-            <span>🌟 Due Today (${todayTasks.length})</span>
+          <div class="deadline-group-header today" style="display:flex;align-items:center;gap:4px;">
+            <img src="assets/icons/Star.png" alt="Today" style="width:14px;height:14px;object-fit:contain;" />
+            <span>Due Today (${todayTasks.length})</span>
           </div>
           ${sortByDate(todayTasks).map(t => renderDeadlineItem(t, 'today', 'Today')).join('')}
         </div>
@@ -158,8 +161,9 @@ function renderProject() {
     if (tomorrowTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header">
-            <span>⏰ Tomorrow (${tomorrowTasks.length})</span>
+          <div class="deadline-group-header" style="display:flex;align-items:center;gap:4px;">
+            <img src="assets/icons/Clock.png" alt="Tomorrow" style="width:14px;height:14px;object-fit:contain;" />
+            <span>Tomorrow (${tomorrowTasks.length})</span>
           </div>
           ${sortByDate(tomorrowTasks).map(t => renderDeadlineItem(t, 'soon', 'Tomorrow')).join('')}
         </div>
@@ -170,8 +174,9 @@ function renderProject() {
     if (thisWeekTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header">
-            <span>📅 Next 7 Days (${thisWeekTasks.length})</span>
+          <div class="deadline-group-header" style="display:flex;align-items:center;gap:4px;">
+            <img src="assets/icons/Calendar.png" alt="Next 7 Days" style="width:14px;height:14px;object-fit:contain;" />
+            <span>Next 7 Days (${thisWeekTasks.length})</span>
           </div>
           ${sortByDate(thisWeekTasks).map(t => renderDeadlineItem(t, 'soon', 'This Week')).join('')}
         </div>
@@ -182,8 +187,9 @@ function renderProject() {
     if (laterTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header">
-            <span>🗓️ Later (${laterTasks.length})</span>
+          <div class="deadline-group-header" style="display:flex;align-items:center;gap:4px;">
+            <img src="assets/icons/Calendar.png" alt="Later" style="width:14px;height:14px;object-fit:contain;" />
+            <span>Later (${laterTasks.length})</span>
           </div>
           ${sortByDate(laterTasks).map(t => renderDeadlineItem(t, 'future', 'Upcoming')).join('')}
         </div>
@@ -203,7 +209,9 @@ function renderProject() {
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <button class="icon-btn project-options-menu-btn" id="project-options-menu-btn" data-project-id="${proj.id}" title="Project options" style="color:var(--text-secondary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-glass); cursor:pointer; font-size:14px;">•••</button>
+          <button class="icon-btn project-options-menu-btn" id="project-options-menu-btn" data-project-id="${proj.id}" title="Project options" style="color:var(--text-secondary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-glass); cursor:pointer;">
+            <img src="assets/icons/Dots.png" alt="Options" style="width:16px;height:16px;object-fit:contain;" />
+          </button>
         </div>
       </div>
 

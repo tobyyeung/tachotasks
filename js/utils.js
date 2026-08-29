@@ -200,10 +200,27 @@ function getDueLabel(task) {
   if (!task.dueDate) return null;
   const today = getTodayStr();
   const tomorrow = toDateStr(new Date(Date.now() + 86400000));
-  if (task.dueDate === today) return { text: 'Today', class: 'today' };
-  if (task.dueDate === tomorrow) return { text: 'Tomorrow', class: '' };
-  if (task.dueDate < today) return { text: 'Overdue', class: 'overdue' };
-  return { text: formatDateShort(task.dueDate), class: '' };
+
+  // Calculate day difference from today
+  const [ty, tm, td] = today.split('-').map(Number);
+  const [dy, dm, dd] = task.dueDate.split('-').map(Number);
+  const tDate = new Date(ty, tm - 1, td);
+  const dDate = new Date(dy, dm - 1, dd);
+  const diffDays = Math.round((dDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  const showClock = diffDays <= 5;
+
+  if (task.dueDate < today) return { text: 'Overdue', class: 'due-overdue overdue', color: '#ff5252', showClock: true };
+  if (task.dueDate === today) return { text: 'Today', class: 'due-today today', color: '#ff5252', showClock: true };
+  if (task.dueDate === tomorrow) return { text: 'Tomorrow', class: 'due-tomorrow tomorrow', color: '#ffa502', showClock: true };
+
+  // If due within the upcoming week (within 2 to 6 days ahead) -> Green
+  if (diffDays >= 2 && diffDays <= 6) {
+    const weekday = dDate.toLocaleDateString('en-US', { weekday: 'long' });
+    return { text: weekday, class: 'due-week week', color: '#2ed573', showClock };
+  }
+
+  return { text: formatDateShort(task.dueDate), class: 'due-default default', color: 'var(--text-secondary)', showClock: false };
 }
 
 /**

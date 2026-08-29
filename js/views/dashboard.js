@@ -128,15 +128,17 @@ function renderDashboard() {
       let plannedLabel = '';
       if (t.plannedDate) {
         const timeStr = t.plannedTime ? ' ' + formatTime12(t.plannedTime) : '';
-        plannedLabel = `<span class="task-date-pill planned" style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;" title="Planned Date">📅 ${formatDateShort(t.plannedDate)}${timeStr}</span>`;
+        plannedLabel = `<span class="task-date-pill planned" title="Planned Date"><img src="assets/icons/Calendar.png" alt="Planned" style="width:12px;height:12px;object-fit:contain;vertical-align:-1px;margin-right:3px;" />${formatDateShort(t.plannedDate)}${timeStr}</span>`;
       }
 
       let dueHtml = '';
       if (dueLabel) {
         const dueTimeStr = t.dueTime ? ' ' + formatTime12(t.dueTime) : '';
-        dueHtml = `<span class="task-date-pill ${dueLabel.class}" style="font-size:11px;padding:2px 8px;border-radius:4px;" title="Due Date">⏰ ${dueLabel.text}${dueTimeStr}</span>`;
+        const clockIcon = dueLabel.showClock ? '<img src="assets/icons/Clock.png" alt="Due" style="width:12px;height:12px;object-fit:contain;vertical-align:-1px;margin-right:3px;" />' : '';
+        dueHtml = `<span class="task-date-pill ${dueLabel.class}" title="Due Date">${clockIcon}${dueLabel.text}${dueTimeStr}</span>`;
       }
 
+      const dateDivider = (plannedLabel && dueHtml) ? '<span class="task-date-divider" style="color:var(--text-tertiary);opacity:0.4;font-size:11px;user-select:none;">|</span>' : '';
       const locHtml = getTaskLocationHtml(t);
       const isDone = Boolean(t.completed || t.isCompleting);
       const isCompleting = Boolean(t.isCompleting);
@@ -157,13 +159,14 @@ function renderDashboard() {
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
+              ${dateDivider}
               ${dueHtml}
             </div>
           </div>
         </div>
       `;
     }).join('')
-    : '<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">No upcoming tasks in this timeframe</div></div>';
+    : '<div class="empty-state"><div class="empty-icon"><img src="assets/icons/Star.png" alt="Empty" style="width:28px;height:28px;object-fit:contain;opacity:0.6;" /></div><div class="empty-text">No upcoming tasks in this timeframe</div></div>';
 
   // 2. Daily Tasks (Tasks that repeat daily)
   const allDailyTasks = allTasks.filter(t => isDailyRecurring(t));
@@ -203,7 +206,7 @@ function renderDashboard() {
               </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
-              ${t.dueTime ? `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">⏰ ${formatTime12(t.dueTime)}</span>` : ''}
+              ${t.dueTime ? `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;"><img src="assets/icons/Clock.png" alt="Due" style="width:11px;height:11px;object-fit:contain;vertical-align:-1px;margin-right:3px;" />${formatTime12(t.dueTime)}</span>` : ''}
               <span style="font-size:11px;color:var(--accent);background:rgba(72,219,251,0.08);padding:2px 6px;border-radius:4px;">Daily</span>
             </div>
           </div>
@@ -211,8 +214,8 @@ function renderDashboard() {
       `;
     }).join('')
     : (allDailyTasks.length > 0
-        ? '<div class="empty-state" style="padding:var(--sp-lg);"><div class="empty-icon">🎉</div><div class="empty-text" style="color:var(--accent);font-weight:600;">All daily tasks completed for today!</div><div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">Next occurrences scheduled for tomorrow</div></div>'
-        : '<div class="empty-state"><div class="empty-icon">🔁</div><div class="empty-text">No daily repeating tasks. Set a task repeat to "Every day" to see it here.</div></div>');
+        ? '<div class="empty-state" style="padding:var(--sp-lg);"><div class="empty-icon"><img src="assets/icons/Party.png" alt="Done" style="width:28px;height:28px;object-fit:contain;" /></div><div class="empty-text" style="color:var(--accent);font-weight:600;">All daily tasks completed for today!</div><div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">Next occurrences scheduled for tomorrow</div></div>'
+        : '<div class="empty-state"><div class="empty-icon"><img src="assets/icons/Repeat.png" alt="Repeat" style="width:28px;height:28px;object-fit:contain;opacity:0.6;" /></div><div class="empty-text">No daily repeating tasks. Set a task repeat to "Every day" to see it here.</div></div>');
 
   // 3. Today's Schedule: Google Calendar events + local events + today's tasks
   const gcalToday = getActiveGcalEvents()
@@ -297,7 +300,7 @@ function renderDashboard() {
         `;
       }
     }).join('')
-    : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No schedule items for today</div></div>';
+    : '<div class="empty-state"><div class="empty-icon"><img src="assets/icons/Mailbox.png" alt="Empty" style="width:30px;height:30px;object-fit:contain;opacity:0.6;" /></div><div class="empty-text">No schedule items for today</div></div>';
 
   // 4. Birthday Calendar Detection for Next 30 Days
   const birthdayCal = (state.gcalCalendars || []).find(cal =>
@@ -345,7 +348,7 @@ function renderDashboard() {
       birthdaysHtml = upcomingBirthdays.map(b => {
         let relativeStr = '';
         if (b.date === today) {
-          relativeStr = '<span style="color:#ff6b81;font-weight:700;font-size:11px;background:rgba(255,107,129,0.15);padding:2px 8px;border-radius:var(--radius-full);">Today! 🎉</span>';
+          relativeStr = '<span style="color:#ff6b81;font-weight:700;font-size:11px;background:rgba(255,107,129,0.15);padding:2px 8px;border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:3px;">Today! <img src="assets/icons/Party.png" alt="Party" style="width:12px;height:12px;object-fit:contain;" /></span>';
         } else {
           const bDate = parseDateLocal(b.date);
           const diffDays = Math.round((bDate - parseDateLocal(today)) / (1000 * 60 * 60 * 24));
@@ -387,14 +390,14 @@ function renderDashboard() {
       ${customQuickLinks.map(link => `
         <a href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" class="quick-link-pill" title="${escAttr(link.url)}">
           <span>${escHtml(link.title)}</span>
-          <span style="font-size:10px;opacity:0.6;">↗</span>
+          <img src="assets/icons/Link.png" alt="Link" style="width:10px;height:10px;object-fit:contain;opacity:0.6;" />
         </a>
       `).join('')}
     </div>
   `;
 
   const sessionBanner = state.sessionExpired
-    ? `<div onclick="window.reconnectGoogleCalendar()" style="background:rgba(255,100,100,0.1);color:var(--danger);padding:10px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);cursor:pointer;margin-bottom:var(--sp-md);border-radius:var(--radius-md);" title="Click to reconnect Google Calendar">⚠️ Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>`
+    ? `<div onclick="window.reconnectGoogleCalendar()" style="background:rgba(255,100,100,0.1);color:var(--danger);padding:10px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);cursor:pointer;margin-bottom:var(--sp-md);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;gap:6px;" title="Click to reconnect Google Calendar"><img src="assets/icons/Caution.png" alt="Warning" style="width:14px;height:14px;object-fit:contain;" /> Google Calendar session expired. <span style="text-decoration:underline;font-weight:700;">Click to reconnect</span></div>`
     : '';
 
   const splitRatio = (state.settings && state.settings.dashboardSplitRatio) !== undefined ? state.settings.dashboardSplitRatio : 50;
@@ -418,15 +421,15 @@ function renderDashboard() {
             <div class="sort-dropdown-panel hidden" id="dash-upcoming-range-panel" style="min-width:140px;right:0;z-index:1000;">
               <div class="sort-option ${upcomingRange === 'today' ? 'active' : ''}" data-dash-range="today">
                 <span>Today</span>
-                ${upcomingRange === 'today' ? '<span class="check-mark">✓</span>' : ''}
+                ${upcomingRange === 'today' ? '<img src="assets/icons/Checkmark.png" alt="✓" style="width:12px;height:12px;object-fit:contain;" />' : ''}
               </div>
               <div class="sort-option ${upcomingRange === '7' ? 'active' : ''}" data-dash-range="7">
                 <span>Next 7 Days</span>
-                ${upcomingRange === '7' ? '<span class="check-mark">✓</span>' : ''}
+                ${upcomingRange === '7' ? '<img src="assets/icons/Checkmark.png" alt="✓" style="width:12px;height:12px;object-fit:contain;" />' : ''}
               </div>
               <div class="sort-option ${upcomingRange === '30' ? 'active' : ''}" data-dash-range="30">
                 <span>Next 30 Days</span>
-                ${upcomingRange === '30' ? '<span class="check-mark">✓</span>' : ''}
+                ${upcomingRange === '30' ? '<img src="assets/icons/Checkmark.png" alt="✓" style="width:12px;height:12px;object-fit:contain;" />' : ''}
               </div>
             </div>
           </div>
@@ -540,7 +543,7 @@ function renderDashboard() {
           <div id="dashboard-sticky-popover" class="dashboard-sticky-popover theme-${noteColor} hidden" data-current-color="${noteColor}">
             <div class="sticky-header">
               <div style="display:flex;align-items:center;gap:6px;">
-                <span>📌</span>
+                <img src="assets/icons/Pin.png" alt="Pin" style="width:16px;height:16px;object-fit:contain;" />
                 <span style="font-weight:600;">Quick Note</span>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
@@ -551,7 +554,9 @@ function renderDashboard() {
                   <button class="sticky-color-dot ${noteColor === 'dark' ? 'active' : ''}" data-note-color="dark" style="background:#1e293b;border:1px solid rgba(255,255,255,0.25);" title="Dark Slate"></button>
                 </div>
                 <span id="sticky-save-indicator" style="font-size:10px;opacity:0.6;font-weight:500;">Saved</span>
-                <button class="icon-btn sticky-close-btn" id="sticky-close-btn" style="background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;opacity:0.7;" title="Close">✕</button>
+                <button class="icon-btn sticky-close-btn" id="sticky-close-btn" style="background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:2px 4px;opacity:0.7;" title="Close">
+                  <img src="assets/icons/Cross.png" alt="Close" style="width:12px;height:12px;object-fit:contain;" />
+                </button>
               </div>
             </div>
             <textarea id="dashboard-sticky-textarea" class="sticky-textarea" placeholder="Jot down quick thoughts, scratchpad notes, reminders...">${escHtml(noteText)}</textarea>
