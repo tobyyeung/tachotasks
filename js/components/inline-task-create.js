@@ -518,6 +518,9 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       return;
     }
 
+    const parsed = typeof parseTaskInputTokens === 'function' ? parseTaskInputTokens(raw, inlineState.dismissedTokens) : { cleanTitle: raw };
+    const title = inlineState.cleanTitle || parsed.cleanTitle || raw;
+
     const nowIso = new Date().toISOString();
     const newTask = {
       id: generateId(),
