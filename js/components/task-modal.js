@@ -124,7 +124,10 @@ function showTaskEditorModal(taskId, initialData = {}) {
           <label class="sidebar-property-label">Due Date</label>
           <div class="dt-trigger-capsule" id="modal-due-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;cursor:pointer;">
             <span id="modal-due-dt-text" style="font-size:12px;${currentDueDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentDueDate ? formatDateShort(currentDueDate) + (currentDueTime ? ' at ' + formatTime12(currentDueTime) : '') : 'e.g. Jul 24, 9:30 AM'}</span>
-            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button type="button" id="modal-due-clear-btn" class="modal-dt-clear-btn ${currentDueDate ? '' : 'hidden'}" title="Clear Due Date">✕</button>
+              <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
+            </div>
           </div>
           <input type="hidden" id="modal-due-date" value="${currentDueDate}" />
           <input type="hidden" id="modal-due-time" value="${currentDueTime}" />
@@ -134,7 +137,10 @@ function showTaskEditorModal(taskId, initialData = {}) {
           <label class="sidebar-property-label">Planned Date</label>
           <div class="dt-trigger-capsule" id="modal-planned-dt-picker" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;cursor:pointer;">
             <span id="modal-planned-dt-text" style="font-size:12px;${currentPlannedDate ? 'color:var(--text-primary);' : 'color:var(--text-tertiary);'}">${currentPlannedDate ? formatDateShort(currentPlannedDate) + (currentPlannedTime ? ' at ' + formatTime12(currentPlannedTime) : '') : 'e.g. Jul 25, 2:00 PM'}</span>
-            <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button type="button" id="modal-planned-clear-btn" class="modal-dt-clear-btn ${currentPlannedDate ? '' : 'hidden'}" title="Clear Planned Date">✕</button>
+              <img src="assets/icons/Calendar.png" alt="Calendar" style="width:16px;height:16px;object-fit:contain;" />
+            </div>
           </div>
           <input type="hidden" id="modal-planned-date" value="${currentPlannedDate}" />
           <input type="hidden" id="modal-planned-time" value="${currentPlannedTime}" />
@@ -181,6 +187,40 @@ function showTaskEditorModal(taskId, initialData = {}) {
     });
   }
 
+  // Clear Due Date button logic
+  const dueClearBtn = document.getElementById('modal-due-clear-btn');
+  if (dueClearBtn && !isArchived) {
+    dueClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('modal-due-date').value = '';
+      document.getElementById('modal-due-time').value = '';
+      currentRecurring = null;
+      if (task) task.recurring = null;
+      const textEl = document.getElementById('modal-due-dt-text');
+      if (textEl) {
+        textEl.textContent = 'e.g. Jul 24, 9:30 AM';
+        textEl.style.color = 'var(--text-tertiary)';
+      }
+      dueClearBtn.classList.add('hidden');
+    });
+  }
+
+  // Clear Planned Date button logic
+  const plannedClearBtn = document.getElementById('modal-planned-clear-btn');
+  if (plannedClearBtn && !isArchived) {
+    plannedClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('modal-planned-date').value = '';
+      document.getElementById('modal-planned-time').value = '';
+      const textEl = document.getElementById('modal-planned-dt-text');
+      if (textEl) {
+        textEl.textContent = 'e.g. Jul 25, 2:00 PM';
+        textEl.style.color = 'var(--text-tertiary)';
+      }
+      plannedClearBtn.classList.add('hidden');
+    });
+  }
+
   // DateTimePicker triggers
   const duePickerBtn = document.getElementById('modal-due-dt-picker');
   if (duePickerBtn && !isArchived) {
@@ -209,6 +249,13 @@ function showTaskEditorModal(taskId, initialData = {}) {
             textEl.textContent = label;
             textEl.style.color = date || currentRecurring ? 'var(--text-primary)' : 'var(--text-tertiary)';
           }
+          if (dueClearBtn) {
+            if (date || currentRecurring) {
+              dueClearBtn.classList.remove('hidden');
+            } else {
+              dueClearBtn.classList.add('hidden');
+            }
+          }
         },
         onClear: () => {
           document.getElementById('modal-due-date').value = '';
@@ -219,6 +266,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
           if (textEl) {
             textEl.textContent = 'e.g. Jul 24, 9:30 AM';
             textEl.style.color = 'var(--text-tertiary)';
+          }
+          if (dueClearBtn) {
+            dueClearBtn.classList.add('hidden');
           }
         }
       });
@@ -246,6 +296,13 @@ function showTaskEditorModal(taskId, initialData = {}) {
             textEl.textContent = date ? formatDateShort(date) + (time ? ' at ' + formatTime12(time) : '') : 'e.g. Jul 25, 2:00 PM';
             textEl.style.color = date ? 'var(--text-primary)' : 'var(--text-tertiary)';
           }
+          if (plannedClearBtn) {
+            if (date) {
+              plannedClearBtn.classList.remove('hidden');
+            } else {
+              plannedClearBtn.classList.add('hidden');
+            }
+          }
         },
         onClear: () => {
           document.getElementById('modal-planned-date').value = '';
@@ -254,6 +311,9 @@ function showTaskEditorModal(taskId, initialData = {}) {
           if (textEl) {
             textEl.textContent = 'e.g. Jul 25, 2:00 PM';
             textEl.style.color = 'var(--text-tertiary)';
+          }
+          if (plannedClearBtn) {
+            plannedClearBtn.classList.add('hidden');
           }
         }
       });

@@ -221,6 +221,30 @@
   background: rgba(72, 219, 251, 0.06) !important;
 }
 
+.modal-dt-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.modal-dt-clear-btn:hover {
+  color: var(--danger, #ff5c5c);
+  background: rgba(255, 92, 92, 0.15);
+}
+
+.modal-dt-clear-btn.hidden {
+  display: none !important;
+}
+
 .priority-flag-selector {
   display: flex;
   align-items: center;
