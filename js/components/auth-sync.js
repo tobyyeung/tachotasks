@@ -328,8 +328,12 @@ async function reloadGoogleEvents(force = false) {
   }
   
   const today = new Date();
-  const timeMin = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString();
-  const timeMax = new Date(today.getFullYear(), today.getMonth() + 2, 1).toISOString();
+  const calDate = state.calendarDate instanceof Date && !isNaN(state.calendarDate) ? state.calendarDate : today;
+  const minYear = Math.min(today.getFullYear() - 1, calDate.getFullYear() - 1);
+  const maxYear = Math.max(today.getFullYear() + 2, calDate.getFullYear() + 1);
+
+  const timeMin = new Date(minYear, 0, 1, 0, 0, 0).toISOString();
+  const timeMax = new Date(maxYear, 11, 31, 23, 59, 59).toISOString();
   
   try {
     const newEvents = await window.api.getGCalEvents(toFetch, timeMin, timeMax);

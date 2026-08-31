@@ -279,68 +279,83 @@ async function fetchCalendars() {
 }
 
 async function fetchEvents(calendarId, timeMin, timeMax) {
-  const params = new URLSearchParams({
-    singleEvents: 'true',
-    orderBy: 'startTime',
-    maxResults: '250'
-  });
-  if (timeMin) params.append('timeMin', timeMin);
-  if (timeMax) params.append('timeMax', timeMax);
+  let allItems = [];
+  let pageToken = null;
+  let pageCount = 0;
+  const maxPages = 20; // safety limit (up to 50,000 events)
 
-  const data = await fetchWithToken(`/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`);
-  const items = data.items || [];
-  return items.map(item => {
-    let date = null;
-    let startTime = null;
-    let endTime = null;
-    const isAllDay = !!item.start.date;
+  do {
+    const params = new URLSearchParams({
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      maxResults: '2500'
+    });
+    if (timeMin) params.append('timeMin', timeMin);
+    if (timeMax) params.append('timeMax', timeMax);
+    if (pageToken) params.append('pageToken', pageToken);
 
-    if (isAllDay) {
-      date = item.start.date;
-    } else if (item.start.dateTime) {
-      const startD = new Date(item.start.dateTime);
-      const endD = new Date(item.end.dateTime);
+    const data = await fetchWithToken(`/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`);
+    const items = data.items || [];
+    allItems = allItems.concat(items);
+    pageToken = data.nextPageToken || null;
+    pageCount++;
+  } while (pageToken && pageCount < maxPages);
 
-      const yyyy = startD.getFullYear();
-      const mm = String(startD.getMonth() + 1).padStart(2, '0');
-      const dd = String(startD.getDate()).padStart(2, '0');
-      date = `${yyyy}-${mm}-${dd}`;
+  return allItems
+    .filter(item => item && item.status !== 'cancelled' && item.start && (item.start.date || item.start.dateTime))
+    .map(item => {
+      let date = null;
+      let startTime = null;
+      let endTime = null;
+      const isAllDay = !!item.start.date;
 
-      const stH = String(startD.getHours()).padStart(2, '0');
-      const stM = String(startD.getMinutes()).padStart(2, '0');
-      startTime = `${stH}:${stM}`;
+      if (isAllDay) {
+        date = item.start.date;
+      } else if (item.start.dateTime) {
+        const startD = new Date(item.start.dateTime);
+        const endD = new Date(item.end && item.end.dateTime ? item.end.dateTime : item.start.dateTime);
 
-      const etH = String(endD.getHours()).padStart(2, '0');
-      const etM = String(endD.getMinutes()).padStart(2, '0');
-      endTime = `${etH}:${etM}`;
-    }
+        const yyyy = startD.getFullYear();
+        const mm = String(startD.getMonth() + 1).padStart(2, '0');
+        const dd = String(startD.getDate()).padStart(2, '0');
+        date = `${yyyy}-${mm}-${dd}`;
 
-    let location = item.location || '';
-    let description = item.description || '';
+        const stH = String(startD.getHours()).padStart(2, '0');
+        const stM = String(startD.getMinutes()).padStart(2, '0');
+        startTime = `${stH}:${stM}`;
 
-    // Fallback location extraction from description
-    if (!location && description) {
-      const firstLine = description.split(/<br\s*[\/]?>|\n/i)[0].trim();
-      if (firstLine && firstLine.length < 60 && !firstLine.includes('<a ') && !firstLine.includes('http')) {
-        location = firstLine;
+        const etH = String(endD.getHours()).padStart(2, '0');
+        const etM = String(endD.getMinutes()).padStart(2, '0');
+        endTime = `${etH}:${etM}`;
       }
-    }
 
-    return {
-      id: `gcal-${item.id}`,
-      gcalId: item.id,
-      calendarId: calendarId,
-      title: item.summary,
-      description,
-      date,
-      startTime,
-      endTime,
-      htmlLink: item.htmlLink,
-      hangoutLink: item.hangoutLink || '',
-      location,
-      isAllDay
-    };
-  });
+      let location = item.location || '';
+      let description = item.description || '';
+
+      // Fallback location extraction from description
+      if (!location && description) {
+        const firstLine = description.split(/<br\s*[\/]?>|\n/i)[0].trim();
+        if (firstLine && firstLine.length < 60 && !firstLine.includes('<a ') && !firstLine.includes('http')) {
+          location = firstLine;
+        }
+      }
+
+      return {
+        id: `gcal-${item.id}`,
+        gcalId: item.id,
+        calendarId: calendarId,
+        title: item.summary || '(No title)',
+        description,
+        date,
+        startTime,
+        endTime,
+        htmlLink: item.htmlLink,
+        hangoutLink: item.hangoutLink || '',
+        location,
+        isAllDay
+      };
+    })
+    .filter(evt => !!evt.date);
 }
 
 async function reconnectGoogleCalendar() {
