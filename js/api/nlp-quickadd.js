@@ -208,27 +208,109 @@ function parseNaturalLanguage(text) {
     }
   }
 
-  // "12/25", "12/25/2026", "2026-12-25"
+  const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // 1. ISO date "2026-08-25" or "2026/08/25"
   if (!result.dueDate) {
-    dateMatch = cleaned.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+    dateMatch = cleaned.match(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
     if (dateMatch) {
-      const m = parseInt(dateMatch[1], 10) - 1;
-      const d = parseInt(dateMatch[2], 10);
-      let y = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
-      if (y < 100) y += 2000;
-      const dt = new Date(y, m, d);
-      if (!dateMatch[3] && dt < today) dt.setFullYear(dt.getFullYear() + 1);
-      result.dueDate = toISODate(dt);
-      cleaned = cleaned.replace(dateMatch[0], '');
+      const y = parseInt(dateMatch[1], 10);
+      const mo = parseInt(dateMatch[2], 10);
+      const d = parseInt(dateMatch[3], 10);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        const dt = new Date(y, mo - 1, d);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+          result.dueDate = toISODate(dt);
+          cleaned = cleaned.replace(dateMatch[0], '');
+        }
+      }
     }
   }
 
-  // ISO date "2026-08-25"
+  // 2. Slash / Dash / Dot dates: "9/8", "09/08", "9/08", "09/8", "9/8/26", "9/8/2026", "09/08/2026", "9-8", "09-08", "9.8"
   if (!result.dueDate) {
-    dateMatch = cleaned.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    dateMatch = cleaned.match(/\b(0?[1-9]|1[0-2])[\/\.-](0?[1-9]|[12]\d|3[01])(?:[\/\.-](\d{2,4}))?\b/);
     if (dateMatch) {
-      result.dueDate = dateMatch[0];
-      cleaned = cleaned.replace(dateMatch[0], '');
+      const mo = parseInt(dateMatch[1], 10);
+      const d = parseInt(dateMatch[2], 10);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        let y = dateMatch[3] ? parseInt(dateMatch[3], 10) : today.getFullYear();
+        if (dateMatch[3] && y < 100) y += 2000;
+        const dt = new Date(y, mo - 1, d);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+          if (!dateMatch[3] && dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+          result.dueDate = toISODate(dt);
+          cleaned = cleaned.replace(dateMatch[0], '');
+        }
+      }
+    }
+  }
+
+  // 3. Compact 6 or 8 digits: MMDDYY (090826) or MMDDYYYY (09082026)
+  if (!result.dueDate) {
+    dateMatch = cleaned.match(/\b(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{4}|\d{2})\b/);
+    if (dateMatch) {
+      const mo = parseInt(dateMatch[1], 10);
+      const d = parseInt(dateMatch[2], 10);
+      let y = parseInt(dateMatch[3], 10);
+      if (y < 100) y += 2000;
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        const dt = new Date(y, mo - 1, d);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+          result.dueDate = toISODate(dt);
+          cleaned = cleaned.replace(dateMatch[0], '');
+        }
+      }
+    }
+  }
+
+  // 4. Compact 4 digits: MMDD (e.g. 0908, 1225, 0101, 0704)
+  if (!result.dueDate) {
+    dateMatch = cleaned.match(/\b(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/);
+    if (dateMatch) {
+      const mo = parseInt(dateMatch[1], 10);
+      const d = parseInt(dateMatch[2], 10);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        let y = today.getFullYear();
+        const dt = new Date(y, mo - 1, d);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+          if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+          result.dueDate = toISODate(dt);
+          cleaned = cleaned.replace(dateMatch[0], '');
+        }
+      }
+    }
+  }
+
+  // 5. Compact 3 digits: 0MD (e.g. 098 -> Sep 8, 015 -> Jan 5, 041 -> Apr 1)
+  if (!result.dueDate) {
+    dateMatch = cleaned.match(/\b0([1-9])([1-9])\b/);
+    if (dateMatch) {
+      const mo = parseInt(dateMatch[1], 10);
+      const d = parseInt(dateMatch[2], 10);
+      let y = today.getFullYear();
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+        if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+        result.dueDate = toISODate(dt);
+        cleaned = cleaned.replace(dateMatch[0], '');
+      }
+    }
+  }
+
+  // 6. Compact 3 digits: MDD (e.g. 908 -> Sep 8, 501 -> May 1, 704 -> Jul 4)
+  if (!result.dueDate) {
+    dateMatch = cleaned.match(/\b([1-9])0([1-9])\b/);
+    if (dateMatch) {
+      const mo = parseInt(dateMatch[1], 10);
+      const d = parseInt(dateMatch[2], 10);
+      let y = today.getFullYear();
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getMonth() === mo - 1 && dt.getDate() === d) {
+        if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+        result.dueDate = toISODate(dt);
+        cleaned = cleaned.replace(dateMatch[0], '');
+      }
     }
   }
 

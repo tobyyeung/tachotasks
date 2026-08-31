@@ -269,6 +269,163 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
     }
   }
 
+  const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // ISO format: YYYY-MM-DD or YYYY/MM/DD
+  const isoRegex = /\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/g;
+  while ((m = isoRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const y = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10);
+      const day = parseInt(m[3], 10);
+      if (mo >= 1 && mo <= 12 && day >= 1 && day <= 31) {
+        const dt = new Date(y, mo - 1, day);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+          tokens.push({
+            start,
+            end,
+            type: 'date',
+            value: toISODate(dt),
+            text: m[0]
+          });
+        }
+      }
+    }
+  }
+
+  // Slash / Dash / Dot dates: M/D, MM/DD, M/DD, MM/D with optional /YY or /YYYY
+  // Examples: 9/8, 09/08, 9/08, 09/8, 9/8/26, 9/8/2026, 09/08/2026, 9-8, 09-08, 9.8, 09.08
+  const slashDateRegex = /\b(0?[1-9]|1[0-2])[\/\.-](0?[1-9]|[12]\d|3[01])(?:[\/\.-](\d{2,4}))?\b/g;
+  while ((m = slashDateRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const mo = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      if (mo >= 1 && mo <= 12 && day >= 1 && day <= 31) {
+        let y = m[3] ? parseInt(m[3], 10) : today.getFullYear();
+        if (m[3] && y < 100) y += 2000;
+        const dt = new Date(y, mo - 1, day);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+          if (!m[3] && dt < todayZero) {
+            dt.setFullYear(dt.getFullYear() + 1);
+          }
+          tokens.push({
+            start,
+            end,
+            type: 'date',
+            value: toISODate(dt),
+            text: m[0]
+          });
+        }
+      }
+    }
+  }
+
+  // Compact 6 or 8 digits: MMDDYY (090826) or MMDDYYYY (09082026)
+  const compactYearRegex = /\b(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{4}|\d{2})\b/g;
+  while ((m = compactYearRegex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const mo = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      let y = parseInt(m[3], 10);
+      if (y < 100) y += 2000;
+      if (mo >= 1 && mo <= 12 && day >= 1 && day <= 31) {
+        const dt = new Date(y, mo - 1, day);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+          tokens.push({
+            start,
+            end,
+            type: 'date',
+            value: toISODate(dt),
+            text: m[0]
+          });
+        }
+      }
+    }
+  }
+
+  // Compact 4 digits: MMDD (e.g. 0908, 1225, 0101, 0704)
+  const compact4Regex = /\b(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/g;
+  while ((m = compact4Regex.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const mo = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      if (mo >= 1 && mo <= 12 && day >= 1 && day <= 31) {
+        let y = today.getFullYear();
+        const dt = new Date(y, mo - 1, day);
+        if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+          if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+          tokens.push({
+            start,
+            end,
+            type: 'date',
+            value: toISODate(dt),
+            text: m[0]
+          });
+        }
+      }
+    }
+  }
+
+  // Compact 3 digits: 0MD (e.g. 098 -> Sep 8, 015 -> Jan 5, 041 -> Apr 1)
+  const compact3RegexA = /\b0([1-9])([1-9])\b/g;
+  while ((m = compact3RegexA.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const mo = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      let y = today.getFullYear();
+      const dt = new Date(y, mo - 1, day);
+      if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+        if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+        tokens.push({
+          start,
+          end,
+          type: 'date',
+          value: toISODate(dt),
+          text: m[0]
+        });
+      }
+    }
+  }
+
+  // Compact 3 digits: MDD (e.g. 908 -> Sep 8, 501 -> May 1, 704 -> Jul 4)
+  const compact3RegexB = /\b([1-9])0([1-9])\b/g;
+  while ((m = compact3RegexB.exec(text)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
+    if (!overlap && !isDismissed(start, end, m[0])) {
+      const mo = parseInt(m[1], 10);
+      const day = parseInt(m[2], 10);
+      let y = today.getFullYear();
+      const dt = new Date(y, mo - 1, day);
+      if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
+        if (dt < todayZero) dt.setFullYear(dt.getFullYear() + 1);
+        tokens.push({
+          start,
+          end,
+          type: 'date',
+          value: toISODate(dt),
+          text: m[0]
+        });
+      }
+    }
+  }
+
   // Month lookup map
   const monthMap = {
     jan: 0, january: 0,
