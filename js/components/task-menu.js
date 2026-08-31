@@ -160,6 +160,7 @@
     menu.querySelector('#ctx-date-today').addEventListener('click', async (e) => {
       e.stopPropagation();
       task.dueDate = getTodayStr();
+      task.updatedAt = new Date().toISOString();
       await saveTasks();
       closeTaskMenu();
       renderView();
@@ -171,6 +172,7 @@
       const tmrw = new Date();
       tmrw.setDate(tmrw.getDate() + 1);
       task.dueDate = toDateStr(tmrw);
+      task.updatedAt = new Date().toISOString();
       await saveTasks();
       closeTaskMenu();
       renderView();
@@ -184,6 +186,7 @@
       const dist = (6 - day + 7) % 7 || 7;
       d.setDate(d.getDate() + dist);
       task.dueDate = toDateStr(d);
+      task.updatedAt = new Date().toISOString();
       await saveTasks();
       closeTaskMenu();
       renderView();
@@ -197,6 +200,7 @@
       const dist = (1 - day + 7) % 7 || 7;
       d.setDate(d.getDate() + dist);
       task.dueDate = toDateStr(d);
+      task.updatedAt = new Date().toISOString();
       await saveTasks();
       closeTaskMenu();
       renderView();
@@ -216,6 +220,7 @@
           task.dueDate = date || null;
           task.dueTime = time || null;
           if (repeat !== undefined) task.recurring = repeat;
+          task.updatedAt = new Date().toISOString();
           await saveTasks();
           closeTaskMenu();
           renderView();
@@ -224,6 +229,7 @@
         onClear: async () => {
           task.dueDate = null;
           task.dueTime = null;
+          task.updatedAt = new Date().toISOString();
           await saveTasks();
           closeTaskMenu();
           renderView();
@@ -237,6 +243,7 @@
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         task.priority = btn.dataset.priority;
+        task.updatedAt = new Date().toISOString();
         await saveTasks();
         closeTaskMenu();
         renderView();
@@ -304,6 +311,7 @@
           task.projectId = projId;
           if (profId) task.profileId = profId;
           task.sectionId = secId;
+          task.updatedAt = new Date().toISOString();
 
           await saveTasks();
           closeTaskMenu();
@@ -316,11 +324,13 @@
     // 5. Duplicate Task
     menu.querySelector('#ctx-duplicate-task').addEventListener('click', async (e) => {
       e.stopPropagation();
+      const nowIso = new Date().toISOString();
       const dupTask = {
         ...task,
         id: generateId(),
         title: task.title + ' (Copy)',
-        createdAt: new Date().toISOString()
+        createdAt: nowIso,
+        updatedAt: nowIso
       };
       state.tasks.push(dupTask);
       await saveTasks();

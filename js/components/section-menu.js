@@ -123,17 +123,20 @@ function openSectionMenu(secId, triggerBtn) {
     }
 
     // Duplicate all tasks belonging to this section
+    const nowIso = new Date().toISOString();
     const originalTasks = state.tasks.filter(t => t.sectionId === sec.id);
     originalTasks.forEach(t => {
       const dup = {
         ...t,
         id: generateId(),
         sectionId: newSecId,
-        createdAt: new Date().toISOString()
+        createdAt: nowIso,
+        updatedAt: nowIso
       };
       state.tasks.push(dup);
     });
 
+    state.settings.updatedAt = nowIso;
     await window.api.saveSettings(state.settings);
     await saveTasks();
     showToast('Section duplicated', 'success');

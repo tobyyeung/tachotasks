@@ -53,9 +53,11 @@ function showProjectModal(editProjectId = null) {
     const name = input.value.trim();
     if (!name) { showToast('Name is required', 'error'); return; }
 
+    const nowIso = new Date().toISOString();
     if (isEditing) {
       existingProj.name = name;
       existingProj.color = selectedColor;
+      existingProj.updatedAt = nowIso;
       await window.api.saveProjects(state.projects);
       closeModal();
       renderSidebarProjects();
@@ -66,7 +68,9 @@ function showProjectModal(editProjectId = null) {
         id: 'proj-' + generateId(),
         name,
         color: selectedColor,
-        profileId: null
+        profileId: null,
+        createdAt: nowIso,
+        updatedAt: nowIso
       });
       await window.api.saveProjects(state.projects);
       closeModal();

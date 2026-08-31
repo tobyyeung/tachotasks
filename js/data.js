@@ -54,12 +54,14 @@ async function toggleTask(taskId) {
 
     if (!task.completed && !task.isCompleting) {
       task.isCompleting = true;
+      task.updatedAt = new Date().toISOString();
       renderView();
       
       if (task.completionTimeout) clearTimeout(task.completionTimeout);
       
       task.completionTimeout = setTimeout(async () => {
         task.isCompleting = false;
+        const nowIso = new Date().toISOString();
         
         if (isTaskRecurring(task)) {
           // Recurring task: archive completion snapshot for today and advance active task to next upcoming date
@@ -70,7 +72,9 @@ async function toggleTask(taskId) {
             ...task,
             id: task.id + '-' + (task.dueDate || today) + '-' + Date.now(),
             completed: true,
-            completedAt: new Date().toISOString(),
+            completedAt: nowIso,
+            createdAt: nowIso,
+            updatedAt: nowIso,
             originalTaskId: task.id,
             isRecurringInstance: true
           };
@@ -84,10 +88,12 @@ async function toggleTask(taskId) {
             task.plannedDate = getNextRecurringDate(task.plannedDate || today, task.recurring);
           }
           task.completed = false;
+          task.updatedAt = nowIso;
         } else {
           // Non-recurring task: mark completed and move to archived tasks
           task.completed = true;
-          task.completedAt = new Date().toISOString();
+          task.completedAt = nowIso;
+          task.updatedAt = nowIso;
           state.tasks = state.tasks.filter(t => t.id !== taskId);
           state.archivedTasks.push(task);
         }
@@ -104,6 +110,7 @@ async function toggleTask(taskId) {
   } else {
     const archivedTask = state.archivedTasks.find(t => t.id === taskId);
     if (archivedTask) {
+      const nowIso = new Date().toISOString();
       if (archivedTask.originalTaskId) {
         const orig = state.tasks.find(t => t.id === archivedTask.originalTaskId);
         if (orig) {
@@ -114,10 +121,12 @@ async function toggleTask(taskId) {
           delete orig.previousPlannedDate;
           orig.completed = false;
           orig.isCompleting = false;
+          orig.updatedAt = nowIso;
         }
       }
       archivedTask.completed = false;
       archivedTask.completedAt = null;
+      archivedTask.updatedAt = nowIso;
       state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
       if (!archivedTask.originalTaskId) {
         state.tasks.push(archivedTask);
@@ -142,6 +151,7 @@ function undoTaskCompletion(taskId) {
       clearTimeout(task.completionTimeout);
       task.isCompleting = false;
       task.completed = false;
+      task.updatedAt = new Date().toISOString();
       renderView();
       return;
     }
@@ -153,6 +163,7 @@ function undoTaskCompletion(taskId) {
       delete task.previousPlannedDate;
       task.completed = false;
       task.isCompleting = false;
+      task.updatedAt = new Date().toISOString();
       state.archivedTasks = state.archivedTasks.filter(a => !(a.originalTaskId === taskId && a.completedAt && a.completedAt.startsWith(today)));
       saveTasks();
       saveArchivedTasks();
@@ -163,6 +174,7 @@ function undoTaskCompletion(taskId) {
 
   const archivedTask = state.archivedTasks.find(t => t.id === taskId);
   if (archivedTask) {
+    const nowIso = new Date().toISOString();
     if (archivedTask.originalTaskId) {
       const orig = state.tasks.find(t => t.id === archivedTask.originalTaskId);
       if (orig) {
@@ -171,10 +183,14 @@ function undoTaskCompletion(taskId) {
         if (orig.previousPlannedDate) orig.plannedDate = orig.previousPlannedDate;
         delete orig.previousDueDate;
         delete orig.previousPlannedDate;
+        orig.completed = false;
+        orig.isCompleting = false;
+        orig.updatedAt = nowIso;
       }
     }
     archivedTask.completed = false;
     archivedTask.completedAt = null;
+    archivedTask.updatedAt = nowIso;
     state.archivedTasks = state.archivedTasks.filter(t => t.id !== taskId);
     if (!archivedTask.originalTaskId) {
       state.tasks.push(archivedTask);
@@ -223,10 +239,16 @@ function showUndoToast(taskId, message) {
  * @param {string} taskId - Task ID to delete.
  */
 async function deleteTask(taskId) {
+  if (!taskId) return;
   state.tasks = (state.tasks || []).filter(t => t.id !== taskId);
   state.archivedTasks = (state.archivedTasks || []).filter(t => t.id !== taskId);
+  
+  if (window.api && window.api.recordTombstone) {
+    window.api.recordTombstone(taskId, 'task');
+  }
+
   await saveTasks();
-  if (window.api.saveArchivedTasks) {
+  if (window.api && window.api.saveArchivedTasks) {
     await window.api.saveArchivedTasks(state.archivedTasks);
   }
   
@@ -248,6 +270,7 @@ async function addTaskFromParsed(parsed) {
     if (proj) projectId = proj.id;
   }
 
+  const nowIso = new Date().toISOString();
   const task = {
     id: generateId(),
     title: parsed.title || 'Untitled task',
@@ -261,7 +284,8 @@ async function addTaskFromParsed(parsed) {
     recurring: parsed.recurring || null,
     completed: false,
     completedAt: null,
-    createdAt: new Date().toISOString(),
+    createdAt: nowIso,
+    updatedAt: nowIso,
     profileId: getActiveProfileId()
   };
 

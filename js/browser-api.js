@@ -3,7 +3,7 @@
  * Main API bridge exporting window.api for storage, cloud-sync, gcal, and NLP.
  */
 
-import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud } from './api/cloud-sync.js';
+import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone } from './api/cloud-sync.js';
 import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
 import { parseNaturalLanguage } from './api/nlp-quickadd.js';
 
@@ -30,22 +30,59 @@ function lsDelete(key) {
   localStorage.removeItem(`tachotasks.${key}`);
 }
 
+function ensureEntityTimestamps(items) {
+  if (!Array.isArray(items)) return items;
+  const now = new Date().toISOString();
+  items.forEach(item => {
+    if (item && typeof item === 'object') {
+      if (!item.createdAt) item.createdAt = now;
+      if (!item.updatedAt) item.updatedAt = item.createdAt || now;
+    }
+  });
+  return items;
+}
 
 // ===== WINDOW.API INTERFACE =====
 window.api = {
   // Tasks CRUD
   getTasks: async () => lsGet('tasks', []),
-  saveTasks: async (tasks) => { lsSet('tasks', tasks); triggerSyncToCloud(); return true; },
+  saveTasks: async (tasks) => {
+    const withTimestamps = ensureEntityTimestamps(tasks);
+    lsSet('tasks', withTimestamps);
+    triggerSyncToCloud();
+    return true;
+  },
   getArchivedTasks: async () => lsGet('archivedTasks', []),
-  saveArchivedTasks: async (tasks) => { lsSet('archivedTasks', tasks); triggerSyncToCloud(); return true; },
+  saveArchivedTasks: async (tasks) => {
+    const withTimestamps = ensureEntityTimestamps(tasks);
+    lsSet('archivedTasks', withTimestamps);
+    triggerSyncToCloud();
+    return true;
+  },
 
   // Projects CRUD
   getProjects: async () => lsGet('projects', []),
-  saveProjects: async (projects) => { lsSet('projects', projects); triggerSyncToCloud(); return true; },
+  saveProjects: async (projects) => {
+    const withTimestamps = ensureEntityTimestamps(projects);
+    lsSet('projects', withTimestamps);
+    triggerSyncToCloud();
+    return true;
+  },
 
   // Profiles CRUD
   getProfiles: async () => lsGet('profiles', []),
-  saveProfiles: async (profiles) => { lsSet('profiles', profiles); triggerSyncToCloud(); return true; },
+  saveProfiles: async (profiles) => {
+    const withTimestamps = ensureEntityTimestamps(profiles);
+    lsSet('profiles', withTimestamps);
+    triggerSyncToCloud();
+    return true;
+  },
+
+  // Tombstones Deletion Tracking
+  recordTombstone: (id, type = 'task') => {
+    recordTombstone(id, type);
+    return true;
+  },
 
   // Reminders (Deprecated)
   getReminders: async () => [],
@@ -53,7 +90,14 @@ window.api = {
 
   // Settings CRUD
   getSettings: async () => lsGet('settings', {}),
-  saveSettings: async (settings) => { lsSet('settings', settings); triggerSyncToCloud(); return true; },
+  saveSettings: async (settings) => {
+    if (settings && typeof settings === 'object') {
+      settings.updatedAt = new Date().toISOString();
+    }
+    lsSet('settings', settings);
+    triggerSyncToCloud();
+    return true;
+  },
 
   // Natural Language Parsing
   parseNaturalLanguage: async (text) => parseNaturalLanguage(text),

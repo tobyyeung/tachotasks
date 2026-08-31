@@ -304,11 +304,13 @@ function showTaskEditorModal(taskId, initialData = {}) {
   const dupBtn = document.getElementById('opt-duplicate-btn');
   if (dupBtn && task) {
     dupBtn.addEventListener('click', async () => {
+      const nowIso = new Date().toISOString();
       const dupTask = {
         ...task,
         id: generateId(),
         title: task.title + ' (Copy)',
-        createdAt: new Date().toISOString()
+        createdAt: nowIso,
+        updatedAt: nowIso
       };
       state.tasks.push(dupTask);
       await saveTasks();
@@ -373,6 +375,8 @@ function showTaskEditorModal(taskId, initialData = {}) {
         tags
       };
 
+      const nowIso = new Date().toISOString();
+
       if (isNew) {
         const newTask = {
           id: generateId(),
@@ -382,7 +386,8 @@ function showTaskEditorModal(taskId, initialData = {}) {
           recurring: currentRecurring || null,
           completed: false,
           completedAt: null,
-          createdAt: new Date().toISOString(),
+          createdAt: nowIso,
+          updatedAt: nowIso,
           profileId: (initialData && initialData.profileId) || getActiveProfileId()
         };
         state.tasks.push(newTask);
@@ -391,6 +396,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
           task.profileId = getActiveProfileId();
         }
         task.recurring = currentRecurring || null;
+        task.updatedAt = nowIso;
         Object.assign(task, data);
       }
 

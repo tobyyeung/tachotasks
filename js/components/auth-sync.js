@@ -233,6 +233,8 @@ function setupRefreshButton() {
   });
 }
 
+let _isLoadingGcals = false;
+
 async function loadGoogleCalendars() {
   const listContainer = document.getElementById('gcal-list');
   if (!listContainer) return;
@@ -242,6 +244,9 @@ async function loadGoogleCalendars() {
     renderSidebarGcals();
     return;
   }
+
+  if (_isLoadingGcals) return;
+  _isLoadingGcals = true;
   
   try {
     const calendars = await window.api.getGCalCalendars();
@@ -288,6 +293,8 @@ async function loadGoogleCalendars() {
       listContainer.innerHTML = `<div style="padding:5px;color:var(--danger);font-size:11px;">Error loading calendars</div>`;
     }
     updateGcalStatus();
+  } finally {
+    _isLoadingGcals = false;
   }
 }
 

@@ -1409,6 +1409,7 @@ function attachViewListeners() {
       if (proj) {
         proj.archived = false;
         delete proj.archivedAt;
+        proj.updatedAt = new Date().toISOString();
         await window.api.saveProjects(state.projects);
         showToast(`Project "${proj.name}" restored`, 'success');
         renderSidebarProjects();
@@ -1647,13 +1648,19 @@ function attachViewListeners() {
     btn.addEventListener('click', async () => {
       const pId = btn.dataset.profileId;
       if (confirm('Delete this profile? (Tasks in this profile will become uncategorized in All)')) {
+        if (window.api && window.api.recordTombstone) {
+          window.api.recordTombstone(pId, 'profile');
+        }
         state.profiles = state.profiles.filter(p => p.id !== pId);
         if (state.activeProfileId === pId) state.activeProfileId = 'all';
         state.settings.activeProfileId = state.activeProfileId;
         
         // Remove categories from projects that used this profile
         state.projects.forEach(p => {
-          if (p.profileId === pId) p.profileId = null;
+          if (p.profileId === pId) {
+            p.profileId = null;
+            p.updatedAt = new Date().toISOString();
+          }
         });
         await window.api.saveProjects(state.projects);
         await window.api.saveSettings(state.settings);

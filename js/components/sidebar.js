@@ -189,11 +189,14 @@ function openProjectContextMenu(x, y, projectId) {
   // 2. Duplicate Project
   document.getElementById('context-dup-project')?.addEventListener('click', async () => {
     menu.classList.add('hidden');
+    const nowIso = new Date().toISOString();
     const newProjId = 'proj-' + generateId();
     const newProj = {
       ...proj,
       id: newProjId,
-      name: proj.name + ' (Copy)'
+      name: proj.name + ' (Copy)',
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
     state.projects.push(newProj);
 
@@ -204,7 +207,8 @@ function openProjectContextMenu(x, y, projectId) {
         ...t,
         id: generateId(),
         projectId: newProjId,
-        createdAt: new Date().toISOString()
+        createdAt: nowIso,
+        updatedAt: nowIso
       };
       state.tasks.push(dup);
     });
@@ -237,12 +241,15 @@ function openProjectContextMenu(x, y, projectId) {
 
     document.getElementById('modal-cancel-archive').addEventListener('click', closeModal);
     document.getElementById('modal-confirm-archive').addEventListener('click', async () => {
+      const nowIso = new Date().toISOString();
       proj.archived = true;
-      proj.archivedAt = new Date().toISOString();
+      proj.archivedAt = nowIso;
+      proj.updatedAt = nowIso;
 
       tasksToArchive.forEach(t => {
         t.completed = true;
-        t.completedAt = new Date().toISOString();
+        t.completedAt = nowIso;
+        t.updatedAt = nowIso;
         state.archivedTasks.push(t);
       });
       state.tasks = state.tasks.filter(t => !tasksToArchive.includes(t));
@@ -288,9 +295,15 @@ function openProjectContextMenu(x, y, projectId) {
 
     document.getElementById('modal-cancel-delete').addEventListener('click', closeModal);
     document.getElementById('modal-confirm-delete').addEventListener('click', async () => {
+      if (window.api && window.api.recordTombstone) {
+        window.api.recordTombstone(proj.id, 'project');
+      }
       state.projects = state.projects.filter(p => p.id !== proj.id);
       state.tasks.forEach(t => {
-        if (t.projectId === proj.id) t.projectId = null;
+        if (t.projectId === proj.id) {
+          t.projectId = null;
+          t.updatedAt = new Date().toISOString();
+        }
       });
 
       await window.api.saveProjects(state.projects);

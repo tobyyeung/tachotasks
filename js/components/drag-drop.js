@@ -39,6 +39,7 @@ function setupDragAndDrop() {
       const task = state.tasks.find(t => t.id === taskId);
       if (task) {
         task.sectionId = newSectionId === 'unsectioned' ? null : newSectionId;
+        task.updatedAt = new Date().toISOString();
         await saveTasks();
         renderView();
       }
@@ -62,6 +63,7 @@ function setupDragAndDrop() {
       if (task && date) {
         task.dueDate = date;
         task.dueTime = `${String(hour).padStart(2, '0')}:00`;
+        task.updatedAt = new Date().toISOString();
         await saveTasks();
         renderView();
         showToast(`Due time set to ${formatTime12(task.dueTime)}`, 'success');
@@ -86,6 +88,7 @@ function setupDragAndDrop() {
       const task = state.tasks.find(t => t.id === taskId);
       if (task && date) {
         task.dueDate = date;
+        task.updatedAt = new Date().toISOString();
         await saveTasks();
         renderView();
         showToast(`Scheduled for ${formatDateShort(date)}`, 'success');

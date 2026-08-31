@@ -3,6 +3,8 @@
  * Google Calendar REST API & Google Identity Services (GSI) OAuth token manager.
  */
 
+import { reauthenticateWithFirebasePopup, extractAndSaveClientId } from './cloud-sync.js';
+
 // ===== GOOGLE CALENDAR API =====
 const GCAL_BASE_URL = 'https://www.googleapis.com/calendar/v3';
 
@@ -10,6 +12,7 @@ const GCAL_BASE_URL = 'https://www.googleapis.com/calendar/v3';
 let _gsiTokenClient = null;
 let _gsiInitialized = false;
 let _gsiPendingResolve = null;
+let _refreshPromise = null;
 
 /**
  * Reset GSI client instance when switching or signing out accounts.
@@ -17,7 +20,11 @@ let _gsiPendingResolve = null;
 function resetGsiClient() {
   _gsiTokenClient = null;
   _gsiInitialized = false;
-  _gsiPendingResolve = null;
+  if (_gsiPendingResolve) {
+    const cb = _gsiPendingResolve;
+    _gsiPendingResolve = null;
+    cb(null);
+  }
 }
 
 /**
@@ -51,17 +58,29 @@ function ensureGsiClient() {
           localStorage.setItem('auth.accessTokenExpiresAt', String(expiryMs));
           localStorage.setItem('auth.gcalConnected', 'true');
           console.log(`[gcal] Fresh access token obtained (expires in ${resp.expires_in}s)`);
-          if (_gsiPendingResolve) { _gsiPendingResolve(resp.access_token); _gsiPendingResolve = null; }
+          if (_gsiPendingResolve) {
+            const cb = _gsiPendingResolve;
+            _gsiPendingResolve = null;
+            cb(resp.access_token);
+          }
         } else {
           console.warn('[gcal] GSI response missing access_token:', resp);
-          if (_gsiPendingResolve) { _gsiPendingResolve(null); _gsiPendingResolve = null; }
+          if (_gsiPendingResolve) {
+            const cb = _gsiPendingResolve;
+            _gsiPendingResolve = null;
+            cb(null);
+          }
         }
       },
       error_callback: (err) => {
         if (err && err.type !== 'popup_closed') {
           console.warn('[gcal] GSI error:', err);
         }
-        if (_gsiPendingResolve) { _gsiPendingResolve(null); _gsiPendingResolve = null; }
+        if (_gsiPendingResolve) {
+          const cb = _gsiPendingResolve;
+          _gsiPendingResolve = null;
+          cb(null);
+        }
       }
     });
     _gsiInitialized = true;
@@ -111,66 +130,37 @@ function requestGsiToken(prompt = '') {
  * 3. If interactive=true: Firebase popup fallback
  */
 async function refreshAccessToken(interactive = false) {
-  // 1. Try silent GSI refresh first
-  console.log('[gcal] Attempting silent token refresh...');
-  let token = await requestGsiToken('');
-  if (token) return token;
+  if (_refreshPromise) {
+    return _refreshPromise;
+  }
 
-  if (!interactive) return null;
-
-  // 2. Interactive: GSI consent popup
-  console.log('[gcal] Attempting interactive GSI token request...');
-  token = await requestGsiToken('consent');
-  if (token) return token;
-
-  // 3. Fallback: Firebase popup
-  if (auth.currentUser) {
+  _refreshPromise = (async () => {
     try {
-      console.log('[gcal] Attempting Firebase popup re-auth...');
-      const provider = new GoogleAuthProvider();
-      provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-      provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential && credential.accessToken) {
-        localStorage.setItem('auth.googleAccessToken', credential.accessToken);
-        const expiryMs = Date.now() + 3300 * 1000;
-        localStorage.setItem('auth.accessTokenExpiresAt', String(expiryMs));
-        localStorage.setItem('auth.gcalConnected', 'true');
-        
-        // Extract clientId from JWT idToken if available
-        extractAndSaveClientId(result, credential);
-        return credential.accessToken;
-      }
+      // 1. Try silent GSI refresh first
+      console.log('[gcal] Attempting silent token refresh...');
+      let token = await requestGsiToken('');
+      if (token) return token;
+
+      if (!interactive) return null;
+
+      // 2. Interactive: GSI consent popup
+      console.log('[gcal] Attempting interactive GSI token request...');
+      token = await requestGsiToken('consent');
+      if (token) return token;
+
+      // 3. Fallback: Firebase popup
+      console.log('[gcal] Attempting Firebase popup re-auth fallback...');
+      token = await reauthenticateWithFirebasePopup();
+      return token;
     } catch (err) {
-      console.warn('[gcal] Firebase popup refresh failed:', err);
+      console.warn('[gcal] Token refresh failed:', err);
+      return null;
+    } finally {
+      _refreshPromise = null;
     }
-  }
+  })();
 
-  return null;
-}
-
-function extractAndSaveClientId(result, credential) {
-  try {
-    const tokenResponse = (result && result._tokenResponse) || {};
-    let clientId = tokenResponse.clientId || tokenResponse.oauthClientId || null;
-    const idToken = (credential && credential.idToken) || tokenResponse.idToken || tokenResponse.oauthIdToken;
-    if (!clientId && idToken) {
-      const parts = idToken.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload && payload.aud) {
-          clientId = payload.aud;
-        }
-      }
-    }
-    if (clientId) {
-      localStorage.setItem('auth.clientId', clientId);
-      console.log('[auth] Saved Google OAuth clientId:', clientId);
-    }
-  } catch (e) {
-    console.warn('[auth] Could not extract clientId:', e);
-  }
+  return _refreshPromise;
 }
 
 /**
@@ -180,7 +170,7 @@ async function getValidAccessToken() {
   let token = localStorage.getItem('auth.googleAccessToken');
   const expiresAt = parseInt(localStorage.getItem('auth.accessTokenExpiresAt') || '0', 10);
 
-  // If token exists and is not close to expiry, use it directly
+  // If token exists and is not close to expiry (more than 5 mins remaining), use it directly
   if (token && expiresAt && Date.now() < expiresAt - 300000) {
     return token;
   }
@@ -190,13 +180,13 @@ async function getValidAccessToken() {
   const newToken = await refreshAccessToken(false);
   if (newToken) return newToken;
 
-  // If we still have the old token and it hasn't fully expired yet, use it anyway
+  // If we still have the old token and it hasn't fully expired yet, use it anyway as fallback
   if (token && expiresAt && Date.now() < expiresAt + 60000) {
     console.log('[gcal] Using existing token (recently expired, may still work)');
     return token;
   }
 
-  return token; // May be null — caller handles the error
+  return null; // Caller handles missing/expired token
 }
 
 // Proactively refresh Google Calendar access token every 45 minutes in background

@@ -37,6 +37,7 @@ export function clearLocalUserCache() {
     'tachotasks.profiles',
     'tachotasks.archivedTasks',
     'tachotasks.settings',
+    'tachotasks.tombstones',
     'tachotasks.gcalEventsCache',
     'tachotasks.gcalCalendarsCache',
     'tachotasks.lastSyncTimestamp',
@@ -86,6 +87,37 @@ onAuthStateChanged(auth, (user) => {
 });
 
 
+export function extractAndSaveClientId(result, credential) {
+  try {
+    const tokenResponse = (result && result._tokenResponse) || {};
+    let clientId = tokenResponse.clientId || tokenResponse.oauthClientId || null;
+    const idToken = (credential && credential.idToken) || tokenResponse.idToken || tokenResponse.oauthIdToken;
+    if (!clientId && idToken && typeof idToken === 'string') {
+      const parts = idToken.split('.');
+      if (parts.length >= 2) {
+        let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        const jsonStr = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonStr);
+        if (payload && payload.aud) {
+          clientId = payload.aud;
+        }
+      }
+    }
+    if (clientId) {
+      localStorage.setItem('auth.clientId', clientId);
+      console.log('[auth] Saved Google OAuth clientId:', clientId);
+      try { ensureGsiClient(); } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('[auth] Could not extract clientId:', e);
+  }
+}
+
 export function getCurrentUser() { return _currentUser; }
 export function onAuthChange(cb) { _authCallbacks.push(cb); if (_currentUser) cb(_currentUser); }
 export async function signInWithGoogle() {
@@ -101,7 +133,6 @@ export async function signInWithGoogle() {
   const accessToken = credential ? credential.accessToken : null;
   const tokenResponse = result._tokenResponse || {};
   const expiresIn = tokenResponse.oauthExpireIn || 3600;
-  const clientId = tokenResponse.clientId || tokenResponse.oauthClientId || null;
 
   if (accessToken) {
     localStorage.setItem('auth.googleAccessToken', accessToken);
@@ -109,11 +140,37 @@ export async function signInWithGoogle() {
     localStorage.setItem('auth.accessTokenExpiresAt', String(expiryMs));
     localStorage.setItem('auth.gcalConnected', 'true');
   }
-  if (clientId) {
-    localStorage.setItem('auth.clientId', clientId);
-  }
+  extractAndSaveClientId(result, credential);
   return result.user;
 }
+
+export async function reauthenticateWithFirebasePopup() {
+  if (!auth.currentUser) {
+    console.warn('[auth] No current Firebase user for re-auth popup');
+    return null;
+  }
+  const provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+  provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+  provider.setCustomParameters({
+    prompt: 'consent'
+  });
+  const result = await signInWithPopup(auth, provider);
+  const credential = GoogleAuthProvider.credentialFromResult(result);
+  const accessToken = credential ? credential.accessToken : null;
+  const tokenResponse = result._tokenResponse || {};
+  const expiresIn = tokenResponse.oauthExpireIn || 3600;
+
+  if (accessToken) {
+    localStorage.setItem('auth.googleAccessToken', accessToken);
+    const expiryMs = Date.now() + ((expiresIn || 3600) - 300) * 1000;
+    localStorage.setItem('auth.accessTokenExpiresAt', String(expiryMs));
+    localStorage.setItem('auth.gcalConnected', 'true');
+  }
+  extractAndSaveClientId(result, credential);
+  return accessToken;
+}
+
 export async function signOutUser() {
   await firebaseSignOut(auth);
   clearLocalUserCache();
@@ -218,6 +275,307 @@ function ensureDefaultProfilesLocal(profiles = []) {
   return result;
 }
 
+// ===== TOMBSTONES & DIFFERENTIAL SYNC HELPERS =====
+
+/**
+ * Records a deletion tombstone for an item so other devices know it was deleted.
+ * @param {string} id - Unique identifier of the deleted entity.
+ * @param {string} type - 'task' | 'project' | 'profile'
+ */
+export function recordTombstone(id, type = 'task') {
+  if (!id) return;
+  const tombstones = lsGet('tombstones', {});
+  tombstones[id] = {
+    id,
+    type,
+    deletedAt: new Date().toISOString()
+  };
+  lsSet('tombstones', tombstones);
+  triggerSyncToCloud();
+}
+
+/**
+ * Prunes tombstones older than maxAgeDays (default 30 days) to prevent memory leak.
+ */
+function pruneTombstones(tombstones, maxAgeDays = 30) {
+  const cutoff = Date.now() - (maxAgeDays * 24 * 60 * 60 * 1000);
+  const result = {};
+  for (const [id, t] of Object.entries(tombstones || {})) {
+    if (!t || !t.deletedAt) continue;
+    const time = new Date(t.deletedAt).getTime();
+    if (!isNaN(time) && time >= cutoff) {
+      result[id] = t;
+    }
+  }
+  return result;
+}
+
+/**
+ * Merges local and remote entity arrays using per-record timestamps (updatedAt / createdAt)
+ * and resolves deletions via tombstones.
+ */
+function mergeEntitiesWithTimestamps(collName, localItems = [], remoteItems = [], tombstones = {}) {
+  const localMap = new Map();
+  (localItems || []).forEach(item => {
+    if (item && item.id) localMap.set(item.id, item);
+  });
+
+  const remoteMap = new Map();
+  (remoteItems || []).forEach(item => {
+    if (item && item.id) remoteMap.set(item.id, item);
+  });
+
+  const allIds = new Set([...localMap.keys(), ...remoteMap.keys(), ...Object.keys(tombstones)]);
+  const mergedItems = [];
+  const itemsToPush = [];
+  const idsToDeleteFromRemote = [];
+  const tombstonesToClearFromRemote = [];
+
+  for (const id of allIds) {
+    const localItem = localMap.get(id);
+    const remoteItem = remoteMap.get(id);
+    const tombstone = tombstones[id];
+
+    if (tombstone && tombstone.deletedAt) {
+      const tombstoneTime = new Date(tombstone.deletedAt).getTime();
+      const localTime = new Date((localItem && (localItem.updatedAt || localItem.createdAt)) || 0).getTime();
+      const remoteTime = new Date((remoteItem && (remoteItem.updatedAt || remoteItem.createdAt)) || 0).getTime();
+
+      // If tombstone is newer than or equal to both local and remote modifications, item is deleted!
+      if (tombstoneTime >= localTime && tombstoneTime >= remoteTime) {
+        if (remoteItem) {
+          idsToDeleteFromRemote.push(id);
+        }
+        continue;
+      } else {
+        // Item was created or modified AFTER tombstone (resurrected/re-added)
+        delete tombstones[id];
+        tombstonesToClearFromRemote.push(id);
+      }
+    }
+
+    if (localItem && remoteItem) {
+      const localTime = new Date(localItem.updatedAt || localItem.createdAt || 0).getTime();
+      const remoteTime = new Date(remoteItem.updatedAt || remoteItem.createdAt || 0).getTime();
+
+      if (remoteTime > localTime) {
+        // Remote is newer -> adopt remote version
+        mergedItems.push(remoteItem);
+      } else if (localTime > remoteTime) {
+        // Local is newer -> keep local version and push to remote
+        mergedItems.push(localItem);
+        itemsToPush.push(localItem);
+      } else {
+        // Timestamps match -> identical version
+        mergedItems.push(localItem);
+      }
+    } else if (localItem && !remoteItem) {
+      // Item created locally on this device -> keep and push to remote
+      mergedItems.push(localItem);
+      itemsToPush.push(localItem);
+    } else if (!localItem && remoteItem) {
+      // Item created on another device -> keep in local storage
+      mergedItems.push(remoteItem);
+    }
+  }
+
+  return {
+    mergedItems,
+    itemsToPush,
+    idsToDeleteFromRemote,
+    tombstonesToClearFromRemote
+  };
+}
+
+/**
+ * Core bidirectional synchronization and conflict resolution engine.
+ */
+async function syncCollectionsBidirectional(uid) {
+  const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
+  const newData = {};
+
+  // 1. Fetch Remote Tombstones
+  const remoteTombstonesSnap = await getDocs(collection(db, `users/${uid}/tombstones`));
+  const remoteTombstones = {};
+  remoteTombstonesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data && data.id) remoteTombstones[data.id] = data;
+  });
+
+  // 2. Merge with Local Tombstones
+  let localTombstones = lsGet('tombstones', {});
+  const allTombstones = { ...localTombstones };
+  for (const [id, rt] of Object.entries(remoteTombstones)) {
+    if (!allTombstones[id]) {
+      allTombstones[id] = rt;
+    } else {
+      const localTime = new Date(allTombstones[id].deletedAt || 0).getTime();
+      const remoteTime = new Date(rt.deletedAt || 0).getTime();
+      if (remoteTime > localTime) {
+        allTombstones[id] = rt;
+      }
+    }
+  }
+
+  const batch = writeBatch(db);
+  let opCount = 0;
+  const allTombstonesToClear = [];
+
+  // 3. Process each entity collection
+  for (const collName of collections) {
+    let localItems = lsGet(collName, []);
+    if (collName === 'profiles') {
+      localItems = ensureDefaultProfilesLocal(localItems);
+    }
+
+    const collRef = collection(db, `users/${uid}/${collName}`);
+    const snapshot = await getDocs(collRef);
+    const remoteItems = [];
+
+    snapshot.forEach(docSnap => {
+      let item = docSnap.data();
+      if (!item.id) item.id = docSnap.id;
+
+      // Sanitize deprecated fields from cloud documents (Persistence & Cloud Sync Verification Rule)
+      if (collName === 'tasks' || collName === 'archivedTasks') {
+        if ('scheduledStartTime' in item || 'scheduledEndTime' in item || 'scheduledDate' in item || 'isInbox' in item) {
+          delete item.scheduledStartTime;
+          delete item.scheduledEndTime;
+          delete item.scheduledDate;
+          delete item.isInbox;
+        }
+      }
+      if (collName === 'projects') {
+        if (item.categoryId) {
+          item.profileId = item.categoryId;
+          delete item.categoryId;
+        }
+        if (item.profileId && item.profileId.startsWith('cat-')) {
+          item.profileId = item.profileId.replace('cat-', 'profile-');
+        }
+        if ('parentProjectId' in item) {
+          delete item.parentProjectId;
+        }
+      }
+      if (collName === 'profiles' && item.id && item.id.startsWith('cat-')) {
+        item.id = item.id.replace('cat-', 'profile-');
+      }
+      remoteItems.push(item);
+    });
+
+    // Run differential merge
+    const { mergedItems, itemsToPush, idsToDeleteFromRemote, tombstonesToClearFromRemote } =
+      mergeEntitiesWithTimestamps(collName, localItems, remoteItems, allTombstones);
+
+    tombstonesToClearFromRemote.forEach(id => allTombstonesToClear.push(id));
+
+    let finalMerged = mergedItems;
+    if (collName === 'profiles') {
+      finalMerged = ensureDefaultProfilesLocal(finalMerged);
+    }
+
+    // Save clean merged state to local storage
+    lsSet(collName, finalMerged);
+    newData[collName] = finalMerged;
+
+    // Queue cloud batch writes
+    idsToDeleteFromRemote.forEach(id => {
+      const docRef = doc(db, `users/${uid}/${collName}`, id);
+      batch.delete(docRef);
+      opCount++;
+    });
+
+    itemsToPush.forEach(item => {
+      if (!item.id) return;
+      const docRef = doc(db, `users/${uid}/${collName}`, item.id);
+      batch.set(docRef, cleanObjectForFirestore(item));
+      opCount++;
+    });
+  }
+
+  // 4. Synchronize Tombstones in Cloud
+  for (const [id, t] of Object.entries(allTombstones)) {
+    if (!t || !t.id) continue;
+    // If not in remote, push tombstone to cloud
+    if (!remoteTombstones[id] || remoteTombstones[id].deletedAt !== t.deletedAt) {
+      const tRef = doc(db, `users/${uid}/tombstones`, id);
+      batch.set(tRef, cleanObjectForFirestore(t));
+      opCount++;
+    }
+  }
+
+  allTombstonesToClear.forEach(id => {
+    if (remoteTombstones[id]) {
+      const tRef = doc(db, `users/${uid}/tombstones`, id);
+      batch.delete(tRef);
+      opCount++;
+    }
+  });
+
+  // Save pruned tombstones locally
+  const prunedTombstones = pruneTombstones(allTombstones);
+  lsSet('tombstones', prunedTombstones);
+
+  // 5. Settings Synchronization
+  const settingsSnap = await getDocs(collection(db, `users/${uid}/settings`));
+  let remoteSettings = null;
+  for (const docSnap of settingsSnap.docs) {
+    if (docSnap.id === 'preferences') {
+      const data = docSnap.data() || {};
+      if (data.profiles) delete data.profiles;
+      remoteSettings = data;
+    }
+  }
+
+  let localSettings = lsGet('settings', {});
+  if (!localSettings || typeof localSettings !== 'object') localSettings = {};
+
+  let finalSettings = localSettings;
+  let pushSettings = false;
+
+  if (!remoteSettings) {
+    if (!finalSettings.defaultProfileId) finalSettings.defaultProfileId = 'profile-personal';
+    if (!finalSettings.taskSections || finalSettings.taskSections.length === 0) {
+      finalSettings.taskSections = [
+        { id: 'sec-todo', name: 'To Do' },
+        { id: 'sec-in-progress', name: 'In Progress' },
+        { id: 'sec-done', name: 'Done' }
+      ];
+    }
+    pushSettings = true;
+  } else {
+    const localTime = new Date(localSettings.updatedAt || 0).getTime();
+    const remoteTime = new Date(remoteSettings.updatedAt || 0).getTime();
+    if (remoteTime > localTime) {
+      finalSettings = remoteSettings;
+    } else if (localTime > remoteTime) {
+      finalSettings = localSettings;
+      pushSettings = true;
+    } else {
+      finalSettings = { ...remoteSettings, ...localSettings };
+    }
+  }
+
+  lsSet('settings', finalSettings);
+  newData.settings = finalSettings;
+
+  if (pushSettings) {
+    const setRef = doc(db, `users/${uid}/settings`, 'preferences');
+    batch.set(setRef, cleanObjectForFirestore(finalSettings));
+    opCount++;
+  }
+
+  // Commit all queued cloud operations in Firestore
+  if (opCount > 0) {
+    await batch.commit();
+  }
+
+  lsSet('lastSyncTimestamp', Date.now());
+  const timestamp = lsGet('lastSyncTimestamp');
+
+  return { success: true, timestamp, data: newData };
+}
+
 async function performSyncToCloud() {
   if (!_currentUser) throw new Error('Not signed in with Google');
   // Wait for Firebase to actually be authenticated before hitting Firestore
@@ -245,51 +603,8 @@ async function performSyncToCloud() {
   _isSyncing = true;
 
   try {
-    const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
-    for (const collName of collections) {
-      let items = lsGet(collName, []);
-      if (collName === 'profiles') {
-        items = ensureDefaultProfilesLocal(items);
-      }
-      const itemIds = new Set(items.map(i => i.id).filter(Boolean));
-
-      const collRef = collection(db, `users/${uid}/${collName}`);
-      const snapshot = await getDocs(collRef);
-
-      const batch = writeBatch(db);
-      let opCount = 0;
-
-      // Delete docs in cloud that are not in local store
-      snapshot.forEach(docSnap => {
-        if (!itemIds.has(docSnap.id)) {
-          batch.delete(docSnap.ref);
-          opCount++;
-        }
-      });
-
-      for (const item of items) {
-        if (!item.id) continue;
-        const docRef = doc(db, `users/${uid}/${collName}`, item.id);
-        batch.set(docRef, cleanObjectForFirestore(item));
-        opCount++;
-      }
-      if (opCount > 0) {
-        await batch.commit();
-      }
-    }
-
-    let settings = lsGet('settings', {});
-    if (!settings || typeof settings !== 'object') settings = {};
-    if (!settings.defaultProfileId) settings.defaultProfileId = 'profile-personal';
-    if (!settings.taskSections || settings.taskSections.length === 0) {
-      settings.taskSections = [
-        { id: 'sec-todo', name: 'To Do' },
-        { id: 'sec-in-progress', name: 'In Progress' },
-        { id: 'sec-done', name: 'Done' }
-      ];
-    }
-    await setDoc(doc(db, `users/${uid}/settings`, 'preferences'), cleanObjectForFirestore(settings));
-    lsSet('lastSyncTimestamp', Date.now());
+    const result = await syncCollectionsBidirectional(uid);
+    return result;
   } catch (err) {
     console.error('syncToCloud error:', err);
     if (err.code === 'permission-denied' || (err.message && err.message.includes('permission'))) {
@@ -320,125 +635,10 @@ async function performSyncFromCloud() {
   if (!uid) return { error: 'Not authenticated' };
 
   try {
-    let needsCloudFix = false;
-    const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
-    const newData = {};
     try { localStorage.removeItem('tt_reminders'); } catch (e) {}
-
-    for (const collName of collections) {
-      const collRef = collection(db, `users/${uid}/${collName}`);
-      const snapshot = await getDocs(collRef);
-      const items = [];
-      snapshot.forEach(docSnap => {
-        let item = docSnap.data();
-        if (!item.id) item.id = docSnap.id;
-
-        // Sanitize deprecated fields from cloud documents (Persistence & Cloud Sync Verification Rule)
-        if (collName === 'tasks' || collName === 'archivedTasks') {
-          if ('scheduledStartTime' in item || 'scheduledEndTime' in item || 'scheduledDate' in item || 'isInbox' in item) {
-            delete item.scheduledStartTime;
-            delete item.scheduledEndTime;
-            delete item.scheduledDate;
-            delete item.isInbox;
-            needsCloudFix = true;
-          }
-        }
-        if (collName === 'projects') {
-          if (item.categoryId) {
-            item.profileId = item.categoryId;
-            delete item.categoryId;
-            needsCloudFix = true;
-          }
-          if (item.profileId && item.profileId.startsWith('cat-')) {
-            item.profileId = item.profileId.replace('cat-', 'profile-');
-            needsCloudFix = true;
-          }
-          if ('parentProjectId' in item) {
-            delete item.parentProjectId;
-            needsCloudFix = true;
-          }
-        }
-        if (collName === 'profiles' && item.id && item.id.startsWith('cat-')) {
-          item.id = item.id.replace('cat-', 'profile-');
-          needsCloudFix = true;
-        }
-        items.push(item);
-      });
-
-      if (collName === 'profiles') {
-        const ensured = ensureDefaultProfilesLocal(items);
-        lsSet('profiles', ensured);
-        newData.profiles = ensured;
-        if (ensured.length !== items.length) {
-          needsCloudFix = true;
-        }
-      } else {
-        lsSet(collName, items);
-        newData[collName] = items;
-      }
-    }
-
-    // Settings
-    const settingsSnap = await getDocs(collection(db, `users/${uid}/settings`));
-    let settingsData = null;
-    for (const docSnap of settingsSnap.docs) {
-      if (docSnap.id === 'preferences') {
-        const data = docSnap.data() || {};
-        if (data.profiles) {
-          needsCloudFix = true;
-          delete data.profiles;
-        }
-        settingsData = data;
-      }
-    }
-
-    if (!settingsData) {
-      settingsData = {
-        defaultProfileId: 'profile-personal',
-        activeProfileId: 'all',
-        tasksViewMode: 'board',
-        tasksSortMode: 'manual',
-        dashboardUpcomingRange: '7',
-        taskSections: [
-          { id: 'sec-todo', name: 'To Do' },
-          { id: 'sec-in-progress', name: 'In Progress' },
-          { id: 'sec-done', name: 'Done' }
-        ],
-        projectSections: [
-          { id: 'psec-todo', name: 'To Do' },
-          { id: 'psec-in-progress', name: 'In Progress' },
-          { id: 'psec-done', name: 'Done' }
-        ]
-      };
-      needsCloudFix = true;
-    } else {
-      if (!settingsData.defaultProfileId) {
-        settingsData.defaultProfileId = 'profile-personal';
-        needsCloudFix = true;
-      }
-      if (!settingsData.taskSections || settingsData.taskSections.length === 0) {
-        settingsData.taskSections = [
-          { id: 'sec-todo', name: 'To Do' },
-          { id: 'sec-in-progress', name: 'In Progress' },
-          { id: 'sec-done', name: 'Done' }
-        ];
-        needsCloudFix = true;
-      }
-    }
-
-    lsSet('settings', settingsData);
-    newData.settings = settingsData;
-
-    lsSet('lastSyncTimestamp', Date.now());
-    const timestamp = lsGet('lastSyncTimestamp');
-
+    const result = await syncCollectionsBidirectional(uid);
     _hasPulledForUid[uid] = true;
-
-    if (needsCloudFix) {
-      performSyncToCloud().catch(err => console.error('Cloud fix error:', err));
-    }
-
-    return { success: true, timestamp, data: newData };
+    return result;
   } catch (err) {
     console.error('syncFromCloud error:', err);
     if (err.code === 'permission-denied' || (err.message && err.message.includes('permission'))) {
@@ -448,5 +648,9 @@ async function performSyncFromCloud() {
   }
 }
 
-
-export { triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, performSyncFromCloud as syncFromCloud };
+export {
+  triggerSyncToCloud,
+  performSyncToCloud,
+  performSyncFromCloud,
+  performSyncFromCloud as syncFromCloud
+};

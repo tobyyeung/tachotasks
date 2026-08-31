@@ -891,6 +891,7 @@ function attachViewListeners() {
       if (proj) {
         proj.archived = false;
         delete proj.archivedAt;
+        proj.updatedAt = new Date().toISOString();
         await window.api.saveProjects(state.projects);
         showToast(`Project "${proj.name}" restored`, 'success');
         renderSidebarProjects();
@@ -1000,7 +1001,8 @@ function attachViewListeners() {
       const name = nameInput.value.trim();
       if (!name) return showToast('Profile name required', 'error');
       
-      const newProfile = { id: 'profile-' + generateId(), name, image: 'assets/profiles/personal.png' };
+      const nowIso = new Date().toISOString();
+      const newProfile = { id: 'profile-' + generateId(), name, image: 'assets/profiles/personal.png', createdAt: nowIso, updatedAt: nowIso };
       state.profiles.push(newProfile);
       await window.api.saveProfiles(state.profiles);
       showToast('Profile added', 'success');
@@ -1050,6 +1052,7 @@ function attachViewListeners() {
         profile.name = document.getElementById('edit-profile-name').value.trim() || profile.name;
         delete profile.icon;
         profile.image = newImageBase64;
+        profile.updatedAt = new Date().toISOString();
         
         await window.api.saveProfiles(state.profiles);
         renderView();
@@ -1063,13 +1066,19 @@ function attachViewListeners() {
     btn.addEventListener('click', async () => {
       const pId = btn.dataset.profileId;
       if (confirm('Delete this profile? (Tasks in this profile will become uncategorized in All)')) {
+        if (window.api && window.api.recordTombstone) {
+          window.api.recordTombstone(pId, 'profile');
+        }
         state.profiles = state.profiles.filter(p => p.id !== pId);
         if (state.activeProfileId === pId) state.activeProfileId = 'all';
         state.settings.activeProfileId = state.activeProfileId;
         
         // Remove categories from projects that used this profile
         state.projects.forEach(p => {
-          if (p.profileId === pId) p.profileId = null;
+          if (p.profileId === pId) {
+            p.profileId = null;
+            p.updatedAt = new Date().toISOString();
+          }
         });
         await window.api.saveProjects(state.projects);
         await window.api.saveSettings(state.settings);

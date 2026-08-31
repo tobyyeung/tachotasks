@@ -518,7 +518,7 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       return;
     }
 
-    const title = inlineState.cleanTitle.trim() || raw;
+    const nowIso = new Date().toISOString();
     const newTask = {
       id: generateId(),
       title: title,
@@ -533,7 +533,8 @@ function openInlineTaskCreate(triggerBtn, initialData = {}) {
       recurring: inlineState.recurring || null,
       completed: false,
       completedAt: null,
-      createdAt: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
       profileId: inlineState.profileId || getActiveProfileId()
     };
 
