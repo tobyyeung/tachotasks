@@ -58,6 +58,15 @@
   background: rgba(255, 255, 255, 0.025);
 }
 
+.tasks-sections-wrapper.list-view .task-meta-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .tasks-sections-wrapper.list-view .add-task-inline-btn {
   display: flex;
   align-items: center;

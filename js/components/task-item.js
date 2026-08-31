@@ -39,7 +39,7 @@ function renderTaskItem(task, isListView = false) {
   if (isListView) {
     return `
       <div class="task-item-card list-row ${isDone ? 'completed' : ''} ${isCompleting ? 'is-completing' : ''}" data-task-id="${task.id}" draggable="${!isDone}">
-        <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${task.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;" title="${isDone ? 'Mark Incomplete' : 'Mark Complete'}">
+        <div class="task-circle-check ${isDone ? 'checked' : ''}" data-task-toggle="${task.id}" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${pColor || (isDone ? 'var(--accent)' : 'rgba(255,255,255,0.35)')};color:${pColor || 'var(--text-primary)'};${isDone ? 'background:' + (pColor || 'var(--accent)') + '40;' : ''}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0;cursor:pointer;transition:all 0.2s ease;align-self:center;" title="${isDone ? 'Mark Incomplete' : 'Mark Complete'}">
           ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
         </div>
         <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" data-task-edit="${task.id}">
@@ -50,7 +50,7 @@ function renderTaskItem(task, isListView = false) {
             ${descHtml}
           </div>
           ${hasMeta ? `
-            <div class="task-meta-right" style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
+            <div class="task-meta-right" style="display:flex;gap:6px;align-items:center;align-self:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
               ${plannedLabel}
               ${dateDivider}
               ${dueHtml}

@@ -214,3 +214,13 @@ a {
   text-decoration: underline;
   color: var(--accent-hover, #6ae5ff);
 }
+
+/* Vertically middle-aligned task metadata & due dates */
+.task-meta-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
