@@ -227,30 +227,39 @@
 
 /* ===== COMPLETED TASKS COLLAPSIBLE ACCORDION ===== */
 .completed-tasks-collapsible {
-  margin-top: 10px;
+  margin-top: 6px;
   padding-top: 2px;
   user-select: none;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .completed-tasks-header {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  border-radius: var(--radius-sm);
+  padding: 8px 6px;
+  border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
   background: transparent;
   border: none;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
   transition: all var(--t-fast);
 }
 
 .completed-tasks-header:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-primary);
+}
+
+.tasks-sections-wrapper.board-view .completed-tasks-header {
+  padding: 7px 10px;
+  border-radius: 9px;
 }
 
 .completed-caret {
