@@ -473,10 +473,10 @@
   font-weight: 500;
   color: var(--accent-secondary);
   background: transparent;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: none;
   border-radius: 9px;
   cursor: pointer;
-  transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
   width: 100%;
   box-sizing: border-box;
   text-align: left;
@@ -486,7 +486,6 @@
   opacity: 1;
   color: var(--accent-secondary);
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .tasks-sections-wrapper.board-view .add-task-inline-btn .plus-icon {

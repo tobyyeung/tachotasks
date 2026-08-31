@@ -153,6 +153,11 @@ function renderDashboard() {
               <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
+              ${t.description && t.description.trim() ? `
+                <div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">
+                  ${escHtml(t.description.trim())}
+                </div>
+              ` : ''}
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
                 ${locHtml}
               </div>
@@ -201,6 +206,11 @@ function renderDashboard() {
               <div style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? 'text-decoration:line-through;opacity:0.6;' : ''};transition:all 0.2s ease;">
                 ${escHtml(t.title)}
               </div>
+              ${t.description && t.description.trim() ? `
+                <div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">
+                  ${escHtml(t.description.trim())}
+                </div>
+              ` : ''}
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
                 ${locHtml}
               </div>

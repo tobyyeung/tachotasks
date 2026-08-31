@@ -30,6 +30,11 @@ function renderTaskItem(task, isListView = false) {
   const locHtml = getTaskLocationHtml(task);
   const hasMeta = plannedLabel || dueHtml || (task.tags && task.tags.length > 0);
 
+  const hasDesc = Boolean(task.description && task.description.trim());
+  const descHtml = hasDesc
+    ? `<div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">${escHtml(task.description.trim())}</div>`
+    : '';
+
   if (isListView) {
     return `
       <div class="task-item-card list-row ${isDone ? 'completed' : ''} ${isCompleting ? 'is-completing' : ''}" data-task-id="${task.id}" draggable="${!isDone}">
@@ -37,8 +42,11 @@ function renderTaskItem(task, isListView = false) {
           ${isDone ? '<span class="task-check-mark">✓</span>' : ''}
         </div>
         <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" data-task-edit="${task.id}">
-          <div class="task-title-text" style="flex:1;min-width:0;font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
-            ${escHtml(task.title)}
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+            <div class="task-title-text" style="font-size:14px;font-weight:400;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
+              ${escHtml(task.title)}
+            </div>
+            ${descHtml}
           </div>
           ${hasMeta ? `
             <div class="task-meta-right" style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;opacity:${isDone ? '0.6' : '1'};">
@@ -63,6 +71,7 @@ function renderTaskItem(task, isListView = false) {
         <div class="task-title-text" style="font-size:14px;font-weight:500;color:${isDone ? 'var(--text-tertiary)' : 'var(--text-primary)'};text-decoration:${isDone ? 'line-through' : 'none'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.2s ease, text-decoration 0.2s ease;">
           ${escHtml(task.title)}
         </div>
+        ${descHtml}
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;width:100%;opacity:${isDone ? '0.6' : '1'};">
           <div style="display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden;flex:1;">
             <span style="font-size:11px;">${locHtml}</span>

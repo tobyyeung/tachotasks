@@ -184,3 +184,21 @@ a {
   object-fit: contain;
   vertical-align: middle;
 }
+
+/* Task Description Text */
+.task-desc-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.task-item-card.completed .task-desc-text {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
