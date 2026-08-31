@@ -337,6 +337,50 @@ function escAttr(str) {
 }
 
 /**
+ * Safely formats task description text into HTML and auto-links URLs (http, https, www, domain.tld).
+ * @param {string} text - Raw description text.
+ * @returns {string} Safe HTML with clickable anchor tags.
+ */
+function formatDescriptionHtml(text) {
+  if (!text) return '';
+  const str = String(text).trim();
+  if (!str) return '';
+
+  const urlRegex = /(https?:\/\/[^\s<]+|\bwww\.[^\s<]+|\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|io|app|dev|me|ai|co|info|xyz|uk|ca|de|jp)(?:\/[^\s<]*)?)/gi;
+  let result = '';
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(str)) !== null) {
+    if (match.index > lastIndex) {
+      result += escHtml(str.substring(lastIndex, match.index));
+    }
+
+    let url = match[0];
+    let trailingPunct = '';
+    const punctMatch = url.match(/([.,;:!?)]+)$/);
+    if (punctMatch) {
+      trailingPunct = punctMatch[1];
+      url = url.slice(0, -trailingPunct.length);
+    }
+
+    let href = url;
+    if (!/^https?:\/\//i.test(href)) {
+      href = 'https://' + href;
+    }
+
+    result += `<a href="${escAttr(href)}" target="_blank" rel="noopener noreferrer" class="task-desc-link" onclick="event.stopPropagation();">${escHtml(url)}</a>${escHtml(trailingPunct)}`;
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < str.length) {
+    result += escHtml(str.substring(lastIndex));
+  }
+
+  return result;
+}
+
+/**
  * Extracts the short venue/building name from a location string (omits street addresses).
  * @param {string} locStr
  * @returns {string}

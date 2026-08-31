@@ -202,3 +202,15 @@ a {
   text-decoration: line-through;
   opacity: 0.45;
 }
+
+.task-desc-link {
+  color: var(--accent, #48dbfb);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+.task-desc-link:hover {
+  text-decoration: underline;
+  color: var(--accent-hover, #6ae5ff);
+}

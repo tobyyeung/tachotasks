@@ -31,8 +31,9 @@ function renderTaskItem(task, isListView = false) {
   const hasMeta = plannedLabel || dueHtml || (task.tags && task.tags.length > 0);
 
   const hasDesc = Boolean(task.description && task.description.trim());
+  const descFormatted = typeof formatDescriptionHtml === 'function' ? formatDescriptionHtml(task.description) : escHtml(task.description);
   const descHtml = hasDesc
-    ? `<div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">${escHtml(task.description.trim())}</div>`
+    ? `<div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">${descFormatted}</div>`
     : '';
 
   if (isListView) {

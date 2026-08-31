@@ -155,7 +155,7 @@ function renderDashboard() {
               </div>
               ${t.description && t.description.trim() ? `
                 <div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">
-                  ${escHtml(t.description.trim())}
+                  ${typeof formatDescriptionHtml === 'function' ? formatDescriptionHtml(t.description) : escHtml(t.description.trim())}
                 </div>
               ` : ''}
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
@@ -208,7 +208,7 @@ function renderDashboard() {
               </div>
               ${t.description && t.description.trim() ? `
                 <div class="task-desc-text" style="font-size:12px;color:var(--text-secondary);opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;${isDone ? 'text-decoration:line-through;opacity:0.45;' : ''}">
-                  ${escHtml(t.description.trim())}
+                  ${typeof formatDescriptionHtml === 'function' ? formatDescriptionHtml(t.description) : escHtml(t.description.trim())}
                 </div>
               ` : ''}
               <div style="font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">
