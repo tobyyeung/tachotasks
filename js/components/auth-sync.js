@@ -170,11 +170,11 @@ function ensureTaskSchema(tasks) {
 }
 
 async function refreshDataFromStore() {
+  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
   state.projects = await window.api.getProjects() || [];
   state.events = [];
   state.floatingGoals = [];
-  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
   state.profiles = typeof ensureDefaultProfiles === 'function' ? ensureDefaultProfiles(await window.api.getProfiles() || []) : (await window.api.getProfiles() || []);
 

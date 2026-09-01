@@ -3,9 +3,9 @@
  * Main API bridge exporting window.api for storage, cloud-sync, gcal, and NLP.
  */
 
-import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone } from './api/cloud-sync.js';
-import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
-import { parseNaturalLanguage } from './api/nlp-quickadd.js';
+import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone } from './api/cloud-sync.js?v=82';
+import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js?v=82';
+import { parseNaturalLanguage } from './api/nlp-quickadd.js?v=82';
 
 // ===== LOCAL STORAGE HELPERS =====
 function lsGet(key, defaultValue = null) {

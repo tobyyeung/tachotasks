@@ -6,7 +6,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { ensureGsiClient, resetGsiClient } from './gcal-api.js';
+import { ensureGsiClient, resetGsiClient } from './gcal-api.js?v=82';
 
 // ===== FIREBASE INITIALIZATION =====
 const firebaseConfig = {

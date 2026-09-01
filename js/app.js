@@ -1,11 +1,11 @@
 // ===== INITIALIZATION =====
 async function init() {
   // Load all data from store
+  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.tasks = ensureTaskSchema(await window.api.getTasks());
   state.projects = await window.api.getProjects();
   state.events = [];
   state.floatingGoals = [];
-  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
   if (state.settings.currentView) {
     state.currentView = state.settings.currentView;
