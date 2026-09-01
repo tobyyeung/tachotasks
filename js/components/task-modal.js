@@ -339,7 +339,7 @@ function showTaskEditorModal(taskId, initialData = {}) {
   const checkBtn = document.getElementById('modal-toggle-check');
   if (checkBtn && !isNew) {
     checkBtn.addEventListener('click', async () => {
-      await toggleTask(taskId);
+      await toggleTask(taskId, true);
       closeModal();
     });
   }
@@ -460,7 +460,11 @@ function showTaskEditorModal(taskId, initialData = {}) {
         Object.assign(task, data);
       }
 
-      await saveTasks();
+      if (isArchived) {
+        await saveArchivedTasks();
+      } else {
+        await saveTasks();
+      }
       closeModal();
       renderView();
       renderSidebarTags();

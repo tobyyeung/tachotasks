@@ -151,10 +151,22 @@ function setSyncStatus(status) {
 
 function ensureTaskSchema(tasks) {
   if (!Array.isArray(tasks)) return [];
-  return tasks.map(t => ({
-    ...t,
-    plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
-  }));
+  const activeOnly = [];
+  tasks.forEach(t => {
+    if (!t) return;
+    const formatted = {
+      ...t,
+      plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
+    };
+    if (formatted.completed === true) {
+      if (state.archivedTasks && !state.archivedTasks.some(a => a.id === formatted.id)) {
+        state.archivedTasks.push(formatted);
+      }
+    } else {
+      activeOnly.push(formatted);
+    }
+  });
+  return activeOnly;
 }
 
 async function refreshDataFromStore() {

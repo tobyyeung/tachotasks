@@ -153,8 +153,10 @@ function openSectionMenu(secId, triggerBtn) {
     }
     if (confirm(`Archive all ${tasksToArchive.length} tasks in "${sec.name}"?`)) {
       tasksToArchive.forEach(t => {
+        const nowIso = new Date().toISOString();
         t.completed = true;
-        t.completedAt = new Date().toISOString();
+        t.completedAt = nowIso;
+        t.updatedAt = nowIso;
         state.archivedTasks.push(t);
       });
       state.tasks = state.tasks.filter(t => t.sectionId !== sec.id);

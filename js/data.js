@@ -20,8 +20,9 @@ async function saveArchivedTasks() {
 /**
  * Toggles task completion state with a visual delay before archiving or advancing recurrence.
  * @param {string} taskId - ID of task to toggle.
+ * @param {boolean} [immediate=false] - If true, completes and persists immediately without delay.
  */
-async function toggleTask(taskId) {
+async function toggleTask(taskId, immediate = false) {
   const task = state.tasks.find(t => t.id === taskId);
   const today = getTodayStr();
 
@@ -41,6 +42,7 @@ async function toggleTask(taskId) {
       delete task.previousPlannedDate;
       task.completed = false;
       task.isCompleting = false;
+      task.updatedAt = new Date().toISOString();
 
       // Remove today's archived snapshot if present
       state.archivedTasks = state.archivedTasks.filter(a => !(a.originalTaskId === taskId && a.completedAt && a.completedAt.startsWith(today)));
@@ -53,13 +55,7 @@ async function toggleTask(taskId) {
     }
 
     if (!task.completed && !task.isCompleting) {
-      task.isCompleting = true;
-      task.updatedAt = new Date().toISOString();
-      renderView();
-      
-      if (task.completionTimeout) clearTimeout(task.completionTimeout);
-      
-      task.completionTimeout = setTimeout(async () => {
+      const finalizeCompletion = async () => {
         task.isCompleting = false;
         const nowIso = new Date().toISOString();
         
@@ -101,7 +97,20 @@ async function toggleTask(taskId) {
         await saveTasks();
         await saveArchivedTasks();
         renderView();
-      }, 1500);
+      };
+
+      if (immediate) {
+        await finalizeCompletion();
+        showToast(isTaskRecurring(task) ? 'Task completed & set for next date' : 'Task completed', 'success');
+        return;
+      }
+
+      task.isCompleting = true;
+      task.updatedAt = new Date().toISOString();
+      renderView();
+      
+      if (task.completionTimeout) clearTimeout(task.completionTimeout);
+      task.completionTimeout = setTimeout(finalizeCompletion, 1500);
       
       showUndoToast(taskId, isTaskRecurring(task) ? 'Task completed & set for next date' : 'Task completed');
     } else if (task.isCompleting) {
@@ -134,6 +143,7 @@ async function toggleTask(taskId) {
       await saveTasks();
       await saveArchivedTasks();
       renderView();
+      showToast('Task marked incomplete', 'info');
     }
   }
 }
@@ -294,3 +304,52 @@ async function addTaskFromParsed(parsed) {
   renderView();
   if (typeof renderSidebarTags === 'function') renderSidebarTags();
 }
+
+// Synchronously flush any pending completions before page refresh / unload
+window.addEventListener('beforeunload', () => {
+  let changed = false;
+  const nowIso = new Date().toISOString();
+  const today = getTodayStr();
+
+  (state.tasks || []).forEach(task => {
+    if (task && task.isCompleting) {
+      task.isCompleting = false;
+      if (isTaskRecurring(task)) {
+        task.previousDueDate = task.dueDate || today;
+        task.previousPlannedDate = task.plannedDate || null;
+        const completedRecord = {
+          ...task,
+          id: task.id + '-' + (task.dueDate || today) + '-' + Date.now(),
+          completed: true,
+          completedAt: nowIso,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          originalTaskId: task.id,
+          isRecurringInstance: true
+        };
+        delete completedRecord.previousDueDate;
+        delete completedRecord.previousPlannedDate;
+        state.archivedTasks.push(completedRecord);
+        task.lastCompletedDate = today;
+        task.dueDate = getNextRecurringDate(task.dueDate || today, task.recurring);
+        if (task.plannedDate) task.plannedDate = getNextRecurringDate(task.plannedDate || today, task.recurring);
+        task.completed = false;
+        task.updatedAt = nowIso;
+      } else {
+        task.completed = true;
+        task.completedAt = nowIso;
+        task.updatedAt = nowIso;
+        state.archivedTasks.push(task);
+      }
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    state.tasks = (state.tasks || []).filter(t => !t.completed);
+    try {
+      localStorage.setItem('tachotasks.tasks', JSON.stringify(state.tasks));
+      localStorage.setItem('tachotasks.archivedTasks', JSON.stringify(state.archivedTasks));
+    } catch (e) {}
+  }
+});

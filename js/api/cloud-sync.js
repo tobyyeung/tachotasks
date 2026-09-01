@@ -421,12 +421,16 @@ async function syncCollectionsBidirectional(uid) {
   let opCount = 0;
   const allTombstonesToClear = [];
 
-  // 3. Process each entity collection
+  // 3. Process and sanitize each entity collection
+  const localCollections = {};
+  const remoteCollections = {};
+
   for (const collName of collections) {
-    let localItems = lsGet(collName, []);
+    let localItems = lsGet(collName, []) || [];
     if (collName === 'profiles') {
       localItems = ensureDefaultProfilesLocal(localItems);
     }
+    localCollections[collName] = localItems;
 
     const collRef = collection(db, `users/${uid}/${collName}`);
     const snapshot = await getDocs(collRef);
@@ -462,6 +466,91 @@ async function syncCollectionsBidirectional(uid) {
       }
       remoteItems.push(item);
     });
+
+    remoteCollections[collName] = remoteItems;
+  }
+
+  // Cross-Collection Task & Archive Reconciliation
+  // Reconcile 'tasks' and 'archivedTasks' to resolve completed/uncompleted state conflicts
+  function getItemTime(item) {
+    if (!item) return 0;
+    const timeStr = item.updatedAt || item.completedAt || item.createdAt;
+    if (!timeStr) return 0;
+    const t = new Date(timeStr).getTime();
+    return isNaN(t) ? 0 : t;
+  }
+
+  // Self-heal: Move any completed tasks mistakenly in 'tasks' to 'archivedTasks'
+  const localCompletedInTasks = (localCollections.tasks || []).filter(t => t && t.completed === true);
+  if (localCompletedInTasks.length > 0) {
+    localCollections.tasks = (localCollections.tasks || []).filter(t => !t || t.completed !== true);
+    localCompletedInTasks.forEach(t => {
+      if (!localCollections.archivedTasks.some(a => a.id === t.id)) {
+        localCollections.archivedTasks.push(t);
+      }
+    });
+  }
+
+  const remoteCompletedInTasks = (remoteCollections.tasks || []).filter(t => t && t.completed === true);
+  if (remoteCompletedInTasks.length > 0) {
+    remoteCompletedInTasks.forEach(t => {
+      if (!remoteCollections.archivedTasks.some(a => a.id === t.id)) {
+        remoteCollections.archivedTasks.push(t);
+      }
+      const docRef = doc(db, `users/${uid}/tasks`, t.id);
+      batch.delete(docRef);
+      opCount++;
+    });
+    remoteCollections.tasks = (remoteCollections.tasks || []).filter(t => !t || t.completed !== true);
+  }
+
+  // Reconcile non-recurring tasks present across active and archived collections
+  const allTaskIds = new Set();
+  (localCollections.tasks || []).forEach(t => t && t.id && allTaskIds.add(t.id));
+  (remoteCollections.tasks || []).forEach(t => t && t.id && allTaskIds.add(t.id));
+  (localCollections.archivedTasks || []).forEach(t => {
+    if (t && t.id && !t.isRecurringInstance && !t.originalTaskId) allTaskIds.add(t.id);
+  });
+  (remoteCollections.archivedTasks || []).forEach(t => {
+    if (t && t.id && !t.isRecurringInstance && !t.originalTaskId) allTaskIds.add(t.id);
+  });
+
+  for (const id of allTaskIds) {
+    const localActive = (localCollections.tasks || []).find(t => t.id === id);
+    const remoteActive = (remoteCollections.tasks || []).find(t => t.id === id);
+    const localArchived = (localCollections.archivedTasks || []).find(t => t.id === id && !t.isRecurringInstance && !t.originalTaskId);
+    const remoteArchived = (remoteCollections.archivedTasks || []).find(t => t.id === id && !t.isRecurringInstance && !t.originalTaskId);
+
+    const latestActiveTime = Math.max(getItemTime(localActive), getItemTime(remoteActive));
+    const latestArchivedTime = Math.max(getItemTime(localArchived), getItemTime(remoteArchived));
+
+    if (latestArchivedTime > 0 && latestActiveTime > 0) {
+      if (latestArchivedTime >= latestActiveTime) {
+        // Task was completed -> remove from active tasks, delete active doc from Firestore
+        localCollections.tasks = (localCollections.tasks || []).filter(t => t.id !== id);
+        if (remoteActive) {
+          const docRef = doc(db, `users/${uid}/tasks`, id);
+          batch.delete(docRef);
+          opCount++;
+          remoteCollections.tasks = (remoteCollections.tasks || []).filter(t => t.id !== id);
+        }
+      } else {
+        // Task was reopened/uncompleted -> remove from archived tasks, delete archived doc from Firestore
+        localCollections.archivedTasks = (localCollections.archivedTasks || []).filter(t => t.id !== id);
+        if (remoteArchived) {
+          const docRef = doc(db, `users/${uid}/archivedTasks`, id);
+          batch.delete(docRef);
+          opCount++;
+          remoteCollections.archivedTasks = (remoteCollections.archivedTasks || []).filter(t => t.id !== id);
+        }
+      }
+    }
+  }
+
+  // Differential merge for each collection
+  for (const collName of collections) {
+    const localItems = localCollections[collName] || [];
+    const remoteItems = remoteCollections[collName] || [];
 
     // Run differential merge
     const { mergedItems, itemsToPush, idsToDeleteFromRemote, tombstonesToClearFromRemote } =
