@@ -52,14 +52,32 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Load the app — either from Vite dev server or from built files
-  if (isDev) {
+  // Load the app — either from Vite dev server (if explicitly requested) or local build
+  const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html');
+  const rootIndexPath = path.join(__dirname, '..', 'index.html');
+
+  if (process.env.VITE_DEV_SERVER === 'true') {
     mainWindow.loadURL(VITE_DEV_URL);
-    // Open DevTools in dev mode
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  } else if (require('fs').existsSync(distIndexPath)) {
+    mainWindow.loadFile(distIndexPath);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    mainWindow.loadFile(rootIndexPath);
   }
+
+  // Allow toggling DevTools via F12 or Ctrl+Shift+I
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
+  // Log renderer errors to terminal for clean debugging
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    if (level >= 3) {
+      console.error('[renderer-error]', message);
+    }
+  });
 
   // Save window bounds on resize/move
   const saveBounds = () => {

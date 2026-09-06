@@ -7,7 +7,8 @@
     "dev:web": "vite",
     "build:web": "vite build",
     "preview:web": "vite preview",
-    "dev:electron": "concurrently -n web,electron \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "npm run build:web && electron .",
+    "start": "electron .",
     "build:electron": "vite build && electron-builder"
   },
   "author": "Toby Yeung",
