@@ -266,9 +266,9 @@
 
         const result = await signInWithPopup(auth, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
-        const accessToken = credential ? credential.accessToken : null;
-        const idToken = await result.user.getIdToken();
         const tokenResponse = result._tokenResponse || {};
+        const accessToken = credential ? credential.accessToken : (tokenResponse.oauthAccessToken || null);
+        const googleIdToken = (credential && credential.idToken) ? credential.idToken : (tokenResponse.oauthIdToken || null);
         const expiresIn = tokenResponse.oauthExpireIn || 3600;
 
         statusMsg.textContent = 'Transferring credentials to desktop app...';
@@ -279,7 +279,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session: sessionId,
-            idToken: idToken,
+            googleIdToken: googleIdToken,
             accessToken: accessToken,
             user: {
               uid: result.user.uid,

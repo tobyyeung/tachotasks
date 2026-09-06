@@ -155,10 +155,33 @@ export async function signInWithGoogle() {
   return result.user;
 }
 
-export async function completeBrowserSignIn({ idToken, accessToken, user, expiresIn }) {
-  if (!idToken) throw new Error('Missing ID token from browser authentication');
+export async function completeBrowserSignIn({ googleIdToken, idToken, accessToken, user, expiresIn }) {
+  // Extract Google OAuth ID token (ensure we never pass a Firebase ID token to GoogleAuthProvider)
+  let realGoogleIdToken = googleIdToken || null;
+  if (!realGoogleIdToken && idToken) {
+    try {
+      const parts = idToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.iss && payload.iss.includes('securetoken.google.com')) {
+          // This is a Firebase ID token, not a Google token — drop it
+          realGoogleIdToken = null;
+        } else {
+          realGoogleIdToken = idToken;
+        }
+      }
+    } catch (e) {
+      realGoogleIdToken = null;
+    }
+  }
 
-  const credential = GoogleAuthProvider.credential(idToken, accessToken || null);
+  const realAccessToken = accessToken || null;
+
+  if (!realGoogleIdToken && !realAccessToken) {
+    throw new Error('Missing Google authentication tokens from browser sign-in');
+  }
+
+  const credential = GoogleAuthProvider.credential(realGoogleIdToken, realAccessToken);
   const result = await signInWithCredential(auth, credential);
 
   if (accessToken) {
