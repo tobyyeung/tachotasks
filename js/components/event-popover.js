@@ -7,9 +7,10 @@ function showEventPopover(eventId, eventType, triggerEl) {
   let event = null;
   let calName = 'My Calendar';
   let eventColor = '#4285f4';
+  const cleanId = typeof eventId === 'string' ? eventId.replace(/__(day1|day2|mid_.+)$/, '') : eventId;
 
   if (eventType === 'gcal_event') {
-    event = state.gcalEvents.find(e => e.id === eventId);
+    event = state.gcalEvents.find(e => e.id === cleanId || e.id === eventId);
     if (event) {
       const cal = state.gcalCalendars.find(c => c.id === event.calendarId);
       if (cal) {
@@ -20,7 +21,7 @@ function showEventPopover(eventId, eventType, triggerEl) {
       }
     }
   } else {
-    event = state.events.find(e => e.id === eventId);
+    event = state.events.find(e => e.id === cleanId || e.id === eventId);
     if (event) {
       eventColor = event.color || '#4285f4';
       const prof = state.profiles.find(p => p.id === state.activeProfileId);

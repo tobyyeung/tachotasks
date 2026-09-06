@@ -449,6 +449,7 @@ function formatTimeShort(timeStr) {
   const parts = timeStr.split(':').map(Number);
   const hour = parts[0];
   const mins = parts[1] || 0;
+  if (hour === 24) return mins === 0 ? '12am' : `12:${String(mins).padStart(2, '0')}am`;
   const ampm = hour >= 12 ? 'pm' : 'am';
   const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
   if (mins === 0) return `${displayHour}${ampm}`;

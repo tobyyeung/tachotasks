@@ -1,0 +1,120 @@
+/* ============================================================
+   TESTING SANDBOX & DEV TOOLS STYLES
+   ============================================================ */
+
+.sandbox-floating-trigger {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  color: #c7d2fe;
+  border: 1px solid rgba(199, 210, 254, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(99, 102, 241, 0.3);
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all var(--t-fast);
+}
+
+.sandbox-floating-trigger:hover {
+  transform: translateY(-2px);
+  color: #fff;
+  border-color: rgba(199, 210, 254, 0.6);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.5);
+}
+
+.sandbox-panel {
+  position: fixed;
+  bottom: 65px;
+  right: 20px;
+  z-index: 99999;
+  width: 340px;
+  max-width: 90vw;
+  background: #13141f;
+  border: 1px solid rgba(199, 210, 254, 0.2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 30px rgba(99, 102, 241, 0.2);
+  padding: 18px 20px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sandbox-panel.hidden {
+  display: none !important;
+}
+
+.sandbox-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.sandbox-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c7d2fe;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sandbox-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.sandbox-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sandbox-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sandbox-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--t-fast);
+}
+
+.sandbox-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(199, 210, 254, 0.3);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.sandbox-action-btn span.sandbox-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}

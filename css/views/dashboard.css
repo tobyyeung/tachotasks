@@ -1,7 +1,9 @@
 /* ===== DASHBOARD VIEW ===== */
 .dashboard-view {
-  max-width: 1200px;
+  max-width: 1440px;
+  width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
   padding-bottom: var(--sp-2xl);
 }
 
@@ -172,7 +174,8 @@
   flex-direction: column;
   gap: var(--sp-lg);
   padding-right: 12px;
-  min-width: 280px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .dashboard-right {
@@ -180,7 +183,8 @@
   flex-direction: column;
   gap: var(--sp-lg);
   padding-left: 12px;
-  min-width: 280px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Draggable Dashboard Cards / Widgets */
@@ -217,6 +221,9 @@
 
 .dashboard-card {
   transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .dashboard-card.widget-dragging {

@@ -221,53 +221,103 @@ function renderCalendarEvents() {
   // Combine local events, Google Calendar events, and scheduled tasks
   const items = [];
 
-  state.events.forEach(evt => {
+  const addEventItems = (evt, type, color) => {
     const startDate = evt.date;
-    const endDate = evt.endDate || evt.date;
+    let endDate = evt.endDate || evt.date;
+    const isPureAllDay = Boolean(evt.isAllDay || !evt.startTime);
+
+    // Overnight timed event: has start and end times, and either spans past midnight (endDate > startDate) or endTime <= startTime
+    const isOvernight = !isPureAllDay && Boolean(
+      (endDate > startDate) || (evt.endTime && evt.endTime <= evt.startTime)
+    );
+
+    if (isOvernight && endDate <= startDate) {
+      const parts = startDate.split('-').map(Number);
+      const nextD = new Date(parts[0], parts[1] - 1, parts[2]);
+      nextD.setDate(nextD.getDate() + 1);
+      const y = nextD.getFullYear();
+      const m = String(nextD.getMonth() + 1).padStart(2, '0');
+      const d = String(nextD.getDate()).padStart(2, '0');
+      endDate = `${y}-${m}-${d}`;
+    }
+
     const isMultiDay = Boolean(endDate && endDate > startDate);
 
     days.forEach((dStr, dayIdx) => {
       if (dStr >= startDate && dStr <= endDate) {
         const isStart = (dStr === startDate);
         const isEnd = (dStr === endDate);
-        items.push({
-          id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
-          date: dStr, originalStartDate: startDate, originalEndDate: endDate,
-          startTime: isStart ? (evt.startTime || null) : null,
-          endTime: isEnd ? (evt.endTime || null) : null,
-          location: evt.location || '',
-          dayIdx, isAllDay: evt.isAllDay || !evt.startTime || isMultiDay,
-          isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: !isStart && !isEnd
-        });
+        const isMiddle = !isStart && !isEnd;
+
+        if (isPureAllDay) {
+          items.push({
+            id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+            date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+            startTime: null, endTime: null,
+            location: evt.location || '',
+            dayIdx, isAllDay: true,
+            isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: isMiddle
+          });
+        } else if (isOvernight) {
+          if (isStart) {
+            // Segment 1 (Day 1): starts at startTime, ends at midnight 12am (24:00)
+            items.push({
+              id: `${evt.id}__day1`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+              startTime: evt.startTime,
+              endTime: '24:00',
+              location: evt.location || '',
+              dayIdx, isAllDay: false,
+              isMultiDay: true, isMultiDayStart: true, isMultiDayEnd: false, isMultiDayMiddle: false,
+              isOvernight: true, isOvernightStart: true, isOvernightEnd: false
+            });
+          } else if (isEnd) {
+            // Segment 2 (Day 2): starts at midnight 12am (00:00), ends at endTime
+            items.push({
+              id: `${evt.id}__day2`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+              startTime: '00:00',
+              endTime: evt.endTime || '04:00',
+              location: evt.location || '',
+              dayIdx, isAllDay: false,
+              isMultiDay: true, isMultiDayStart: false, isMultiDayEnd: true, isMultiDayMiddle: false,
+              isOvernight: true, isOvernightStart: false, isOvernightEnd: true
+            });
+          } else {
+            // Middle day (24-hour span)
+            items.push({
+              id: `${evt.id}__mid_${dStr}`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+              startTime: null, endTime: null,
+              location: evt.location || '',
+              dayIdx, isAllDay: true,
+              isMultiDay: true, isMultiDayStart: false, isMultiDayEnd: false, isMultiDayMiddle: true
+            });
+          }
+        } else {
+          // Standard single-day timed event
+          items.push({
+            id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+            date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+            startTime: evt.startTime || null,
+            endTime: evt.endTime || null,
+            location: evt.location || '',
+            dayIdx, isAllDay: false,
+            isMultiDay: false, isMultiDayStart: true, isMultiDayEnd: true, isMultiDayMiddle: false
+          });
+        }
       }
     });
-  });
+  };
+
+  state.events.forEach(evt => addEventItems(evt, 'event', evt.color || '#4285f4'));
 
   state.gcalEvents.forEach(evt => {
     const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
     if (!activeIds.includes(evt.calendarId)) return;
-    
     const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
     const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
-    const startDate = evt.date;
-    const endDate = evt.endDate || evt.date;
-    const isMultiDay = Boolean(endDate && endDate > startDate);
-
-    days.forEach((dStr, dayIdx) => {
-      if (dStr >= startDate && dStr <= endDate) {
-        const isStart = (dStr === startDate);
-        const isEnd = (dStr === endDate);
-        items.push({
-          id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
-          date: dStr, originalStartDate: startDate, originalEndDate: endDate,
-          startTime: isStart ? (evt.startTime || null) : null,
-          endTime: isEnd ? (evt.endTime || null) : null,
-          location: evt.location || '',
-          dayIdx, isAllDay: evt.isAllDay || !evt.startTime || isMultiDay,
-          isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: !isStart && !isEnd
-        });
-      }
-    });
+    addEventItems(evt, 'gcal_event', calColor);
   });
 
   state.tasks.forEach(task => {
@@ -714,6 +764,7 @@ function formatTimeShort(timeStr) {
   const parts = timeStr.split(':').map(Number);
   const hour = parts[0];
   const mins = parts[1] || 0;
+  if (hour === 24) return mins === 0 ? '12am' : `12:${String(mins).padStart(2, '0')}am`;
   const ampm = hour >= 12 ? 'pm' : 'am';
   const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
   if (mins === 0) return `${displayHour}${ampm}`;

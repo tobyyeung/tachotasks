@@ -10,9 +10,9 @@ function formatScheduleTimeRange(startTime, endTime, isAllDay) {
   const [eh, em] = endTime.split(':').map(Number);
 
   const sAmpm = sh >= 12 ? 'pm' : 'am';
-  const eAmpm = eh >= 12 ? 'pm' : 'am';
+  const eAmpm = (eh >= 12 && eh < 24) ? 'pm' : 'am';
   const sDisplayH = sh === 0 ? 12 : (sh > 12 ? sh - 12 : sh);
-  const eDisplayH = eh === 0 ? 12 : (eh > 12 ? eh - 12 : eh);
+  const eDisplayH = (eh === 0 || eh === 24) ? 12 : (eh > 12 ? eh - 12 : eh);
 
   const sMinsStr = sm > 0 ? `:${String(sm).padStart(2, '0')}` : '';
   const eMinsStr = em > 0 ? `:${String(em).padStart(2, '0')}` : '';
@@ -41,45 +41,76 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
     itemsByDate[dStr] = [];
   });
 
-  // Collect events
-  state.events.forEach(evt => {
+  const addScheduleEvent = (evt, type, color) => {
     const startDate = evt.date;
-    const endDate = evt.endDate || evt.date;
+    let endDate = evt.endDate || evt.date;
+    const isPureAllDay = Boolean(evt.isAllDay || !evt.startTime);
+
+    const isOvernight = !isPureAllDay && Boolean(
+      (endDate > startDate) || (evt.endTime && evt.endTime <= evt.startTime)
+    );
+
+    if (isOvernight && endDate <= startDate) {
+      const parts = startDate.split('-').map(Number);
+      const nextD = new Date(parts[0], parts[1] - 1, parts[2]);
+      nextD.setDate(nextD.getDate() + 1);
+      const y = nextD.getFullYear();
+      const m = String(nextD.getMonth() + 1).padStart(2, '0');
+      const d = String(nextD.getDate()).padStart(2, '0');
+      endDate = `${y}-${m}-${d}`;
+    }
+
     monthDays.forEach(d => {
       const dStr = toDateStr(d);
       if (dStr >= startDate && dStr <= endDate && itemsByDate[dStr]) {
         const isStart = (dStr === startDate);
         const isEnd = (dStr === endDate);
-        itemsByDate[dStr].push({
-          id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
-          date: dStr, startTime: isStart ? (evt.startTime || null) : null, endTime: isEnd ? (evt.endTime || null) : null,
-          location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime || (endDate > startDate)
-        });
+
+        if (isPureAllDay) {
+          itemsByDate[dStr].push({
+            id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+            date: dStr, startTime: null, endTime: null,
+            location: evt.location || '', isAllDay: true
+          });
+        } else if (isOvernight) {
+          if (isStart) {
+            itemsByDate[dStr].push({
+              id: `${evt.id}__day1`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, startTime: evt.startTime, endTime: '24:00',
+              location: evt.location || '', isAllDay: false
+            });
+          } else if (isEnd) {
+            itemsByDate[dStr].push({
+              id: `${evt.id}__day2`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, startTime: '00:00', endTime: evt.endTime || '04:00',
+              location: evt.location || '', isAllDay: false
+            });
+          } else {
+            itemsByDate[dStr].push({
+              id: `${evt.id}__mid_${dStr}`, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+              date: dStr, startTime: null, endTime: null,
+              location: evt.location || '', isAllDay: true
+            });
+          }
+        } else {
+          itemsByDate[dStr].push({
+            id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
+            date: dStr, startTime: evt.startTime || null, endTime: evt.endTime || null,
+            location: evt.location || '', isAllDay: false
+          });
+        }
       }
     });
-  });
+  };
 
-  // Collect Google Calendar events
+  state.events.forEach(evt => addScheduleEvent(evt, 'event', evt.color || '#4285f4'));
+
   const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
   state.gcalEvents.forEach(evt => {
     if (!activeIds.includes(evt.calendarId)) return;
-    const startDate = evt.date;
-    const endDate = evt.endDate || evt.date;
     const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
     const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
-
-    monthDays.forEach(d => {
-      const dStr = toDateStr(d);
-      if (dStr >= startDate && dStr <= endDate && itemsByDate[dStr]) {
-        const isStart = (dStr === startDate);
-        const isEnd = (dStr === endDate);
-        itemsByDate[dStr].push({
-          id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
-          date: dStr, startTime: isStart ? (evt.startTime || null) : null, endTime: isEnd ? (evt.endTime || null) : null,
-          location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime || (endDate > startDate)
-        });
-      }
-    });
+    addScheduleEvent(evt, 'gcal_event', calColor);
   });
 
   // Collect tasks

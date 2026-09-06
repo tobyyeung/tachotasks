@@ -451,6 +451,7 @@ function renderDashboard() {
             </div>
           </div>
         </div>
+      </div>
         <div id="collapse-content-upcoming-tasks" class="dashboard-card-content" style="${collapsed['upcoming-tasks'] ? 'display:none;' : ''}">
           <div class="task-section-list" style="display:flex;flex-direction:column;gap:2px;">
             ${upcomingHtml}

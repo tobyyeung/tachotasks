@@ -53,7 +53,8 @@ function initAuthUI() {
   if (signOutBtn) {
     signOutBtn.addEventListener('click', async () => {
       try {
-        await window.api.signOut();
+        const res = await window.api.signOut();
+        if (res && res.error) throw new Error(res.error);
         state.tasks = [];
         state.projects = [];
         state.archivedTasks = [];
@@ -62,19 +63,20 @@ function initAuthUI() {
         state.gcalEvents = [];
         state.gcalCalendars = [];
         state.activeGcalIds = [];
-        state.fetchedGcalIds.clear();
+        if (state.fetchedGcalIds && state.fetchedGcalIds.clear) state.fetchedGcalIds.clear();
         state.filterProject = null;
         state.filterTag = null;
         state.profiles = typeof getDefaultProfiles === 'function' ? getDefaultProfiles() : [];
         
-        renderSidebarProjects();
-        renderSidebarTags();
-        renderSidebarGcals();
-        showLoginOverlay();
-        renderView();
+        if (typeof renderSidebarProjects === 'function') renderSidebarProjects();
+        if (typeof renderSidebarTags === 'function') renderSidebarTags();
+        if (typeof renderSidebarGcals === 'function') renderSidebarGcals();
+        if (typeof showLoginOverlay === 'function') showLoginOverlay();
+        if (typeof renderView === 'function') renderView();
         showToast('Signed out', 'success');
       } catch (err) {
-        console.error(err);
+        console.error('Sign out failed:', err);
+        showToast('Sign out failed: ' + err.message, 'error');
       }
     });
   }

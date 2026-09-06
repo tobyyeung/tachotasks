@@ -160,11 +160,17 @@ function renderWeeklyDailyEvents(days, items) {
         item.endMinutes = item.startMinutes + 30;
       } else if (item.endTime) {
         const [eh, em] = item.endTime.split(':').map(Number);
-        item.endMinutes = eh * 60 + (em || 0);
+        if (eh === 24 || item.endTime === '24:00') {
+          item.endMinutes = 1440;
+        } else {
+          item.endMinutes = eh * 60 + (em || 0);
+        }
       } else {
         item.endMinutes = item.startMinutes + 45;
       }
-      if (item.endMinutes <= item.startMinutes) item.endMinutes = item.startMinutes + 15;
+      if (item.endMinutes <= item.startMinutes && item.endTime !== '24:00') {
+        item.endMinutes = item.startMinutes + 15;
+      }
     });
 
     dayItems.sort((a, b) => {
@@ -245,6 +251,11 @@ function renderWeeklyDailyEvents(days, items) {
 
       const el = document.createElement('div');
       el.className = `calendar-event ${isTask ? 'is-task' : ''}`;
+      if (item.isOvernight) {
+        el.classList.add('is-overnight');
+        if (item.isOvernightStart) el.classList.add('overnight-start');
+        if (item.isOvernightEnd) el.classList.add('overnight-end');
+      }
       el.style.top = `${top}px`;
       el.style.left = `${left}px`;
       el.style.width = `${width}px`;
@@ -267,7 +278,12 @@ function renderWeeklyDailyEvents(days, items) {
 
       if (item.completed) el.style.opacity = '0.4';
 
-      const eventTimeDisplay = item.startTime ? `${formatTimeShort(item.startTime)}${item.endTime ? ' – ' + formatTimeShort(item.endTime) : ''}` : 'All Day';
+      let eventTimeDisplay = item.startTime ? `${formatTimeShort(item.startTime)}${item.endTime ? ' – ' + formatTimeShort(item.endTime) : ''}` : 'All Day';
+      if (item.isOvernightStart) {
+        eventTimeDisplay += ' →';
+      } else if (item.isOvernightEnd) {
+        eventTimeDisplay = '↳ ' + eventTimeDisplay;
+      }
       const isSideBySide = sameTimeItems.length > 1;
       const titleLenPx = (item.title || '').length * 6.5;
       const prefixLenPx = (item.locPrefix || '').length * 6.5;
