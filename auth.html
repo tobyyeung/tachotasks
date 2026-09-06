@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to Tacho Tasks Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="assets/brand/logo.png" type="image/png">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1c1c24 0%, #0e0e10 100%);
+      color: #f0f0f4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .auth-card {
+      background: rgba(26, 26, 33, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 44px 36px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+      position: relative;
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .logo-badge {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255, 107, 0, 0.2), rgba(255, 107, 0, 0.05));
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(255, 107, 0, 0.25);
+    }
+
+    .logo-badge img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #92929e;
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+
+    .btn-google {
+      width: 100%;
+      height: 48px;
+      background: #ffffff;
+      color: #111113;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-google:hover {
+      background: #f4f4f6;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-google:active {
+      transform: translateY(0);
+    }
+
+    .btn-google:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-google svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .status-msg {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #92929e;
+      min-height: 20px;
+    }
+
+    .status-msg.error {
+      color: #ff5252;
+    }
+
+    /* Success Screen */
+    .success-view {
+      display: none;
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .success-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #22c55e;
+    }
+
+    .success-icon svg {
+      width: 30px;
+      height: 30px;
+      stroke-width: 2.5;
+    }
+
+    .btn-secondary {
+      margin-top: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e4e4e9;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-card">
+    <!-- Initial / Sign In State -->
+    <div id="signin-view">
+      <div class="logo-badge">
+        <img src="assets/brand/logo.png" alt="Tacho Tasks">
+      </div>
+      <h1>Sign in to Tacho Tasks</h1>
+      <p class="subtitle">Authorize your Google Account to synchronize tasks and calendar events with the desktop app.</p>
+
+      <button id="google-btn" class="btn-google">
+        <svg viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div id="status-msg" class="status-msg"></div>
+    </div>
+
+    <!-- Success State -->
+    <div id="success-view" class="success-view">
+      <div class="success-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <h1>Authorization Complete</h1>
+      <p class="subtitle">You have successfully signed in! You can now close this browser tab and return to the Tacho Tasks desktop app.</p>
+      <button class="btn-secondary" onclick="window.close()">Close Window</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0bIsPGQxlStHK2lCdVzJbzbszZ4EHQxs",
+      authDomain: "tachotasks-d7c56.firebaseapp.com",
+      projectId: "tachotasks-d7c56",
+      storageBucket: "tachotasks-d7c56.firebasestorage.app",
+      messagingSenderId: "179662622348",
+      appId: "1:179662622348:web:a8e73c612777be7b9035a9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+
+    const googleBtn = document.getElementById('google-btn');
+    const statusMsg = document.getElementById('status-msg');
+    const signinView = document.getElementById('signin-view');
+    const successView = document.getElementById('success-view');
+
+    async function handleSignIn() {
+      if (!sessionId) {
+        statusMsg.className = 'status-msg error';
+        statusMsg.textContent = 'Missing authorization session ID. Please initiate login from the desktop app.';
+        return;
+      }
+
+      googleBtn.disabled = true;
+      statusMsg.className = 'status-msg';
+      statusMsg.textContent = 'Connecting to Google...';
+
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+        provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+        provider.setCustomParameters({
+          access_type: 'offline',
+          prompt: 'select_account'
+        });
+
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const accessToken = credential ? credential.accessToken : null;
+        const idToken = await result.user.getIdToken();
+        const tokenResponse = result._tokenResponse || {};
+        const expiresIn = tokenResponse.oauthExpireIn || 3600;
+
+        statusMsg.textContent = 'Transferring credentials to desktop app...';
+
+        // Send credentials back to the local Electron HTTP server
+        const response = await fetch('/api/auth-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session: sessionId,
+            idToken: idToken,
+            accessToken: accessToken,
+            user: {
+              uid: result.user.uid,
+              email: result.user.email,
+              displayName: result.user.displayName,
+              photoURL: result.user.photoURL
+            },
+            expiresIn: expiresIn
+          })
+        });
+
+        const respData = await response.json();
+        if (respData && respData.success) {
+          signinView.style.display = 'none';
+          successView.style.display = 'block';
+          // Try to close tab after 2.5s if allowed
+          setTimeout(() => {
+            try { window.close(); } catch (_) {}
+          }, 2500);
+        } else {
+          throw new Error((respData && respData.error) || 'Desktop app rejected authentication payload.');
+        }
+
+      } catch (err) {
+        console.error('Browser sign-in error:', err);
+        googleBtn.disabled = false;
+        statusMsg.className = 'status-msg error';
+        statusMsg.textContent = err.code === 'auth/popup-closed-by-user' 
+          ? 'Sign-in was closed before completion. Click to try again.' 
+          : (err.message || 'Sign-in failed. Please try again.');
+      }
+    }
+
+    googleBtn.addEventListener('click', handleSignIn);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        statusMsg.textContent = 'Click "Continue with Google" to complete sign-in.';
+      }, 200);
+    });
+  </script>
+</body>
+</html>

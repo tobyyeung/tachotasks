@@ -30,7 +30,11 @@ export default defineConfig({
         if (existsSync(resolve(root, 'assets'))) {
           cpSync(resolve(root, 'assets'), resolve(dist, 'assets'), { recursive: true });
         }
-        console.log('[vite-copy] Copied js/ and assets/ to dist/');
+        if (existsSync(resolve(root, 'auth.html'))) {
+          const { copyFileSync } = require('fs');
+          copyFileSync(resolve(root, 'auth.html'), resolve(dist, 'auth.html'));
+        }
+        console.log('[vite-copy] Copied js/, assets/, and auth.html to dist/');
       }
     }
   ],

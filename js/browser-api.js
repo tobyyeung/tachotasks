@@ -3,7 +3,7 @@
  * Main API bridge exporting window.api for storage, cloud-sync, gcal, and NLP.
  */
 
-import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone } from './api/cloud-sync.js';
+import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone, completeBrowserSignIn } from './api/cloud-sync.js';
 import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
 import { parseNaturalLanguage } from './api/nlp-quickadd.js';
 import { calendarBackendEnabled, disconnectCalendarBackend } from './api/calendar-backend.js';
@@ -63,6 +63,36 @@ function _buildAuthSyncGCalMethods() {
     // Authentication
     signIn: async () => {
       try {
+        if (_isElectronEnv && window.electronStorage && typeof window.electronStorage.startBrowserAuth === 'function') {
+          return new Promise((resolve) => {
+            let unsub = null;
+            let timeout = null;
+
+            unsub = window.electronStorage.onAuthSuccess(async (authData) => {
+              if (timeout) clearTimeout(timeout);
+              if (typeof unsub === 'function') unsub();
+              try {
+                const user = await completeBrowserSignIn(authData);
+                resolve({ success: true, user });
+              } catch (err) {
+                console.error('completeBrowserSignIn error:', err);
+                resolve({ error: err.message || 'Sign in credential exchange failed' });
+              }
+            });
+
+            timeout = setTimeout(() => {
+              if (typeof unsub === 'function') unsub();
+              resolve({ error: 'Browser sign-in timed out. Please click Sign In again.' });
+            }, 5 * 60 * 1000);
+
+            window.electronStorage.startBrowserAuth().catch(err => {
+              if (timeout) clearTimeout(timeout);
+              if (typeof unsub === 'function') unsub();
+              resolve({ error: err.message || 'Could not open system browser' });
+            });
+          });
+        }
+
         const user = await signInWithGoogle();
         return { success: true, user };
       } catch (err) {

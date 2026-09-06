@@ -15,6 +15,11 @@ let mainWindow = null;
 let tray = null;
 let localServer = null;
 let localServerPort = null;
+let activeAuthSession = null;
+let authSessionTimer = null;
+
+const distDir = path.join(__dirname, '..', 'dist');
+const rootDir = fs.existsSync(distDir) ? distDir : path.join(__dirname, '..');
 
 // Determine if running in development or production
 const isDev = !app.isPackaged;
@@ -24,7 +29,8 @@ const VITE_DEV_URL = 'http://localhost:5173';
  * Starts a lightweight local HTTP server serving app assets.
  * This provides the http://localhost origin required for Firebase Google Authentication.
  */
-function startLocalServer(rootDir) {
+function startLocalServer(rootDirParam) {
+  const serverDir = rootDirParam || rootDir;
   if (localServerPort) return Promise.resolve(localServerPort);
   return new Promise((resolve, reject) => {
     const mimeTypes = {
@@ -46,9 +52,58 @@ function startLocalServer(rootDir) {
 
     localServer = http.createServer((req, res) => {
       let reqPath = decodeURIComponent(req.url.split('?')[0]);
+
+      // CORS Preflight
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        });
+        res.end();
+        return;
+      }
+
+      // Handle browser authentication callback POST endpoint
+      if (req.method === 'POST' && reqPath === '/api/auth-callback') {
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk;
+          if (body.length > 1e6) req.destroy();
+        });
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (!data.session || data.session !== activeAuthSession) {
+              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ success: false, error: 'Invalid or expired authorization session' }));
+              return;
+            }
+
+            // Valid session — deliver credentials to renderer
+            if (authSessionTimer) clearTimeout(authSessionTimer);
+            activeAuthSession = null;
+
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('electron:auth-success', data);
+              if (mainWindow.isMinimized()) mainWindow.restore();
+              mainWindow.show();
+              mainWindow.focus();
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ success: true }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+        });
+        return;
+      }
+
       if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
       const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
-      let filePath = path.join(rootDir, safePath);
+      let filePath = path.join(serverDir, safePath);
 
       if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
         const fallbackPath = path.join(__dirname, '..', safePath);
@@ -461,6 +516,22 @@ function setupIpcHandlers() {
       return true;
     }
     return false;
+  });
+
+  // ---- Default Browser Google Sign-In ----
+  ipcMain.handle('auth:startBrowserLogin', async () => {
+    const crypto = require('crypto');
+    activeAuthSession = crypto.randomBytes(16).toString('hex');
+
+    if (authSessionTimer) clearTimeout(authSessionTimer);
+    authSessionTimer = setTimeout(() => {
+      activeAuthSession = null;
+    }, 5 * 60 * 1000);
+
+    const port = localServerPort || (await startLocalServer(rootDir));
+    const authUrl = `http://localhost:${port}/auth.html?session=${activeAuthSession}`;
+    shell.openExternal(authUrl);
+    return { success: true, session: activeAuthSession };
   });
 }
 

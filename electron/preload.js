@@ -40,7 +40,15 @@ contextBridge.exposeInMainWorld('electronStorage', {
   // ---- Data Reset & System Utils ----
   resetData: () => ipcRenderer.invoke('db:resetData'),
   hardReset: () => ipcRenderer.invoke('db:hardReset'),
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  // ---- Default Browser Auth Bridge ----
+  startBrowserAuth: () => ipcRenderer.invoke('auth:startBrowserLogin'),
+  onAuthSuccess: (callback) => {
+    const listener = (_, data) => callback(data);
+    ipcRenderer.on('electron:auth-success', listener);
+    return () => ipcRenderer.removeListener('electron:auth-success', listener);
+  }
 });
 
 // Expose platform flag & version & notifications

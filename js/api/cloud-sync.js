@@ -155,6 +155,45 @@ export async function signInWithGoogle() {
   return result.user;
 }
 
+export async function completeBrowserSignIn({ idToken, accessToken, user, expiresIn }) {
+  if (!idToken) throw new Error('Missing ID token from browser authentication');
+
+  const credential = GoogleAuthProvider.credential(idToken, accessToken || null);
+  const result = await signInWithCredential(auth, credential);
+
+  if (accessToken) {
+    localStorage.setItem('auth.googleAccessToken', accessToken);
+    const expiryMs = Date.now() + ((expiresIn || 3600) - 300) * 1000;
+    localStorage.setItem('auth.accessTokenExpiresAt', String(expiryMs));
+    localStorage.setItem('auth.gcalConnected', 'true');
+  }
+
+  if (result && result.user) {
+    _currentUser = result.user;
+    localStorage.setItem('auth.user', JSON.stringify({
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      photoURL: result.user.photoURL
+    }));
+    localStorage.setItem('auth.lastKnownUid', result.user.uid);
+  }
+
+  // Trigger auth callbacks
+  _authCallbacks.forEach(cb => {
+    try { cb(result.user); } catch (e) { console.error('Auth callback error:', e); }
+  });
+
+  // Pull latest data from cloud
+  try {
+    await performSyncFromCloud();
+  } catch (e) {
+    console.warn('[auth] Initial sync after browser sign in error:', e);
+  }
+
+  return result.user;
+}
+
 export async function reauthenticateWithFirebasePopup() {
   if (!auth.currentUser) {
     console.warn('[auth] No current Firebase user for re-auth popup');
