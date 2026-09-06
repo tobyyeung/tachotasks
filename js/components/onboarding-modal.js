@@ -26,6 +26,7 @@ function renderOnboardingStep() {
 
   const modalHtml = `
     <div class="onboarding-modal-card">
+      <button class="onboarding-close-btn" id="onboarding-close-btn" title="Close setup">✕</button>
       <div class="onboarding-progress-dots">
         ${[0, 1, 2, 3].map(i => `
           <div class="onboarding-dot ${i === _onboardingStep ? 'active' : ''}"></div>
@@ -51,6 +52,10 @@ function renderOnboardingStep() {
   `;
 
   openModal(modalHtml);
+  const container = document.getElementById('modal-container');
+  if (container) {
+    container.classList.add('onboarding-modal-container');
+  }
   attachOnboardingListeners();
 }
 
@@ -64,9 +69,9 @@ function renderOnboardingStepWelcome() {
       <p class="onboarding-subtitle">Your unified daily command center designed for seamless scheduling, high-speed task organization, and calendar focus.</p>
     </div>
 
-    <div style="margin-top:28px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-lg);padding:18px 20px;">
+    <div style="margin-top:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-lg);padding:16px 18px;width:100%;box-sizing:border-box;">
       <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-primary);">What's your name or workspace nickname?</label>
-      <input type="text" id="onboarding-user-name" class="form-input" placeholder="e.g. Toby" value="${escAttr(state.settings.userName || '')}" style="width:100%;font-size:14px;padding:10px 14px;" />
+      <input type="text" id="onboarding-user-name" class="form-input" placeholder="e.g. Toby" value="${escAttr(state.settings.userName || '')}" style="width:100%;box-sizing:border-box;font-size:14px;padding:10px 14px;" />
       <p style="font-size:12px;color:var(--text-tertiary);margin-top:6px;">This personalizes your dashboard greeting and quick overview.</p>
     </div>
   `;
@@ -165,6 +170,13 @@ function renderOnboardingStepReady() {
 }
 
 function attachOnboardingListeners() {
+  const closeBtn = document.getElementById('onboarding-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      closeModal();
+    });
+  }
+
   const prevBtn = document.getElementById('onboarding-prev-btn');
   if (prevBtn) {
     prevBtn.addEventListener('click', () => {

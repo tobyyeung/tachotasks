@@ -31,7 +31,10 @@ function closeModal() {
   const overlay = document.getElementById('modal-overlay');
   const container = document.getElementById('modal-container');
   if (overlay) overlay.classList.add('hidden');
-  if (container) container.innerHTML = '';
+  if (container) {
+    container.innerHTML = '';
+    container.className = 'modal-container';
+  }
 
   // Also close any draggable popups
   document.querySelectorAll('.draggable-popup').forEach(el => el.remove());
