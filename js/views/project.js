@@ -135,9 +135,15 @@ function renderProject() {
     if (overdueTasks.length > 0) {
       deadlinesTimelineHtml += `
         <div class="deadline-group">
-          <div class="deadline-group-header overdue" style="display:flex;align-items:center;gap:4px;">
-            <img src="assets/icons/Caution.png" alt="Overdue" style="width:14px;height:14px;object-fit:contain;" />
-            <span>Overdue (${overdueTasks.length})</span>
+          <div class="deadline-group-header overdue" style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+            <div style="display:flex;align-items:center;gap:4px;">
+              <img src="assets/icons/Caution.png" alt="Overdue" style="width:14px;height:14px;object-fit:contain;" />
+              <span>Overdue (${overdueTasks.length})</span>
+            </div>
+            <button id="proj-postpone-overdue-btn" class="icon-btn" title="Postpone all overdue project tasks to Today" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--radius-sm);background:rgba(255,82,82,0.12);border:1px solid rgba(255,82,82,0.25);color:#ff5252;font-size:11px;font-weight:600;cursor:pointer;">
+              <img src="assets/icons/Clock.png" alt="Postpone" style="width:11px;height:11px;object-fit:contain;filter:brightness(0.9) sepia(1) hue-rotate(310deg);" />
+              <span>Postpone to Today</span>
+            </button>
           </div>
           ${sortByDate(overdueTasks).map(t => renderDeadlineItem(t, 'overdue', 'Overdue')).join('')}
         </div>

@@ -27,7 +27,6 @@
 #sidebar.collapsed .sidebar-divider,
 #sidebar.collapsed .nav-item span,
 #sidebar.collapsed .nav-wip-badge,
-#sidebar.collapsed #header-settings-btn,
 #sidebar.collapsed .account-actions span,
 #sidebar.collapsed .profile-item-row span,
 #sidebar.collapsed .profile-pills-bar,
@@ -86,14 +85,16 @@
   margin-bottom: 2px;
 }
 
-#sidebar.collapsed #nav-archive {
+#sidebar.collapsed #nav-archive,
+#sidebar.collapsed #nav-settings {
   width: 44px;
   height: 44px;
   padding: 0 !important;
   justify-content: center !important;
 }
 
-#sidebar.collapsed #nav-archive .nav-icon {
+#sidebar.collapsed #nav-archive .nav-icon,
+#sidebar.collapsed #nav-settings .nav-icon {
   margin: 0 !important;
 }
 

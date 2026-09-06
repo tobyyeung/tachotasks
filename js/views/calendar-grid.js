@@ -66,6 +66,16 @@ function renderWeeklyDailyEvents(days, items) {
     allDayRow.style.display = allDayItems.length > 0 ? 'grid' : 'none';
   }
 
+  allDayItems.sort((a, b) => {
+    const aMulti = a.isMultiDay ? 1 : 0;
+    const bMulti = b.isMultiDay ? 1 : 0;
+    if (aMulti !== bMulti) return bMulti - aMulti;
+    if (a.originalStartDate && b.originalStartDate && a.originalStartDate !== b.originalStartDate) {
+      return a.originalStartDate.localeCompare(b.originalStartDate);
+    }
+    return (a.title || '').localeCompare(b.title || '');
+  });
+
   // 1. RENDER ALL-DAY ITEMS IN THE HEADER ROW
   allDayItems.forEach(item => {
     const cell = document.querySelector(`.calendar-all-day-cell[data-all-day-date="${item.date}"]`);
@@ -76,6 +86,12 @@ function renderWeeklyDailyEvents(days, items) {
 
     const pill = document.createElement('div');
     pill.className = `calendar-all-day-pill ${isTask ? 'is-task' : ''}`;
+    if (item.isMultiDay) {
+      pill.classList.add('multi-day');
+      if (item.isMultiDayStart) pill.classList.add('multi-day-start');
+      if (item.isMultiDayEnd) pill.classList.add('multi-day-end');
+      if (item.isMultiDayMiddle) pill.classList.add('multi-day-middle');
+    }
     pill.dataset.eventId = item.id;
     pill.dataset.eventType = item.type;
     pill.title = `${item.title}${item.location ? ' (' + item.location + ')' : ''}`;
@@ -88,7 +104,14 @@ function renderWeeklyDailyEvents(days, items) {
     } else {
       pill.style.background = darkenColor(item.color, 0.52);
       pill.style.border = `1px solid rgba(0, 0, 0, 0.35)`;
-      pill.style.borderLeft = `3px solid ${item.color}`;
+      if (item.isMultiDayMiddle || item.isMultiDayEnd) {
+        pill.style.borderLeft = 'none';
+      } else {
+        pill.style.borderLeft = `3px solid ${item.color}`;
+      }
+      if (item.isMultiDayMiddle || item.isMultiDayStart) {
+        pill.style.borderRight = 'none';
+      }
       pill.style.color = '#ffffff';
     }
 
@@ -97,9 +120,11 @@ function renderWeeklyDailyEvents(days, items) {
     const prefixHtml = isTask && item.locPrefix 
       ? `<span class="task-loc-prefix" style="color:${item.locColor || 'var(--accent)'};font-weight:600;margin-right:3px;flex-shrink:0;opacity:0.9;">${escHtml(item.locPrefix)}</span>` 
       : '';
+    const contIndicator = (item.isMultiDay && !item.isMultiDayStart) ? `<span class="multi-day-indicator" style="opacity:0.6;font-size:9px;margin-right:2px;">↳</span>` : '';
 
     pill.innerHTML = `
       ${isTask ? '<span class="task-checkbox-circle" style="font-size:10px;line-height:1;opacity:0.8;flex-shrink:0;">◯</span> ' : ''}
+      ${contIndicator}
       ${prefixHtml}
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;font-weight:600;">${escHtml(item.title)}</span>
     `;

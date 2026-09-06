@@ -19,9 +19,11 @@ function setupDragAndDrop() {
     });
   });
 
-  // Section drop zones
+  // Section drop zones (for tasks only)
   document.querySelectorAll('[data-section-drop]').forEach(zone => {
     zone.addEventListener('dragover', (e) => {
+      // Do not highlight or intercept if dragging a section header
+      if (e.dataTransfer.types.includes('text/section')) return;
       e.preventDefault();
       zone.style.background = 'var(--bg-glass)';
       zone.style.outline = '1px dashed var(--accent)';
@@ -31,10 +33,16 @@ function setupDragAndDrop() {
       zone.style.outline = 'none';
     });
     zone.addEventListener('drop', async (e) => {
+      // If a section is being dropped, let section reorder drop handler manage it
+      const dragSectionId = e.dataTransfer.getData('text/section');
+      if (dragSectionId) return;
+
+      const taskId = e.dataTransfer.getData('text/plain');
+      if (!taskId) return;
+
       e.preventDefault();
       zone.style.background = '';
       zone.style.outline = 'none';
-      const taskId = e.dataTransfer.getData('text/plain');
       const newSectionId = zone.dataset.sectionDrop;
       const task = state.tasks.find(t => t.id === taskId);
       if (task) {

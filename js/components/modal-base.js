@@ -48,16 +48,18 @@ function openDraggablePopup(html, popupId) {
   popup.className = 'draggable-popup';
   popup.innerHTML = html;
 
-  // Apply initial styles for floating panel
+  // Apply initial styles for floating panel - centered and clamped
   Object.assign(popup.style, {
     position: 'fixed',
-    top: '70px',
+    top: '50%',
     left: '50%',
-    transform: 'translateX(-50%)',
+    transform: 'translate(-50%, -50%)',
     width: 'max-content',
     maxWidth: '94vw',
+    maxHeight: 'calc(100vh - 30px)',
     zIndex: '9999',
-    boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-glow)'
+    boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-glow)',
+    boxSizing: 'border-box'
   });
 
   document.body.appendChild(popup);
@@ -95,9 +97,11 @@ function openDraggablePopup(html, popupId) {
         let newLeft = initialLeft + dx;
         let newTop = initialTop + dy;
 
-        // Boundary constraints
-        newLeft = Math.max(10, Math.min(window.innerWidth - popup.offsetWidth - 10, newLeft));
-        newTop = Math.max(10, Math.min(window.innerHeight - popup.offsetHeight - 10, newTop));
+        // Boundary constraints (prevent negative clamping jumps when modal height exceeds screen)
+        const maxLeft = Math.max(10, window.innerWidth - popup.offsetWidth - 10);
+        const maxTop = Math.max(10, window.innerHeight - popup.offsetHeight - 10);
+        newLeft = Math.max(10, Math.min(maxLeft, newLeft));
+        newTop = Math.max(10, Math.min(maxTop, newTop));
 
         popup.style.left = `${newLeft}px`;
         popup.style.top = `${newTop}px`;

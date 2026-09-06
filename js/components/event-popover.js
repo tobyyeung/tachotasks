@@ -38,7 +38,14 @@ function showEventPopover(eventId, eventType, triggerEl) {
   const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
   const monthName = dateObj.toLocaleDateString('en-US', { month: 'long' });
   const dayNum = dateObj.getDate();
-  const fullDateStr = `${weekday}, ${monthName} ${dayNum}`;
+  let fullDateStr = `${weekday}, ${monthName} ${dayNum}`;
+
+  if (event.endDate && event.endDate > event.date) {
+    const endObj = parseDateLocal(event.endDate);
+    const endMonthName = endObj.toLocaleDateString('en-US', { month: 'long' });
+    const endDayNum = endObj.getDate();
+    fullDateStr = `${monthName} ${dayNum} – ${endMonthName} ${endDayNum}`;
+  }
 
   let timeStr = 'All Day';
   if (event.startTime && event.endTime) {

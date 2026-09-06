@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the Admin SDK used by calendarAuth can access these documents.
+    match /_calendarCredentials/{uid} {
+      allow read, write: if false;
+    }
+    match /users/{uid}/{collection}/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == uid
+        && collection in ['tasks', 'projects', 'profiles', 'archivedTasks', 'tombstones', 'settings'];
+    }
+  }
+}

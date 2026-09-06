@@ -131,6 +131,35 @@
   padding: 2px 6px;
 }
 
+.month-event-item.multi-day {
+  border-radius: 4px;
+}
+
+.month-event-item.multi-day-start {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  margin-right: -6px;
+  padding-right: 6px;
+}
+
+.month-event-item.multi-day-middle {
+  border-radius: 0 !important;
+  margin-left: -6px;
+  margin-right: -6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.month-event-item.multi-day-end {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  margin-left: -6px;
+  padding-left: 6px;
+  border-left: none !important;
+}
+
 .month-event-item.completed {
   opacity: 0.4;
   text-decoration: line-through;

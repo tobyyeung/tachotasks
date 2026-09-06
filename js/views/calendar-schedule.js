@@ -43,28 +43,43 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
 
   // Collect events
   state.events.forEach(evt => {
-    if (itemsByDate[evt.date]) {
-      itemsByDate[evt.date].push({
-        id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
-        date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
-        location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime
-      });
-    }
+    const startDate = evt.date;
+    const endDate = evt.endDate || evt.date;
+    monthDays.forEach(d => {
+      const dStr = toDateStr(d);
+      if (dStr >= startDate && dStr <= endDate && itemsByDate[dStr]) {
+        const isStart = (dStr === startDate);
+        const isEnd = (dStr === endDate);
+        itemsByDate[dStr].push({
+          id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
+          date: dStr, startTime: isStart ? (evt.startTime || null) : null, endTime: isEnd ? (evt.endTime || null) : null,
+          location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime || (endDate > startDate)
+        });
+      }
+    });
   });
 
   // Collect Google Calendar events
   const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
   state.gcalEvents.forEach(evt => {
     if (!activeIds.includes(evt.calendarId)) return;
-    if (itemsByDate[evt.date]) {
-      const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
-      const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
-      itemsByDate[evt.date].push({
-        id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
-        date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
-        location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime
-      });
-    }
+    const startDate = evt.date;
+    const endDate = evt.endDate || evt.date;
+    const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
+    const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
+
+    monthDays.forEach(d => {
+      const dStr = toDateStr(d);
+      if (dStr >= startDate && dStr <= endDate && itemsByDate[dStr]) {
+        const isStart = (dStr === startDate);
+        const isEnd = (dStr === endDate);
+        itemsByDate[dStr].push({
+          id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
+          date: dStr, startTime: isStart ? (evt.startTime || null) : null, endTime: isEnd ? (evt.endTime || null) : null,
+          location: evt.location || '', isAllDay: evt.isAllDay || !evt.startTime || (endDate > startDate)
+        });
+      }
+    });
   });
 
   // Collect tasks

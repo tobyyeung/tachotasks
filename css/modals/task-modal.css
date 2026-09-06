@@ -1,10 +1,15 @@
-/* ===== SPLIT TASK MODAL (TICKTICK / TODOIST STYLE) ===== */
+.draggable-popup {
+  max-height: calc(100vh - 30px);
+  display: flex;
+}
+
 .task-modal-split {
   display: flex;
   width: 800px;
   max-width: 92vw;
-  min-height: 480px;
-  max-height: 85vh;
+  max-height: calc(100vh - 36px);
+  height: min(650px, calc(100vh - 36px));
+  min-height: 320px;
   background: #18191c;
   border-radius: 12px;
   overflow: hidden;
@@ -23,6 +28,7 @@
   padding: 20px 24px;
   background: #18191c;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .task-modal-right {
@@ -34,6 +40,7 @@
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .task-modal-top-bar {

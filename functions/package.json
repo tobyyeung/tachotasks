@@ -1,0 +1,13 @@
+{
+  "name": "tachotasks-calendar-backend",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "scripts": { "test": "node --test ../tests/calendar-*.test.cjs" },
+  "dependencies": {
+    "firebase-admin": "14.3.0",
+    "firebase-functions": "7.3.2",
+    "google-auth-library": "11.0.2"
+  }
+}

@@ -3,3 +3,7 @@ Thumbs.db
 .env
 .env.local
 *.log
+node_modules/
+functions/.env*
+functions/.secret.local
+.firebase/

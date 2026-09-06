@@ -6,6 +6,7 @@
 import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone } from './api/cloud-sync.js';
 import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
 import { parseNaturalLanguage } from './api/nlp-quickadd.js';
+import { calendarBackendEnabled, disconnectCalendarBackend } from './api/calendar-backend.js';
 
 // ===== LOCAL STORAGE HELPERS =====
 function lsGet(key, defaultValue = null) {
@@ -30,13 +31,22 @@ function lsDelete(key) {
   localStorage.removeItem(`tachotasks.${key}`);
 }
 
-function ensureEntityTimestamps(items) {
+function ensureEntityTimestamps(items, key) {
   if (!Array.isArray(items)) return items;
+  const stored = lsGet(key, []);
+  const previous = new Map((Array.isArray(stored) ? stored : []).filter(Boolean).map(item => [item.id, item]));
+  const content = ({ updatedAt, ...fields }) => JSON.stringify(fields);
   const now = new Date().toISOString();
   items.forEach(item => {
     if (item && typeof item === 'object') {
       if (!item.createdAt) item.createdAt = now;
-      if (!item.updatedAt) item.updatedAt = item.createdAt || now;
+      const old = previous.get(item.id);
+      if (old && content(old) !== content(item)) {
+        const previousTime = Date.parse(old.updatedAt) || 0;
+        item.updatedAt = new Date(Math.max(Date.now(), previousTime + 1)).toISOString();
+      } else if (!item.updatedAt) {
+        item.updatedAt = item.createdAt || now;
+      }
     }
   });
   return items;
@@ -47,14 +57,14 @@ window.api = {
   // Tasks CRUD
   getTasks: async () => lsGet('tasks', []),
   saveTasks: async (tasks) => {
-    const withTimestamps = ensureEntityTimestamps(tasks);
+    const withTimestamps = ensureEntityTimestamps(tasks, 'tasks');
     lsSet('tasks', withTimestamps);
     triggerSyncToCloud();
     return true;
   },
   getArchivedTasks: async () => lsGet('archivedTasks', []),
   saveArchivedTasks: async (tasks) => {
-    const withTimestamps = ensureEntityTimestamps(tasks);
+    const withTimestamps = ensureEntityTimestamps(tasks, 'archivedTasks');
     lsSet('archivedTasks', withTimestamps);
     triggerSyncToCloud();
     return true;
@@ -63,7 +73,7 @@ window.api = {
   // Projects CRUD
   getProjects: async () => lsGet('projects', []),
   saveProjects: async (projects) => {
-    const withTimestamps = ensureEntityTimestamps(projects);
+    const withTimestamps = ensureEntityTimestamps(projects, 'projects');
     lsSet('projects', withTimestamps);
     triggerSyncToCloud();
     return true;
@@ -72,7 +82,7 @@ window.api = {
   // Profiles CRUD
   getProfiles: async () => lsGet('profiles', []),
   saveProfiles: async (profiles) => {
-    const withTimestamps = ensureEntityTimestamps(profiles);
+    const withTimestamps = ensureEntityTimestamps(profiles, 'profiles');
     lsSet('profiles', withTimestamps);
     triggerSyncToCloud();
     return true;
@@ -153,6 +163,15 @@ window.api = {
   },
 
   // Google Calendar Integration
+  calendarAutoRenewalEnabled: () => calendarBackendEnabled(),
+  disconnectGCal: async () => {
+    try {
+      await disconnectCalendarBackend();
+      return { success: true };
+    } catch (error) {
+      return { error: error.message };
+    }
+  },
   reconnectGCal: async () => {
     try {
       console.log('[gcal] Reconnecting Google Calendar...');

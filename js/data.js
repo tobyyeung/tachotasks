@@ -294,3 +294,88 @@ async function addTaskFromParsed(parsed) {
   renderView();
   if (typeof renderSidebarTags === 'function') renderSidebarTags();
 }
+
+/**
+ * Postpones a list of tasks (or all overdue tasks if not specified) to a target date (defaults to today).
+ * @param {Array<string>|null} taskIds - Specific task IDs to postpone, or null for all overdue tasks.
+ * @param {string|null} targetDateStr - Target date string 'YYYY-MM-DD', defaults to today.
+ * @returns {number} Count of postponed tasks.
+ */
+async function postponeOverdueTasks(taskIds = null, targetDateStr = null) {
+  const today = targetDateStr || getTodayStr();
+  const nowIso = new Date().toISOString();
+
+  let affectedTasks = [];
+  if (Array.isArray(taskIds) && taskIds.length > 0) {
+    affectedTasks = state.tasks.filter(t => taskIds.includes(t.id) && !t.completed);
+  } else {
+    affectedTasks = state.tasks.filter(t => t.dueDate && t.dueDate < today && !t.completed);
+  }
+
+  if (affectedTasks.length === 0) {
+    if (typeof showToast === 'function') showToast('No overdue tasks to postpone', 'info');
+    return 0;
+  }
+
+  // Save previous dates for Undo capability
+  const previousDates = affectedTasks.map(t => ({
+    id: t.id,
+    dueDate: t.dueDate,
+    plannedDate: t.plannedDate
+  }));
+
+  affectedTasks.forEach(t => {
+    t.previousDueDate = t.dueDate;
+    t.dueDate = today;
+    t.updatedAt = nowIso;
+  });
+
+  await saveTasks();
+  renderView();
+
+  showPostponeUndoToast(previousDates, affectedTasks.length);
+  return affectedTasks.length;
+}
+
+/**
+ * Shows an undo toast specifically for postponing tasks.
+ */
+function showPostponeUndoToast(previousDates, count) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast success`;
+  toast.innerHTML = `
+    <span class="toast-icon">✓</span> 
+    <span style="flex:1">${count} overdue task${count > 1 ? 's' : ''} postponed to today</span>
+    <button class="undo-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.5);color:white;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">Undo</button>
+  `;
+
+  const undoBtn = toast.querySelector('.undo-btn');
+  undoBtn.addEventListener('click', async () => {
+    const nowIso = new Date().toISOString();
+    previousDates.forEach(p => {
+      const task = state.tasks.find(t => t.id === p.id);
+      if (task) {
+        task.dueDate = p.dueDate;
+        task.updatedAt = nowIso;
+      }
+    });
+    await saveTasks();
+    renderView();
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+    if (typeof showToast === 'function') showToast('Postpone undone', 'info');
+  });
+
+  container.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(50px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+    }
+  }, 4000);
+}
+

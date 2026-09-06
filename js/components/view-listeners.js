@@ -1,9 +1,14 @@
-/**
- * view-listeners.js
- * Attach DOM event listeners for all view actions, filters, settings, drag-drop, and modals.
- */
+// ===== EVENT LISTENERS (per-view) =====
+let viewListenerController = null;
 
 function attachViewListeners() {
+  // Global targets survive innerHTML replacement; release the previous view.
+  if (viewListenerController) viewListenerController.abort();
+  viewListenerController = new AbortController();
+  const signal = viewListenerController.signal;
+  const listenGlobal = (target, type, handler, options = {}) => {
+    target.addEventListener(type, handler, { ...options, signal });
+  };
   // Dashboard listeners
   document.querySelectorAll('.floating-reminder').forEach(el => {
     el.addEventListener('click', () => toggleFloatingGoal(el.dataset.goalId));
@@ -37,7 +42,7 @@ function attachViewListeners() {
       upcomingRangePanel.classList.toggle('hidden');
     });
 
-    document.addEventListener('click', (e) => {
+    listenGlobal(document, 'click', (e) => {
       if (!upcomingRangePanel.contains(e.target) && e.target !== upcomingRangeBtn) {
         upcomingRangePanel.classList.add('hidden');
       }
@@ -53,6 +58,25 @@ function attachViewListeners() {
         persistUIState();
         renderView();
       });
+    });
+  }
+
+  // Dashboard Postpone Overdue Button
+  const dashPostponeBtn = document.getElementById('dash-postpone-overdue-btn');
+  if (dashPostponeBtn) {
+    dashPostponeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await postponeOverdueTasks();
+    });
+  }
+
+  // Project Postpone Overdue Button
+  const projPostponeBtn = document.getElementById('proj-postpone-overdue-btn');
+  if (projPostponeBtn) {
+    projPostponeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const projTasks = (state.tasks || []).filter(t => t.projectId === state.filterProject && t.dueDate && t.dueDate < getTodayStr() && !t.completed);
+      await postponeOverdueTasks(projTasks.map(t => t.id));
     });
   }
 
@@ -137,10 +161,10 @@ function attachViewListeners() {
       }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchend', handleTouchEnd);
+    listenGlobal(document, 'mousemove', handleMouseMove);
+    listenGlobal(document, 'touchmove', handleTouchMove, { passive: true });
+    listenGlobal(document, 'mouseup', handleMouseUp);
+    listenGlobal(document, 'touchend', handleTouchEnd);
   }
 
   // Dashboard Widget Drag & Drop Reordering
@@ -403,14 +427,14 @@ function attachViewListeners() {
         onDragStart(e.clientX, e.clientY);
       });
 
-      window.addEventListener('mousemove', (e) => {
+      listenGlobal(window, 'mousemove', (e) => {
         if (isDragging) {
           e.preventDefault();
           onDragMove(e.clientX, e.clientY);
         }
       });
 
-      window.addEventListener('mouseup', onDragEnd);
+      listenGlobal(window, 'mouseup', onDragEnd);
 
       stickyHeader.addEventListener('touchstart', (e) => {
         if (e.target.closest('button, input, select, textarea')) return;
@@ -419,13 +443,13 @@ function attachViewListeners() {
         }
       }, { passive: true });
 
-      window.addEventListener('touchmove', (e) => {
+      listenGlobal(window, 'touchmove', (e) => {
         if (isDragging && e.touches && e.touches.length > 0) {
           onDragMove(e.touches[0].clientX, e.touches[0].clientY);
         }
       }, { passive: true });
 
-      window.addEventListener('touchend', onDragEnd);
+      listenGlobal(window, 'touchend', onDragEnd);
     }
 
     if (stickyTextarea) {
@@ -468,50 +492,6 @@ function attachViewListeners() {
       });
     });
   }
-
-  const addQuickLinkBtn = document.getElementById('add-quick-link-btn');
-  if (addQuickLinkBtn) {
-    addQuickLinkBtn.addEventListener('click', async () => {
-      const title = prompt('Enter link title (e.g. Canvas):');
-      if (!title || !title.trim()) return;
-      let url = prompt('Enter URL (e.g. https://canvas.instructure.com):');
-      if (!url || !url.trim()) return;
-      url = url.trim();
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
-      if (!state.settings.dashboardQuickLinks) {
-        state.settings.dashboardQuickLinks = [
-          { title: 'Gmail', url: 'https://mail.google.com' },
-          { title: 'Google Calendar', url: 'https://calendar.google.com' },
-          { title: 'Canvas', url: 'https://canvas.instructure.com' },
-          { title: 'GitHub', url: 'https://github.com' }
-        ];
-      }
-      state.settings.dashboardQuickLinks.push({ title: title.trim(), url });
-      await window.api.saveSettings(state.settings);
-      renderView();
-    });
-  }
-
-  document.querySelectorAll('.dashboard-quick-links .quick-link-pill:not(.add-quick-link-btn)').forEach((linkEl, idx) => {
-    linkEl.addEventListener('contextmenu', async (e) => {
-      e.preventDefault();
-      if (confirm(`Remove quick link "${linkEl.querySelector('span')?.textContent || 'link'}"?`)) {
-        if (!state.settings.dashboardQuickLinks) {
-          state.settings.dashboardQuickLinks = [
-            { title: 'Gmail', url: 'https://mail.google.com' },
-            { title: 'Google Calendar', url: 'https://calendar.google.com' },
-            { title: 'Canvas', url: 'https://canvas.instructure.com' },
-            { title: 'GitHub', url: 'https://github.com' }
-          ];
-        }
-        state.settings.dashboardQuickLinks.splice(idx, 1);
-        await window.api.saveSettings(state.settings);
-        renderView();
-      }
-    });
-  });
 
   document.querySelectorAll('.itinerary-item[data-event-id]').forEach(el => {
     el.addEventListener('click', (e) => {
@@ -557,9 +537,9 @@ function attachViewListeners() {
     });
     
     // Close dropdown when clicking outside
-    document.addEventListener('click', () => {
+    listenGlobal(document, 'click', () => {
       sortPanel.classList.add('hidden');
-    }, { once: true });
+    });
   }
 
   document.querySelectorAll('.sort-option').forEach(opt => {
@@ -573,9 +553,7 @@ function attachViewListeners() {
   document.querySelectorAll('.view-toggle-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       state.tasksViewMode = btn.dataset.tasksView;
-      state.settings.tasksViewMode = state.tasksViewMode;
       persistUIState();
-      await window.api.saveSettings(state.settings);
       renderView();
     });
   });
@@ -672,15 +650,10 @@ function attachViewListeners() {
     });
   });
 
-  // Itinerary item click
-  document.querySelectorAll('.itinerary-item[data-task-id]').forEach(el => {
-    el.addEventListener('click', () => showTaskModal(el.dataset.taskId));
-  });
-
   // New task button
   const addBtn = document.getElementById('add-task-btn');
   if (addBtn) {
-    addBtn.addEventListener('click', () => {
+    listenGlobal(addBtn, 'click', () => {
       if (state.currentView === 'project' && state.filterProject) {
         showTaskModal(null, { projectId: state.filterProject });
       } else {
@@ -700,9 +673,7 @@ function attachViewListeners() {
     btn.addEventListener('click', async () => {
       const pId = btn.dataset.tasksProfile;
       state.activeProfileId = pId;
-      state.settings.activeProfileId = pId;
       persistUIState();
-      await window.api.saveSettings(state.settings);
       renderView();
     });
   });
@@ -936,6 +907,7 @@ function attachViewListeners() {
     });
     el.addEventListener('drop', async (e) => {
       e.preventDefault();
+      e.stopPropagation();
       el.classList.remove('drag-over-section');
       const dragSectionId = e.dataTransfer.getData('text/section');
       if (!dragSectionId) return; // Dropped a task here
@@ -943,13 +915,14 @@ function attachViewListeners() {
       const targetSectionId = el.dataset.sectionDrag;
       if (dragSectionId === targetSectionId) return;
       
-      const sections = state.settings.taskSections;
+      const sections = state.settings.taskSections || [];
       const fromIdx = sections.findIndex(s => s.id === dragSectionId);
       const toIdx = sections.findIndex(s => s.id === targetSectionId);
       
       if (fromIdx > -1 && toIdx > -1) {
         const [movedSection] = sections.splice(fromIdx, 1);
         sections.splice(toIdx, 0, movedSection);
+        state.settings.taskSections = [...sections];
         await window.api.saveSettings(state.settings);
         renderView();
       }
@@ -993,6 +966,72 @@ function attachViewListeners() {
     });
   }
 
+  // Settings: Quick Links Add
+  const addQuickLinkSettingsBtn = document.getElementById('add-quick-link-settings-btn');
+  if (addQuickLinkSettingsBtn) {
+    addQuickLinkSettingsBtn.addEventListener('click', async () => {
+      const titleInput = document.getElementById('new-quick-link-title');
+      const urlInput = document.getElementById('new-quick-link-url');
+      const title = titleInput.value.trim();
+      let url = urlInput.value.trim();
+      if (!title || !url) return showToast('Title and URL required', 'error');
+
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      if (!state.settings.dashboardQuickLinks) {
+        state.settings.dashboardQuickLinks = [
+          { title: 'Gmail', url: 'https://mail.google.com' },
+          { title: 'Google Calendar', url: 'https://calendar.google.com' },
+          { title: 'Canvas', url: 'https://canvas.instructure.com' },
+          { title: 'GitHub', url: 'https://github.com' }
+        ];
+      }
+      state.settings.dashboardQuickLinks.push({ title, url });
+      await window.api.saveSettings(state.settings);
+      showToast('Quick link added', 'success');
+      renderView();
+    });
+  }
+
+  // Settings: Quick Links Edit In-Place
+  document.querySelectorAll('.quick-link-edit-title, .quick-link-edit-url').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const idx = parseInt(e.target.dataset.linkIdx, 10);
+      if (!state.settings.dashboardQuickLinks || !state.settings.dashboardQuickLinks[idx]) return;
+      const row = e.target.closest('.settings-quick-link-row');
+      if (!row) return;
+      const title = row.querySelector('.quick-link-edit-title')?.value.trim() || 'Link';
+      let url = row.querySelector('.quick-link-edit-url')?.value.trim() || 'https://';
+      if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      state.settings.dashboardQuickLinks[idx] = { title, url };
+      await window.api.saveSettings(state.settings);
+      showToast('Quick link updated', 'success');
+    });
+  });
+
+  // Settings: Quick Links Delete
+  document.querySelectorAll('.delete-quick-link-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.linkIdx, 10);
+      if (!state.settings.dashboardQuickLinks) {
+        state.settings.dashboardQuickLinks = [
+          { title: 'Gmail', url: 'https://mail.google.com' },
+          { title: 'Google Calendar', url: 'https://calendar.google.com' },
+          { title: 'Canvas', url: 'https://canvas.instructure.com' },
+          { title: 'GitHub', url: 'https://github.com' }
+        ];
+      }
+      state.settings.dashboardQuickLinks.splice(idx, 1);
+      await window.api.saveSettings(state.settings);
+      showToast('Quick link removed', 'success');
+      renderView();
+    });
+  });
+
   // Settings: Profiles Add
   const addProfileBtn = document.getElementById('add-profile-btn');
   if (addProfileBtn) {
@@ -1001,8 +1040,7 @@ function attachViewListeners() {
       const name = nameInput.value.trim();
       if (!name) return showToast('Profile name required', 'error');
       
-      const nowIso = new Date().toISOString();
-      const newProfile = { id: 'profile-' + generateId(), name, image: 'assets/profiles/personal.png', createdAt: nowIso, updatedAt: nowIso };
+      const newProfile = { id: 'profile-' + generateId(), name, image: 'assets/profiles/personal.png' };
       state.profiles.push(newProfile);
       await window.api.saveProfiles(state.profiles);
       showToast('Profile added', 'success');
@@ -1052,7 +1090,6 @@ function attachViewListeners() {
         profile.name = document.getElementById('edit-profile-name').value.trim() || profile.name;
         delete profile.icon;
         profile.image = newImageBase64;
-        profile.updatedAt = new Date().toISOString();
         
         await window.api.saveProfiles(state.profiles);
         renderView();
@@ -1105,6 +1142,23 @@ function attachViewListeners() {
     });
   });
 
+  const connectCalendarBtn = document.getElementById('settings-connect-gcal-btn');
+  if (connectCalendarBtn) connectCalendarBtn.addEventListener('click', () => window.reconnectGoogleCalendar());
+  const disconnectCalendarBtn = document.getElementById('settings-disconnect-gcal-btn');
+  if (disconnectCalendarBtn) disconnectCalendarBtn.addEventListener('click', async () => {
+    disconnectCalendarBtn.disabled = true;
+    try {
+      const result = await window.api.disconnectGCal();
+      if (result.error) throw new Error(result.error);
+      state.sessionExpired = true;
+      updateGcalStatus();
+      renderView();
+      showToast('Automatic calendar renewal stopped. Cached events remain available.', 'success');
+    } catch (error) {
+      showToast('Could not disconnect: ' + error.message, 'error');
+    } finally { disconnectCalendarBtn.disabled = false; }
+  });
+
   // Settings: Sync with Cloud Now
   const settingsSyncBtn = document.getElementById('settings-sync-cloud-btn');
   if (settingsSyncBtn) {
@@ -1114,18 +1168,11 @@ function attachViewListeners() {
       settingsSyncBtn.disabled = true;
       setSyncStatus('syncing');
       try {
-        if (state.tasks) await window.api.saveTasks(state.tasks);
-        if (state.projects) await window.api.saveProjects(state.projects);
-        if (state.profiles) await window.api.saveProfiles(state.profiles);
-        if (state.settings) await window.api.saveSettings(state.settings);
-        const pushRes = await window.api.syncPush();
-        if (pushRes && pushRes.error) throw new Error(pushRes.error);
         const pullRes = await window.api.syncPull();
         if (pullRes && pullRes.error) throw new Error(pullRes.error);
         await refreshDataFromStore();
         setSyncStatus('synced');
         showToast('Synced with Firebase Cloud!', 'success');
-        renderView();
       } catch (err) {
         console.error('Settings cloud sync failed:', err);
         showToast('Sync failed: ' + err.message, 'error');
@@ -1190,6 +1237,16 @@ function attachViewListeners() {
         }
       };
       reader.readAsText(file);
+    });
+  }
+
+  // Settings: Rerun Onboarding Setup Wizard
+  const rerunOnboardingBtn = document.getElementById('settings-rerun-onboarding-btn');
+  if (rerunOnboardingBtn) {
+    rerunOnboardingBtn.addEventListener('click', () => {
+      if (typeof showOnboardingModal === 'function') {
+        showOnboardingModal(true);
+      }
     });
   }
 

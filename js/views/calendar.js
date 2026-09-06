@@ -222,30 +222,51 @@ function renderCalendarEvents() {
   const items = [];
 
   state.events.forEach(evt => {
-    const dayIdx = days.indexOf(evt.date);
-    if (dayIdx < 0) return;
-    items.push({
-      id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
-      date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
-      location: evt.location || '',
-      dayIdx, isAllDay: evt.isAllDay || !evt.startTime
+    const startDate = evt.date;
+    const endDate = evt.endDate || evt.date;
+    const isMultiDay = Boolean(endDate && endDate > startDate);
+
+    days.forEach((dStr, dayIdx) => {
+      if (dStr >= startDate && dStr <= endDate) {
+        const isStart = (dStr === startDate);
+        const isEnd = (dStr === endDate);
+        items.push({
+          id: evt.id, type: 'event', title: evt.title || 'Untitled Event', color: evt.color || '#4285f4',
+          date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+          startTime: isStart ? (evt.startTime || null) : null,
+          endTime: isEnd ? (evt.endTime || null) : null,
+          location: evt.location || '',
+          dayIdx, isAllDay: evt.isAllDay || !evt.startTime || isMultiDay,
+          isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: !isStart && !isEnd
+        });
+      }
     });
   });
 
   state.gcalEvents.forEach(evt => {
-    const dayIdx = days.indexOf(evt.date);
-    if (dayIdx < 0) return;
     const activeIds = Array.isArray(state.activeGcalIds) ? state.activeGcalIds : (state.settings.activeGcalIds || []);
     if (!activeIds.includes(evt.calendarId)) return;
     
     const cal = state.gcalCalendars.find(c => c.id === evt.calendarId);
     const calColor = cal ? cal.color : (evt.color || 'var(--accent)');
-    
-    items.push({
-      id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
-      date: evt.date, startTime: evt.startTime || null, endTime: evt.endTime || null,
-      location: evt.location || '',
-      dayIdx, isAllDay: evt.isAllDay || !evt.startTime
+    const startDate = evt.date;
+    const endDate = evt.endDate || evt.date;
+    const isMultiDay = Boolean(endDate && endDate > startDate);
+
+    days.forEach((dStr, dayIdx) => {
+      if (dStr >= startDate && dStr <= endDate) {
+        const isStart = (dStr === startDate);
+        const isEnd = (dStr === endDate);
+        items.push({
+          id: evt.id, type: 'gcal_event', title: evt.title || 'Untitled Event', color: calColor,
+          date: dStr, originalStartDate: startDate, originalEndDate: endDate,
+          startTime: isStart ? (evt.startTime || null) : null,
+          endTime: isEnd ? (evt.endTime || null) : null,
+          location: evt.location || '',
+          dayIdx, isAllDay: evt.isAllDay || !evt.startTime || isMultiDay,
+          isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: !isStart && !isEnd
+        });
+      }
     });
   });
 
@@ -313,8 +334,14 @@ function renderCalendarEvents() {
       if (!container) return;
 
       dayItems.sort((a, b) => {
+        const aMulti = a.isMultiDay ? 1 : 0;
+        const bMulti = b.isMultiDay ? 1 : 0;
+        if (aMulti !== bMulti) return bMulti - aMulti;
         if (a.isAllDay && !b.isAllDay) return -1;
         if (!a.isAllDay && b.isAllDay) return 1;
+        if (a.originalStartDate && b.originalStartDate && a.originalStartDate !== b.originalStartDate) {
+          return a.originalStartDate.localeCompare(b.originalStartDate);
+        }
         return (a.startTime || '00:00').localeCompare(b.startTime || '00:00');
       });
 
@@ -326,12 +353,26 @@ function renderCalendarEvents() {
         const el = document.createElement('div');
         el.className = 'month-event-item';
         
-        if (item.isAllDay) {
+        if (item.isMultiDay) {
+          el.classList.add('multi-day');
+          if (item.isMultiDayStart) el.classList.add('multi-day-start');
+          if (item.isMultiDayEnd) el.classList.add('multi-day-end');
+          if (item.isMultiDayMiddle) el.classList.add('multi-day-middle');
+        }
+
+        if (item.isAllDay || item.isMultiDay) {
           const isTask = item.type === 'task';
           el.classList.add('all-day');
           el.style.background = isTask ? '#162d4a' : darkenColor(item.color, 0.52);
           el.style.border = '1px solid rgba(0, 0, 0, 0.35)';
-          el.style.borderLeft = `3px solid ${item.color}`;
+          if (item.isMultiDayMiddle || item.isMultiDayEnd) {
+            el.style.borderLeft = 'none';
+          } else {
+            el.style.borderLeft = `3px solid ${item.color}`;
+          }
+          if (item.isMultiDayMiddle || item.isMultiDayStart) {
+            el.style.borderRight = 'none';
+          }
           el.style.color = isTask ? '#d2e3fc' : '#ffffff';
         } else {
           el.style.background = 'transparent';
@@ -341,10 +382,11 @@ function renderCalendarEvents() {
         if (item.completed) el.classList.add('completed');
 
         const timeStr = item.startTime ? formatTimeShort(item.startTime) : '';
-        const dotHtml = !item.isAllDay ? `<span class="event-dot" style="background:${item.color};"></span>` : '';
+        const dotHtml = (!item.isAllDay && !item.isMultiDay) ? `<span class="event-dot" style="background:${item.color};"></span>` : '';
         const timeHtml = timeStr ? `<span class="event-time-prefix">${timeStr}</span> ` : '';
         const prefixHtml = (item.type === 'task' && item.locPrefix) ? `<span style="color:${item.locColor || 'var(--accent)'};font-weight:600;opacity:0.9;">${escHtml(item.locPrefix)} </span>` : '';
-        const titleHtml = `<span class="event-title-text">${prefixHtml}${escHtml(item.title)}</span>`;
+        const contIndicator = (item.isMultiDay && !item.isMultiDayStart) ? `<span class="multi-day-indicator" style="opacity:0.6;font-size:9px;margin-right:2px;">↳</span>` : '';
+        const titleHtml = `<span class="event-title-text">${contIndicator}${prefixHtml}${escHtml(item.title)}</span>`;
 
         el.innerHTML = `${dotHtml}${timeHtml}${titleHtml}`;
         

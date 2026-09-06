@@ -83,7 +83,10 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 
 ## Pending Updates & Roadmap
 
-- [x] Create a timestamp-based sync & conflict resolution system to ensure older device tasks never override newer updates
-- [ ] Add a postpone function where it would move any old task to be due today instead etc
-- [ ] fix settings ui
-- [ ] creating a setup for new acc
+- [x] Add a postpone function where it would move any old task to be due today instead etc
+- [x] fix settings ui
+- [x] creating a setup for new acc
+- [x] layout not saved: sections, remove default sections?, placement of task sections/dashboard, gcal settings, other UI options
+- [x] fix calendar ui for events that span multiple days
+- [x] ui updates: move settings button down 
+- [x] when clicking/expanding on task view it jumps weirdly since the size is bigger than it can show make it scrollable if it is bigger than the screen size etc

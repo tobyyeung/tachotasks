@@ -169,19 +169,34 @@ async function refreshDataFromStore() {
   if (!state.settings.defaultProfileId) {
     state.settings.defaultProfileId = 'profile-personal';
   }
-  if (!state.settings.taskSections || state.settings.taskSections.length === 0) {
+  if (!Array.isArray(state.settings.taskSections) && !state.settings.taskSectionsInitialized) {
     state.settings.taskSections = [
       { id: 'sec-todo', name: 'To Do' },
       { id: 'sec-in-progress', name: 'In Progress' },
       { id: 'sec-done', name: 'Done' }
     ];
+    state.settings.taskSectionsInitialized = true;
+  } else if (!Array.isArray(state.settings.taskSections)) {
+    state.settings.taskSections = [];
   }
-  if (!state.settings.projectSections || state.settings.projectSections.length === 0) {
+  if (!Array.isArray(state.settings.projectSections)) {
     state.settings.projectSections = [
       { id: 'psec-todo', name: 'To Do' },
       { id: 'psec-in-progress', name: 'In Progress' },
       { id: 'psec-done', name: 'Done' }
     ];
+  }
+  if (!state.settings.dashboardLayout) {
+    state.settings.dashboardLayout = {
+      left: ['upcoming-tasks', 'daily-tasks'],
+      right: ['todays-schedule', 'birthdays']
+    };
+  }
+  if (state.settings.dashboardSplitRatio === undefined) {
+    state.settings.dashboardSplitRatio = 50;
+  }
+  if (state.settings.activeProfileId) {
+    state.activeProfileId = state.settings.activeProfileId;
   }
 
   if (state.settings.tasksViewMode) {

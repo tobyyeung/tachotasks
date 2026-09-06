@@ -1,0 +1,214 @@
+/* ============================================================
+   ONBOARDING MODAL STYLES
+   ============================================================ */
+
+.onboarding-modal-card {
+  width: 580px;
+  max-width: 92vw;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  padding: 36px 32px 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 212, 170, 0.08);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  animation: modalScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.onboarding-progress-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.onboarding-dot {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: all var(--t-fast);
+}
+
+.onboarding-dot.active {
+  background: var(--accent);
+  width: 32px;
+}
+
+.onboarding-header-center {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.onboarding-logo-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: rgba(0, 212, 170, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 212, 170, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 212, 170, 0.15);
+}
+
+.onboarding-logo-icon img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.onboarding-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.onboarding-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.onboarding-step-body {
+  flex: 1;
+  min-height: 220px;
+  margin-bottom: 24px;
+}
+
+/* Workflow Preset Cards */
+.onboarding-presets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.onboarding-preset-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.onboarding-preset-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.onboarding-preset-card.selected {
+  background: rgba(0, 212, 170, 0.08);
+  border-color: var(--accent);
+}
+
+.onboarding-preset-radio {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.onboarding-preset-info h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.onboarding-preset-info p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Features Grid */
+.onboarding-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+}
+
+.onboarding-feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.onboarding-feature-icon img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.onboarding-feature-text h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.onboarding-feature-text p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Modal Actions Footer */
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 18px;
+}
+
+.onboarding-btn-next {
+  padding: 9px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+}
+
+.onboarding-btn-prev {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+
+.onboarding-btn-prev:hover {
+  color: #fff;
+}

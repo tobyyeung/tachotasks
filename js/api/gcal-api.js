@@ -295,12 +295,30 @@ async function fetchEvents(calendarId, timeMin, timeMax) {
     .filter(item => item && item.status !== 'cancelled' && item.start && (item.start.date || item.start.dateTime))
     .map(item => {
       let date = null;
+      let endDate = null;
       let startTime = null;
       let endTime = null;
       const isAllDay = !!item.start.date;
 
       if (isAllDay) {
         date = item.start.date;
+        if (item.end && item.end.date) {
+          // Google Calendar end.date for all-day events is exclusive. Convert to inclusive endDate:
+          try {
+            const endParts = item.end.date.split('-').map(Number);
+            const endD = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+            endD.setDate(endD.getDate() - 1);
+            const y = endD.getFullYear();
+            const m = String(endD.getMonth() + 1).padStart(2, '0');
+            const d = String(endD.getDate()).padStart(2, '0');
+            endDate = `${y}-${m}-${d}`;
+            if (endDate < date) endDate = date;
+          } catch (e) {
+            endDate = date;
+          }
+        } else {
+          endDate = date;
+        }
       } else if (item.start.dateTime) {
         const startD = new Date(item.start.dateTime);
         const endD = new Date(item.end && item.end.dateTime ? item.end.dateTime : item.start.dateTime);
@@ -309,6 +327,12 @@ async function fetchEvents(calendarId, timeMin, timeMax) {
         const mm = String(startD.getMonth() + 1).padStart(2, '0');
         const dd = String(startD.getDate()).padStart(2, '0');
         date = `${yyyy}-${mm}-${dd}`;
+
+        const endY = endD.getFullYear();
+        const endM = String(endD.getMonth() + 1).padStart(2, '0');
+        const endDay = String(endD.getDate()).padStart(2, '0');
+        endDate = `${endY}-${endM}-${endDay}`;
+        if (endDate < date) endDate = date;
 
         const stH = String(startD.getHours()).padStart(2, '0');
         const stM = String(startD.getMinutes()).padStart(2, '0');
@@ -337,6 +361,8 @@ async function fetchEvents(calendarId, timeMin, timeMax) {
         title: item.summary || '(No title)',
         description,
         date,
+        endDate: endDate || date,
+        isMultiDay: Boolean(endDate && endDate > date),
         startTime,
         endTime,
         htmlLink: item.htmlLink,

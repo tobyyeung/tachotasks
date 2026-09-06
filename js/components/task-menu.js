@@ -49,6 +49,15 @@
         </div>
       </button>
 
+      ${task.dueDate && task.dueDate < getTodayStr() && !task.completed ? `
+        <button class="ctx-item" id="ctx-postpone-task" style="color:#ff5252;">
+          <div class="ctx-item-left">
+            <img src="assets/icons/Clock.png" alt="Postpone" style="width:18px;height:18px;object-fit:contain;filter:brightness(0.9) sepia(1) hue-rotate(310deg);" />
+            <span>Postpone to Today</span>
+          </div>
+        </button>
+      ` : ''}
+
       <div class="ctx-divider"></div>
 
       <!-- Date Quick-Select Section -->
@@ -155,6 +164,15 @@
       closeTaskMenu();
       showTaskModal(task.id);
     });
+
+    const postponeBtn = menu.querySelector('#ctx-postpone-task');
+    if (postponeBtn) {
+      postponeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeTaskMenu();
+        await postponeOverdueTasks([task.id]);
+      });
+    }
 
     // 2. Date Quick Buttons (Modifies Due Date)
     menu.querySelector('#ctx-date-today').addEventListener('click', async (e) => {

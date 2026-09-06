@@ -119,6 +119,11 @@ export function extractAndSaveClientId(result, credential) {
 }
 
 export function getCurrentUser() { return _currentUser; }
+export async function getFirebaseIdToken() {
+  await auth.authStateReady();
+  if (!auth.currentUser) throw new Error('SIGN_IN_REQUIRED');
+  return auth.currentUser.getIdToken();
+}
 export function onAuthChange(cb) { _authCallbacks.push(cb); if (_currentUser) cb(_currentUser); }
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
@@ -535,12 +540,13 @@ async function syncCollectionsBidirectional(uid) {
 
   if (!remoteSettings) {
     if (!finalSettings.defaultProfileId) finalSettings.defaultProfileId = 'profile-personal';
-    if (!finalSettings.taskSections || finalSettings.taskSections.length === 0) {
+    if (!Array.isArray(finalSettings.taskSections) && !finalSettings.taskSectionsInitialized) {
       finalSettings.taskSections = [
         { id: 'sec-todo', name: 'To Do' },
         { id: 'sec-in-progress', name: 'In Progress' },
         { id: 'sec-done', name: 'Done' }
       ];
+      finalSettings.taskSectionsInitialized = true;
     }
     pushSettings = true;
   } else {

@@ -1,0 +1,188 @@
+/* ============================================================
+   SETTINGS VIEW STYLES
+   ============================================================ */
+
+.settings-view {
+  max-width: 880px;
+  margin: 0 auto;
+  padding-bottom: 60px;
+  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-header {
+  margin-bottom: 28px;
+}
+
+.settings-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.settings-header p {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.settings-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: border-color var(--t-fast);
+}
+
+.settings-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.settings-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-card-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
+.settings-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-card-desc {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 18px;
+  line-height: 1.45;
+}
+
+/* Settings Items & Lists */
+.settings-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all var(--t-fast);
+}
+
+.settings-item-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.settings-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Quick Links Rows */
+.settings-quick-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all var(--t-fast);
+}
+
+.settings-quick-link-row:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Priority Color Rows */
+.settings-prio-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.settings-prio-row:last-child {
+  border-bottom: none;
+}
+
+/* Calendar Row */
+.settings-cal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all var(--t-fast);
+}
+
+.settings-cal-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Switches & Toggles */
+.settings-toggle-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.settings-toggle-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Action Button Groups */
+.settings-btn-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}

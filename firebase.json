@@ -1,0 +1,4 @@
+{
+  "functions": [{ "source": "functions", "codebase": "calendar", "runtime": "nodejs22" }],
+  "firestore": { "rules": "firestore.rules" }
+}

@@ -280,6 +280,31 @@
   padding: 1px 6px;
 }
 
+.calendar-all-day-pill.multi-day-start {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  margin-right: -5px;
+  padding-right: 6px;
+}
+
+.calendar-all-day-pill.multi-day-middle {
+  border-radius: 0 !important;
+  margin-left: -5px;
+  margin-right: -5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.calendar-all-day-pill.multi-day-end {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  margin-left: -5px;
+  padding-left: 5px;
+  border-left: none !important;
+}
+
 .calendar-time-grid {
   display: grid;
   grid-template-columns: 56px repeat(7, minmax(0, 1fr));
