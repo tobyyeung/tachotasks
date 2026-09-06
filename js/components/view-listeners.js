@@ -1250,6 +1250,73 @@ function attachViewListeners() {
     });
   }
 
+  // Settings: Table of Contents navigation & Scroll Spy
+  const tocLinks = document.querySelectorAll('.settings-toc-link');
+  if (tocLinks.length > 0) {
+    let isUserClicking = false;
+    let clickTimeout = null;
+
+    tocLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('data-target');
+        const targetEl = document.getElementById(targetId);
+        if (!targetEl) return;
+
+        isUserClicking = true;
+        clearTimeout(clickTimeout);
+
+        // Set active link immediately
+        tocLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+
+        // Smooth scroll to section
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Highlight flash effect on targeted card
+        targetEl.classList.remove('settings-card-highlighted');
+        void targetEl.offsetWidth; // trigger reflow
+        targetEl.classList.add('settings-card-highlighted');
+        setTimeout(() => {
+          targetEl.classList.remove('settings-card-highlighted');
+        }, 1400);
+
+        // Resume scroll spy after smooth scroll finishes
+        clickTimeout = setTimeout(() => {
+          isUserClicking = false;
+        }, 800);
+      });
+    });
+
+    // Scroll spy using IntersectionObserver on the scrolling container
+    const viewContainer = document.getElementById('view-container');
+    const sections = Array.from(document.querySelectorAll('.settings-content .settings-card[id]'));
+    if (sections.length > 0 && typeof IntersectionObserver !== 'undefined') {
+      const observer = new IntersectionObserver((entries) => {
+        if (isUserClicking) return;
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            tocLinks.forEach(l => {
+              if (l.getAttribute('data-target') === id) {
+                l.classList.add('active');
+                l.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+              } else {
+                l.classList.remove('active');
+              }
+            });
+          }
+        });
+      }, {
+        root: viewContainer || null,
+        rootMargin: '-10% 0px -65% 0px',
+        threshold: 0
+      });
+
+      sections.forEach(sec => observer.observe(sec));
+    }
+  }
+
   // Render calendar events overlay after DOM paint
   if (state.currentView === 'calendar') {
     requestAnimationFrame(() => {

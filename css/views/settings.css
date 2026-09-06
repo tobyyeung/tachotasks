@@ -3,14 +3,14 @@
    ============================================================ */
 
 .settings-view {
-  max-width: 880px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding-bottom: 60px;
+  padding-bottom: 80px;
   animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .settings-header h1 {
@@ -26,6 +26,118 @@
   font-size: 14px;
 }
 
+/* 2-Column Layout with Sticky TOC */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+/* Table of Contents Side Navigation */
+.settings-toc {
+  position: sticky;
+  top: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-toc-header {
+  padding: 6px 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 6px;
+}
+
+.settings-toc-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.settings-toc-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-toc-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--t-fast);
+  width: 100%;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.settings-toc-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.06);
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-toc-link.active {
+  background: rgba(255, 107, 0, 0.1);
+  border-color: rgba(255, 107, 0, 0.25);
+  border-left-color: var(--accent);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-toc-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+
+.settings-toc-link:hover .settings-toc-icon,
+.settings-toc-link.active .settings-toc-icon {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.settings-toc-icon img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
+.settings-toc-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-content {
+  min-width: 0;
+}
+
 .settings-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -33,11 +145,69 @@
   padding: 22px 24px;
   margin-bottom: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  transition: border-color var(--t-fast);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
+  scroll-margin-top: 24px;
 }
 
 .settings-card:hover {
   border-color: rgba(255, 255, 255, 0.12);
+}
+
+.settings-card.settings-card-highlighted {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.25), 0 8px 30px rgba(0, 0, 0, 0.35) !important;
+  transform: translateY(-2px);
+}
+
+/* Responsive Table of Contents */
+@media (max-width: 860px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .settings-toc {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 8px 10px;
+    background: rgba(18, 18, 18, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .settings-toc-header {
+    display: none;
+  }
+
+  .settings-toc-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-toc-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-toc-link {
+    white-space: nowrap;
+    width: auto;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-left-width: 1px;
+  }
+
+  .settings-toc-link.active {
+    border-left-color: rgba(255, 107, 0, 0.4);
+    background: rgba(255, 107, 0, 0.16);
+  }
 }
 
 .settings-card-header {

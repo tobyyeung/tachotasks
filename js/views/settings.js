@@ -49,8 +49,56 @@ function renderSettings() {
         <p>Customize your workspace, priority flags, dashboard shortcuts, and integrations.</p>
       </div>
 
-      <!-- General & Profiles Card -->
-      <div class="settings-card">
+      <div class="settings-layout">
+        <!-- Table of Contents Side Navigation -->
+        <aside class="settings-toc" id="settings-toc">
+          <div class="settings-toc-header">
+            <span class="settings-toc-title">Table of Contents</span>
+          </div>
+          <nav class="settings-toc-nav" aria-label="Settings sections navigation">
+            <button type="button" class="settings-toc-link active" data-target="settings-sec-profiles">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/User.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Profiles & Categories</span>
+            </button>
+            <button type="button" class="settings-toc-link" data-target="settings-sec-priorities">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/Flag.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Priority Flags</span>
+            </button>
+            <button type="button" class="settings-toc-link" data-target="settings-sec-quicklinks">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/Dashboard.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Dashboard Shortcuts</span>
+            </button>
+            <button type="button" class="settings-toc-link" data-target="settings-sec-gcal">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/Calendar.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Google Calendars</span>
+            </button>
+            <button type="button" class="settings-toc-link" data-target="settings-sec-sync">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/Cloud.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Cloud Sync & Data</span>
+            </button>
+            <button type="button" class="settings-toc-link" data-target="settings-sec-developer">
+              <span class="settings-toc-icon">
+                <img src="assets/icons/Settings.png" alt="" />
+              </span>
+              <span class="settings-toc-text">Developer & Testing</span>
+            </button>
+          </nav>
+        </aside>
+
+        <!-- Settings Cards Content -->
+        <div class="settings-content" id="settings-content">
+          <!-- General & Profiles Card -->
+          <div class="settings-card" id="settings-sec-profiles">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -101,7 +149,7 @@ function renderSettings() {
       </div>
 
       <!-- Priority Customization Card -->
-      <div class="settings-card">
+      <div class="settings-card" id="settings-sec-priorities">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -146,7 +194,7 @@ function renderSettings() {
       </div>
 
       <!-- Dashboard Quick Links Card -->
-      <div class="settings-card">
+      <div class="settings-card" id="settings-sec-quicklinks">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -181,7 +229,7 @@ function renderSettings() {
       </div>
 
       <!-- Google Calendar Visibility & Integrations Card -->
-      <div class="settings-card">
+      <div class="settings-card" id="settings-sec-gcal">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -205,7 +253,7 @@ function renderSettings() {
       </div>
 
       <!-- Data & Cloud Sync Card -->
-      <div class="settings-card">
+      <div class="settings-card" id="settings-sec-sync">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -230,7 +278,7 @@ function renderSettings() {
       </div>
 
       <!-- Developer & UI Testing Card -->
-      <div class="settings-card">
+      <div class="settings-card" id="settings-sec-developer">
         <div class="settings-card-header">
           <div class="settings-card-title-group">
             <div class="settings-card-icon">
@@ -258,6 +306,9 @@ function renderSettings() {
         </div>
       </div>
 
-    </div>
+        </div> <!-- /.settings-content -->
+      </div> <!-- /.settings-layout -->
+
+    </div> <!-- /.settings-view -->
   `;
 }
