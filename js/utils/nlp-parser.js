@@ -297,21 +297,23 @@ function parseTaskInputTokens(text, dismissedTokens = []) {
   }
 
   // Slash / Dash / Dot dates: M/D, MM/DD, M/DD, MM/D with optional /YY or /YYYY
-  // Examples: 9/8, 09/08, 9/08, 09/8, 9/8/26, 9/8/2026, 09/08/2026, 9-8, 09-08, 9.8, 09.08
-  const slashDateRegex = /\b(0?[1-9]|1[0-2])[\/\.-](0?[1-9]|[12]\d|3[01])(?:[\/\.-](\d{2,4}))?\b/g;
+  // Slash / Dash dates: M/D, MM/DD, M-D, MM-DD with optional /YY or /YYYY
+  // Dot dates only if full 3 parts (M.D.YY or M.D.YYYY, e.g. 9.8.2026) so decimals like 1.2 or section 1.2 are never treated as dates
+  const slashDateRegex = /\b(?:(0?[1-9]|1[0-2])[\/-](0?[1-9]|[12]\d|3[01])(?:[\/-](\d{2,4}))?|(0?[1-9]|1[0-2])\.(0?[1-9]|[12]\d|3[01])\.(\d{2,4}))\b/g;
   while ((m = slashDateRegex.exec(text)) !== null) {
     const start = m.index;
     const end = m.index + m[0].length;
     const overlap = tokens.some(t => Math.max(t.start, start) < Math.min(t.end, end));
     if (!overlap && !isDismissed(start, end, m[0])) {
-      const mo = parseInt(m[1], 10);
-      const day = parseInt(m[2], 10);
+      const mo = parseInt(m[1] || m[4], 10);
+      const day = parseInt(m[2] || m[5], 10);
+      const rawYear = m[3] || m[6];
       if (mo >= 1 && mo <= 12 && day >= 1 && day <= 31) {
-        let y = m[3] ? parseInt(m[3], 10) : today.getFullYear();
-        if (m[3] && y < 100) y += 2000;
+        let y = rawYear ? parseInt(rawYear, 10) : today.getFullYear();
+        if (rawYear && y < 100) y += 2000;
         const dt = new Date(y, mo - 1, day);
         if (dt.getMonth() === mo - 1 && dt.getDate() === day) {
-          if (!m[3] && dt < todayZero) {
+          if (!rawYear && dt < todayZero) {
             dt.setFullYear(dt.getFullYear() + 1);
           }
           tokens.push({

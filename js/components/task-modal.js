@@ -396,32 +396,16 @@ function showTaskEditorModal(taskId, initialData = {}) {
       const rawTitle = document.getElementById('modal-title').value.trim();
       if (!rawTitle) { showToast('Title is required', 'error'); return; }
 
-      // Parse NLP tokens from title if any
-      const parsed = typeof parseTaskInputTokens === 'function' ? parseTaskInputTokens(rawTitle) : { cleanTitle: rawTitle };
-      const finalTitle = parsed.cleanTitle || rawTitle;
+      const finalTitle = rawTitle;
 
       const selectedPriorityBtn = document.querySelector('.priority-flag-btn.selected');
-      let selectedPriority = selectedPriorityBtn ? selectedPriorityBtn.dataset.priority : 'P4';
-      if (selectedPriority === 'P4' && parsed.priority) {
-        selectedPriority = parsed.priority;
-      }
+      const selectedPriority = selectedPriorityBtn ? selectedPriorityBtn.dataset.priority : 'P4';
 
       const tagsInput = document.getElementById('modal-tags').value;
-      let tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
-      if (tags.length === 0 && parsed.tags && parsed.tags.length > 0) {
-        tags = parsed.tags;
-      }
+      const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-      let dueDate = document.getElementById('modal-due-date').value || null;
-      let dueTime = document.getElementById('modal-due-time').value || null;
-      if (!dueDate && parsed.dueDate) {
-        dueDate = parsed.dueDate;
-        dueTime = parsed.dueTime || dueTime;
-      }
-
-      if (!currentRecurring && parsed.recurring) {
-        currentRecurring = parsed.recurring;
-      }
+      const dueDate = document.getElementById('modal-due-date').value || null;
+      const dueTime = document.getElementById('modal-due-time').value || null;
 
       const data = {
         title: finalTitle,
