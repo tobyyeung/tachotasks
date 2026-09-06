@@ -1181,39 +1181,3 @@ window.restoreOriginalWorkspace = async function() {
   showToast('Restored all 42 tasks and 11 sections successfully!', 'success');
 };
 
-// Check if workspace currently has dummy/sample tasks or missing sections, and show recovery banner
-function checkAndShowRecoveryBanner() {
-  if (document.getElementById('workspace-recovery-banner')) return;
-  
-  // Detect if tasks contain sample tasks or if original sections are missing
-  const hasSampleTasks = Array.isArray(state.tasks) && state.tasks.some(t => t.id && t.id.startsWith('task-sample-'));
-  const hasOnlyKanbanDefault = Array.isArray(state.settings?.taskSections) && 
-    state.settings.taskSections.length <= 3 && 
-    state.settings.taskSections.some(s => s.id === 'sec-todo');
-
-  if (hasSampleTasks || hasOnlyKanbanDefault) {
-    const banner = document.createElement('div');
-    banner.id = 'workspace-recovery-banner';
-    banner.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#1f1f23;border:1px solid var(--accent);border-radius:var(--radius-lg);padding:10px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 30px rgba(0,0,0,0.6);z-index:99999;font-size:13px;color:#fff;animation:modalScaleIn 0.3s ease;';
-    banner.innerHTML = `
-      <span style="font-size:16px;">🔄</span>
-      <span>Testing sandbox active. <strong>Restore your original 42 tasks and 11 sections?</strong></span>
-      <button id="banner-restore-btn" class="btn-primary" style="padding:6px 14px;font-size:12px;background:var(--accent);color:#000;font-weight:700;cursor:pointer;border-radius:var(--radius-md);">Restore Now</button>
-      <button id="banner-dismiss-btn" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:14px;padding:2px 6px;">✕</button>
-    `;
-    document.body.appendChild(banner);
-
-    document.getElementById('banner-restore-btn')?.addEventListener('click', async () => {
-      await window.restoreOriginalWorkspace();
-    });
-    document.getElementById('banner-dismiss-btn')?.addEventListener('click', () => {
-      banner.remove();
-    });
-  }
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(checkAndShowRecoveryBanner, 500));
-} else {
-  setTimeout(checkAndShowRecoveryBanner, 500);
-}
