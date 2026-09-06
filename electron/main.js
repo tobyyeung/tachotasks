@@ -4,19 +4,87 @@
  * wires IPC handlers to the SQLite database and sync engine.
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
 const { initDatabase, getDb } = require('./db');
 
 // Keep a global reference to prevent garbage collection
 let mainWindow = null;
 let tray = null;
+let localServer = null;
+let localServerPort = null;
 
-// Determine if running in development (Vite dev server) or production (built files)
+// Determine if running in development or production
 const isDev = !app.isPackaged;
 const VITE_DEV_URL = 'http://localhost:5173';
 
-function createWindow() {
+/**
+ * Starts a lightweight local HTTP server serving app assets.
+ * This provides the http://localhost origin required for Firebase Google Authentication.
+ */
+function startLocalServer(rootDir) {
+  if (localServerPort) return Promise.resolve(localServerPort);
+  return new Promise((resolve, reject) => {
+    const mimeTypes = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8',
+      '.mjs': 'text/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.wasm': 'application/wasm',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf'
+    };
+
+    localServer = http.createServer((req, res) => {
+      let reqPath = decodeURIComponent(req.url.split('?')[0]);
+      if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
+      const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+      let filePath = path.join(rootDir, safePath);
+
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        const fallbackPath = path.join(__dirname, '..', safePath);
+        if (fs.existsSync(fallbackPath) && fs.statSync(fallbackPath).isFile()) {
+          filePath = fallbackPath;
+        }
+      }
+
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': '*'
+        });
+        fs.createReadStream(filePath).pipe(res);
+      } else {
+        res.writeHead(404);
+        res.end('Not Found');
+      }
+    });
+
+    localServer.on('error', (err) => {
+      console.error('[server] Local loopback server error:', err);
+      reject(err);
+    });
+
+    localServer.listen(0, 'localhost', () => {
+      localServerPort = localServer.address().port;
+      console.log(`[server] Local app server running at http://localhost:${localServerPort}`);
+      resolve(localServerPort);
+    });
+  });
+}
+
+async function createWindow() {
   // Restore previous window bounds if saved
   const db = getDb();
   let bounds = { width: 1280, height: 820 };
@@ -41,7 +109,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false // needed for better-sqlite3 in preload
+      sandbox: false
     },
     show: false, // Show after ready-to-show to avoid white flash
     titleBarStyle: 'default'
@@ -52,16 +120,20 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Load the app — either from Vite dev server (if explicitly requested) or local build
-  const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html');
-  const rootIndexPath = path.join(__dirname, '..', 'index.html');
+  // Load the app — either from Vite dev server or embedded local loopback server
+  const distDir = path.join(__dirname, '..', 'dist');
+  const rootDir = fs.existsSync(distDir) ? distDir : path.join(__dirname, '..');
 
   if (process.env.VITE_DEV_SERVER === 'true') {
     mainWindow.loadURL(VITE_DEV_URL);
-  } else if (require('fs').existsSync(distIndexPath)) {
-    mainWindow.loadFile(distIndexPath);
   } else {
-    mainWindow.loadFile(rootIndexPath);
+    try {
+      const port = await startLocalServer(rootDir);
+      mainWindow.loadURL(`http://localhost:${port}`);
+    } catch (e) {
+      console.warn('[server] Fallback to loadFile:', e);
+      mainWindow.loadFile(path.join(rootDir, 'index.html'));
+    }
   }
 
   // Allow toggling DevTools via F12 or Ctrl+Shift+I
@@ -91,9 +163,37 @@ function createWindow() {
   mainWindow.on('resized', saveBounds);
   mainWindow.on('moved', saveBounds);
 
-  // Handle external links — open in default browser
+  // Handle popup windows (allow Google OAuth & Firebase Auth popups)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
+    // Firebase Auth opens about:blank first, then navigates to Firebase/Google OAuth
+    const isAuth =
+      url === 'about:blank' ||
+      url === '' ||
+      url.startsWith('about:') ||
+      url.includes('firebaseapp.com') ||
+      url.includes('accounts.google.com') ||
+      url.includes('google.com/o/oauth2') ||
+      url.includes('apis.google.com');
+
+    if (isAuth) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 650,
+          autoHideMenuBar: true,
+          title: 'Sign in with Google',
+          parent: mainWindow,
+          modal: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        }
+      };
+    }
+    // External links open in default browser
+    if (url.startsWith('http') || url.startsWith('mailto:')) {
       shell.openExternal(url);
     }
     return { action: 'deny' };
@@ -379,9 +479,40 @@ function setupAutoUpdater() {
 
 // ===== APP LIFECYCLE =====
 
+// Strip "Electron" from User-Agent across all WebContents to prevent Google OAuth 403 (disallowed_useragent)
+app.on('web-contents-created', (event, contents) => {
+  const ua = contents.getUserAgent().replace(/\sElectron\/\S+/g, '');
+  contents.setUserAgent(ua);
+
+  // If this is a child window (such as an auth popup), route external links to default browser
+  if (mainWindow && contents !== mainWindow.webContents) {
+    contents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http') || url.startsWith('mailto:')) {
+        shell.openExternal(url);
+      }
+      return { action: 'deny' };
+    });
+  }
+});
+
 app.whenReady().then(async () => {
   await initDatabase();
   setupIpcHandlers();
+
+  // Strip Electron from default session User-Agent and outgoing request headers
+  try {
+    const defaultUa = session.defaultSession.getUserAgent();
+    session.defaultSession.setUserAgent(defaultUa.replace(/\sElectron\/\S+/g, ''));
+    session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      if (details.requestHeaders['User-Agent']) {
+        details.requestHeaders['User-Agent'] = details.requestHeaders['User-Agent'].replace(/\sElectron\/\S+/g, '');
+      }
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    });
+  } catch (e) {
+    console.warn('[session] Could not configure session user-agent:', e);
+  }
+
   createWindow();
   createTray();
   setupAutoUpdater();
@@ -402,6 +533,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  if (localServer) {
+    try { localServer.close(); } catch (e) { /* ignore */ }
+  }
   // Close database connection cleanly
   try {
     const db = getDb();

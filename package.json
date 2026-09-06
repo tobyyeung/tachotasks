@@ -1,6 +1,6 @@
 {
   "name": "tachotasks",
-  "version": "1.17.0",
+  "version": "1.17.1",
   "description": "Tacho Tasks — A unified daily command center for schedule, tasks, and life events",
   "main": "electron/main.js",
   "scripts": {
