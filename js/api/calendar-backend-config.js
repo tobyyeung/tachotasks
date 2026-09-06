@@ -3,5 +3,5 @@
 export const calendarBackendConfig = {
   enabled: false,
   url: 'https://us-central1-tachotasks-d7c56.cloudfunctions.net/calendarAuth',
-  clientId: ''
+  clientId: '179662622348-oh6gk1g83fd4qeol579fc4fedockrj6o.apps.googleusercontent.com'
 };

@@ -5,7 +5,7 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { ensureGsiClient, resetGsiClient } from './gcal-api.js';
 
 // ===== FIREBASE INITIALIZATION =====
@@ -48,6 +48,9 @@ export function clearLocalUserCache() {
     'auth.gcalConnected'
   ];
   keys.forEach(k => localStorage.removeItem(k));
+  if (typeof window !== 'undefined' && window.electronStorage) {
+    try { window.electronStorage.resetData(); } catch (_) {}
+  }
 }
 
 // Listen for Firebase auth state changes
@@ -69,9 +72,12 @@ onAuthStateChanged(auth, (user) => {
       photoURL: user.photoURL
     };
     localStorage.setItem('auth.user', JSON.stringify(_currentUser));
+    // Start real-time Firestore synchronization
+    startRealtimeSync(user.uid);
     // Pre-initialize GSI client for silent token refresh
     setTimeout(() => { try { ensureGsiClient(); } catch (e) {} }, 1000);
   } else {
+    stopRealtimeSync();
     if (_lastUid) {
       clearLocalUserCache();
       try { resetGsiClient(); } catch (e) {}
@@ -206,6 +212,91 @@ function lsSet(key, value) {
   }
 }
 
+async function localStoreGet(key, defaultValue = null) {
+  if (typeof window !== 'undefined' && window.electronStorage) {
+    try {
+      if (key === 'tasks') return await window.electronStorage.getTasks();
+      if (key === 'archivedTasks') return await window.electronStorage.getArchivedTasks();
+      if (key === 'projects') return await window.electronStorage.getProjects();
+      if (key === 'profiles') return await window.electronStorage.getProfiles();
+      if (key === 'settings') return await window.electronStorage.getSettings();
+    } catch (e) {
+      console.warn('[cloud-sync] Error reading from electronStorage:', e);
+    }
+  }
+  return lsGet(key, defaultValue);
+}
+
+async function localStoreSet(key, value) {
+  lsSet(key, value);
+  if (typeof window !== 'undefined' && window.electronStorage) {
+    try {
+      if (key === 'tasks') await window.electronStorage.saveTasks(value);
+      else if (key === 'archivedTasks') await window.electronStorage.saveArchivedTasks(value);
+      else if (key === 'projects') await window.electronStorage.saveProjects(value);
+      else if (key === 'profiles') await window.electronStorage.saveProfiles(value);
+      else if (key === 'settings') await window.electronStorage.saveSettings(value);
+    } catch (e) {
+      console.warn('[cloud-sync] Error writing to electronStorage:', e);
+    }
+  }
+}
+
+// ===== REAL-TIME CLOUD LISTENERS =====
+let _unsubListeners = [];
+let _realtimeDebounce = null;
+
+export function startRealtimeSync(uid) {
+  stopRealtimeSync();
+  if (!uid) return;
+
+  const collections = ['tasks', 'projects', 'profiles', 'archivedTasks', 'settings'];
+  let isInitial = true;
+  let initialCount = 0;
+
+  collections.forEach(collName => {
+    const collRef = collection(db, `users/${uid}/${collName}`);
+    const unsub = onSnapshot(collRef, (snapshot) => {
+      if (isInitial) {
+        initialCount++;
+        if (initialCount >= collections.length) {
+          setTimeout(() => { isInitial = false; }, 1500);
+        }
+        return;
+      }
+
+      if (snapshot.metadata && snapshot.metadata.hasPendingWrites) {
+        return;
+      }
+
+      if (_realtimeDebounce) clearTimeout(_realtimeDebounce);
+      _realtimeDebounce = setTimeout(async () => {
+        try {
+          console.log(`[cloud-sync] Real-time cloud change in ${collName}. Syncing...`);
+          await performSyncFromCloud();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tachotasks:remotesync', { detail: { collection: collName } }));
+          }
+        } catch (e) {
+          console.warn('[cloud-sync] Real-time sync pull error:', e);
+        }
+      }, 500);
+    }, (err) => {
+      console.warn(`[cloud-sync] Real-time listener error for ${collName}:`, err);
+    });
+
+    _unsubListeners.push(unsub);
+  });
+}
+
+export function stopRealtimeSync() {
+  if (_realtimeDebounce) clearTimeout(_realtimeDebounce);
+  _unsubListeners.forEach(u => {
+    try { u(); } catch (_) {}
+  });
+  _unsubListeners = [];
+}
+
 // ===== SYNC DEBOUNCE =====
 let _syncTimeout = null;
 
@@ -296,6 +387,9 @@ export function recordTombstone(id, type = 'task') {
     deletedAt: new Date().toISOString()
   };
   lsSet('tombstones', tombstones);
+  if (typeof window !== 'undefined' && window.electronStorage) {
+    try { window.electronStorage.recordTombstone(id, type); } catch (_) {}
+  }
   triggerSyncToCloud();
 }
 
@@ -428,7 +522,7 @@ async function syncCollectionsBidirectional(uid) {
 
   // 3. Process each entity collection
   for (const collName of collections) {
-    let localItems = lsGet(collName, []);
+    let localItems = await localStoreGet(collName, []);
     if (collName === 'profiles') {
       localItems = ensureDefaultProfilesLocal(localItems);
     }
@@ -479,8 +573,8 @@ async function syncCollectionsBidirectional(uid) {
       finalMerged = ensureDefaultProfilesLocal(finalMerged);
     }
 
-    // Save clean merged state to local storage
-    lsSet(collName, finalMerged);
+    // Save clean merged state to local storage & SQLite
+    await localStoreSet(collName, finalMerged);
     newData[collName] = finalMerged;
 
     // Queue cloud batch writes
@@ -532,7 +626,7 @@ async function syncCollectionsBidirectional(uid) {
     }
   }
 
-  let localSettings = lsGet('settings', {});
+  let localSettings = await localStoreGet('settings', {});
   if (!localSettings || typeof localSettings !== 'object') localSettings = {};
 
   let finalSettings = localSettings;
@@ -562,7 +656,7 @@ async function syncCollectionsBidirectional(uid) {
     }
   }
 
-  lsSet('settings', finalSettings);
+  await localStoreSet('settings', finalSettings);
   newData.settings = finalSettings;
 
   if (pushSettings) {

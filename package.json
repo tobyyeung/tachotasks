@@ -1,0 +1,61 @@
+{
+  "name": "tachotasks",
+  "version": "1.17.0",
+  "description": "Tacho Tasks — A unified daily command center for schedule, tasks, and life events",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev:web": "vite",
+    "build:web": "vite build",
+    "preview:web": "vite preview",
+    "dev:electron": "concurrently -n web,electron \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build:electron": "vite build && electron-builder"
+  },
+  "author": "Toby Yeung",
+  "license": "PRIVATE",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "sql.js": "^1.14.2"
+  },
+  "build": {
+    "appId": "com.tobyyeung.tachotasks",
+    "productName": "Tacho Tasks",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/brand/logo.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/brand/logo.png"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/brand/logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://tasks.tobyyeung.com/releases/"
+    }
+  }
+}

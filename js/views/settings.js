@@ -275,6 +275,30 @@ function renderSettings() {
             <input type="file" id="import-backup-file" accept=".json" style="display:none;" />
           </label>
         </div>
+
+        ${window.electronAPI?.isElectron ? `
+          <div style="margin-top:16px;padding:12px 16px;background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <img src="assets/brand/logo.png" alt="" style="width:24px;height:24px;object-fit:contain;" />
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">Tacho Tasks Desktop (Active)</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Local SQLite Database &bull; Real-time Firestore Sync</div>
+              </div>
+            </div>
+            <span style="font-size:12px;color:var(--accent);font-weight:600;padding:2px 8px;background:rgba(255,107,0,0.15);border-radius:4px;">Desktop v1.16.1</span>
+          </div>
+        ` : `
+          <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <img src="assets/brand/logo.png" alt="" style="width:24px;height:24px;object-fit:contain;" />
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">Tacho Tasks Desktop App</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Native desktop app with offline SQLite, system tray, and notifications</div>
+              </div>
+            </div>
+            <a href="https://tasks.tobyyeung.com/releases/" target="_blank" class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none;display:inline-flex;align-items:center;">Download App</a>
+          </div>
+        `}
       </div>
 
       <!-- Developer & UI Testing Card -->

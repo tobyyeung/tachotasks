@@ -129,6 +129,20 @@ async function init() {
     }
   }, 600000);
 
+  // Real-time remote cloud sync listener
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('tachotasks:remotesync', async (e) => {
+      console.log('[app] Real-time sync update received for:', e.detail && e.detail.collection);
+      setSyncStatus('syncing');
+      try {
+        await refreshDataFromStore({ reloadCalendars: false });
+        setSyncStatus('synced');
+      } catch (err) {
+        console.warn('[app] Error refreshing UI from real-time sync:', err);
+      }
+    });
+  }
+
   // Live Dashboard clock ticker (updates every 10 seconds)
   setInterval(() => {
     if (state.currentView === 'dashboard') {

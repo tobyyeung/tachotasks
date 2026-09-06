@@ -52,8 +52,173 @@ function ensureEntityTimestamps(items, key) {
   return items;
 }
 
-// ===== WINDOW.API INTERFACE =====
-window.api = {
+// ===== PLATFORM DETECTION =====
+// In Electron, preload.js has already set window.api with SQLite-backed storage.
+// We augment it with auth, sync, GCal, and NLP that require the browser Firebase SDK.
+// In a regular browser, we provide the full localStorage-based implementation.
+const _isElectronEnv = !!(window.electronAPI && window.electronAPI.isElectron);
+
+function _buildAuthSyncGCalMethods() {
+  return {
+    // Authentication
+    signIn: async () => {
+      try {
+        const user = await signInWithGoogle();
+        return { success: true, user };
+      } catch (err) {
+        console.error('Firebase signIn error:', err);
+        return { error: err.code ? `${err.code}: ${err.message}` : (err.message || 'Sign in failed') };
+      }
+    },
+    signOut: async () => {
+      try {
+        await signOutUser();
+        return { success: true };
+      } catch (err) {
+        return { error: err.message };
+      }
+    },
+    getUser: async () => {
+      const user = getCurrentUser();
+      if (user) return user;
+      try {
+        const stored = localStorage.getItem('auth.user');
+        return stored ? JSON.parse(stored) : null;
+      } catch (e) { return null; }
+    },
+    onAuthStateChanged: (callback) => { onAuthChange(callback); },
+    syncPull: async () => { return await performSyncFromCloud(); },
+    syncPush: async () => {
+      try {
+        await performSyncToCloud();
+        const timestamp = lsGet('lastSyncTimestamp');
+        return { success: true, timestamp };
+      } catch (err) {
+        return { error: err.message };
+      }
+    },
+    parseNaturalLanguage: async (text) => parseNaturalLanguage(text),
+    calendarAutoRenewalEnabled: () => calendarBackendEnabled(),
+    disconnectGCal: async () => {
+      try { await disconnectCalendarBackend(); return { success: true }; }
+      catch (error) { return { error: error.message }; }
+    },
+    reconnectGCal: async () => {
+      try {
+        let token = await refreshAccessToken(true);
+        if (token) return { success: true, token };
+        return { error: 'Failed to reconnect Google Calendar' };
+      } catch (e) { return { error: e.message }; }
+    },
+    getGCalCalendars: async () => {
+      try { return await fetchCalendars(); }
+      catch (e) {
+        if (e.message.includes('401') || e.message.includes('No Google Access Token')) return { error: 'SESSION_EXPIRED' };
+        return { error: e.message };
+      }
+    },
+    getGCalEvents: async (calendarIds, timeMin, timeMax) => {
+      try {
+        let allEvents = [];
+        for (const calId of calendarIds) {
+          const evts = await fetchEvents(calId, timeMin, timeMax);
+          allEvents = allEvents.concat(evts);
+        }
+        return allEvents;
+      } catch (e) {
+        if (e.message.includes('401') || e.message.includes('No Google Access Token')) return { error: 'SESSION_EXPIRED' };
+        return { error: e.message };
+      }
+    },
+    recordTombstone: (id, type = 'task') => { recordTombstone(id, type); return true; }
+  };
+}
+
+if (_isElectronEnv && window.electronStorage) {
+  // Electron: bind window.api to SQLite via electronStorage IPC bridge + shared auth/sync
+  window.api = {
+    getTasks: () => window.electronStorage.getTasks(),
+    saveTasks: async (tasks) => {
+      const withTimestamps = ensureEntityTimestamps(tasks, 'tasks');
+      await window.electronStorage.saveTasks(withTimestamps);
+      lsSet('tasks', withTimestamps);
+      triggerSyncToCloud();
+      return true;
+    },
+    getArchivedTasks: () => window.electronStorage.getArchivedTasks(),
+    saveArchivedTasks: async (tasks) => {
+      const withTimestamps = ensureEntityTimestamps(tasks, 'archivedTasks');
+      await window.electronStorage.saveArchivedTasks(withTimestamps);
+      lsSet('archivedTasks', withTimestamps);
+      triggerSyncToCloud();
+      return true;
+    },
+    getProjects: () => window.electronStorage.getProjects(),
+    saveProjects: async (projects) => {
+      const withTimestamps = ensureEntityTimestamps(projects, 'projects');
+      await window.electronStorage.saveProjects(withTimestamps);
+      lsSet('projects', withTimestamps);
+      triggerSyncToCloud();
+      return true;
+    },
+    getProfiles: () => window.electronStorage.getProfiles(),
+    saveProfiles: async (profiles) => {
+      const withTimestamps = ensureEntityTimestamps(profiles, 'profiles');
+      await window.electronStorage.saveProfiles(withTimestamps);
+      lsSet('profiles', withTimestamps);
+      triggerSyncToCloud();
+      return true;
+    },
+    recordTombstone: (id, type) => {
+      window.electronStorage.recordTombstone(id, type || 'task');
+      recordTombstone(id, type || 'task');
+      return true;
+    },
+    getSettings: () => window.electronStorage.getSettings(),
+    saveSettings: async (settings) => {
+      if (settings && typeof settings === 'object') {
+        settings.updatedAt = new Date().toISOString();
+      }
+      await window.electronStorage.saveSettings(settings);
+      lsSet('settings', settings);
+      triggerSyncToCloud();
+      return true;
+    },
+    getGcalEventsCache: () => window.electronStorage.getGcalEventsCache(),
+    saveGcalEventsCache: async (cache) => {
+      await window.electronStorage.saveGcalEventsCache(cache);
+      lsSet('gcalEventsCache', cache);
+      return true;
+    },
+    getGcalCalendarsCache: () => window.electronStorage.getGcalCalendarsCache(),
+    saveGcalCalendarsCache: async (cache) => {
+      await window.electronStorage.saveGcalCalendarsCache(cache);
+      lsSet('gcalCalendarsCache', cache);
+      return true;
+    },
+    resetData: async () => {
+      await window.electronStorage.resetData();
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('tachotasks.'));
+      keys.forEach(k => localStorage.removeItem(k));
+      return true;
+    },
+    hardReset: async () => {
+      await window.electronStorage.hardReset();
+      localStorage.clear();
+      return { success: true };
+    },
+    openExternal: (url) => window.electronStorage.openExternal(url),
+    getReminders: async () => [],
+    saveReminders: async () => true,
+    getEvents: async () => [],
+    saveEvents: async () => true,
+    getFloatingGoals: async () => [],
+    migrateLocalToCloud: async () => {},
+    ..._buildAuthSyncGCalMethods()
+  };
+} else {
+  // Browser: provide full localStorage-based implementation
+  window.api = {
   // Tasks CRUD
   getTasks: async () => lsGet('tasks', []),
   saveTasks: async (tasks) => {
@@ -109,109 +274,7 @@ window.api = {
     return true;
   },
 
-  // Natural Language Parsing
-  parseNaturalLanguage: async (text) => parseNaturalLanguage(text),
-
-  // Authentication
-  signIn: async () => {
-    try {
-      const user = await signInWithGoogle();
-      return { success: true, user };
-    } catch (err) {
-      console.error('Firebase signIn error:', err);
-      return { error: err.code ? `${err.code}: ${err.message}` : (err.message || 'Sign in failed') };
-    }
-  },
-
-  signOut: async () => {
-    try {
-      await signOutUser();
-      return { success: true };
-    } catch (err) {
-      return { error: err.message };
-    }
-  },
-
-  getUser: async () => {
-    const user = getCurrentUser();
-    if (user) return user;
-    try {
-      const stored = localStorage.getItem('auth.user');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      return null;
-    }
-  },
-
-  onAuthStateChanged: (callback) => {
-    onAuthChange(callback);
-  },
-
-  // Cloud Synchronization
-  syncPull: async () => {
-    return await performSyncFromCloud();
-  },
-
-  syncPush: async () => {
-    try {
-      await performSyncToCloud();
-      const timestamp = lsGet('lastSyncTimestamp');
-      return { success: true, timestamp };
-    } catch (err) {
-      return { error: err.message };
-    }
-  },
-
-  // Google Calendar Integration
-  calendarAutoRenewalEnabled: () => calendarBackendEnabled(),
-  disconnectGCal: async () => {
-    try {
-      await disconnectCalendarBackend();
-      return { success: true };
-    } catch (error) {
-      return { error: error.message };
-    }
-  },
-  reconnectGCal: async () => {
-    try {
-      console.log('[gcal] Reconnecting Google Calendar...');
-      let token = await refreshAccessToken(true);
-      if (token) return { success: true, token };
-      return { error: 'Failed to reconnect Google Calendar' };
-    } catch (e) {
-      return { error: e.message };
-    }
-  },
-
-  getGCalCalendars: async () => {
-    try {
-      return await fetchCalendars();
-    } catch (e) {
-      console.warn('Failed to fetch Google Calendars:', e.message || e);
-      if (e.message.includes('401') || e.message.includes('No Google Access Token')) {
-        return { error: 'SESSION_EXPIRED' };
-      }
-      return { error: e.message };
-    }
-  },
-
-  getGCalEvents: async (calendarIds, timeMin, timeMax) => {
-    try {
-      let allEvents = [];
-      for (const calId of calendarIds) {
-        const evts = await fetchEvents(calId, timeMin, timeMax);
-        allEvents = allEvents.concat(evts);
-      }
-      return allEvents;
-    } catch (e) {
-      console.warn('Failed to fetch Google Events:', e.message || e);
-      if (e.message.includes('401') || e.message.includes('No Google Access Token')) {
-        return { error: 'SESSION_EXPIRED' };
-      }
-      return { error: e.message };
-    }
-  },
-
+  // GCal Cache (browser localStorage)
   getGcalEventsCache: async () => lsGet('gcalEventsCache', []),
   saveGcalEventsCache: async (cache) => { lsSet('gcalEventsCache', cache); return true; },
   getGcalCalendarsCache: async () => lsGet('gcalCalendarsCache', []),
@@ -232,5 +295,7 @@ window.api = {
   // Stubs for legacy methods that may be called
   getEvents: async () => [],
   getFloatingGoals: async () => [],
-  migrateLocalToCloud: async () => { /* no-op in web version */ }
-};
+  migrateLocalToCloud: async () => { /* no-op in web version */ },
+  ..._buildAuthSyncGCalMethods()
+  };
+}
