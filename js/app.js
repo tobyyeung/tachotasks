@@ -246,6 +246,15 @@ function setupAuth() {
       } catch (e) {
         console.error('refreshDataFromStore failed', e);
       }
+
+      // Trigger onboarding setup wizard for fresh accounts upon sign in
+      if (!state.settings.accountSetupComplete && (!state.tasks || state.tasks.length === 0)) {
+        setTimeout(() => {
+          if (typeof showOnboardingModal === 'function') {
+            showOnboardingModal();
+          }
+        }, 350);
+      }
     } else {
       // User is signed out
       signInBtn.classList.remove('hidden');

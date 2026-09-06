@@ -267,14 +267,14 @@ function ensureDefaultProfilesLocal(profiles = []) {
     'profile-work': 'assets/profiles/work.png',
     'profile-school': 'assets/profiles/school.png'
   };
-  for (const def of defaults) {
-    const existing = result.find(p => p.id === def.id || (p.name && p.name.toLowerCase() === def.name.toLowerCase()));
-    if (!existing) {
-      result.push(def);
-    } else {
-      if (!existing.image && defaultImages[existing.id]) {
-        existing.image = defaultImages[existing.id];
-      }
+  // Ensure system 'all' view always exists
+  if (!result.some(p => p.id === 'all')) {
+    result.unshift(defaults[0]);
+  }
+  // Preserve existing profiles and assign standard image paths if missing
+  for (const p of result) {
+    if (!p.image && defaultImages[p.id]) {
+      p.image = defaultImages[p.id];
     }
   }
   return result;
