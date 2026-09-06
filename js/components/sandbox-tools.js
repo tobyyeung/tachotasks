@@ -25,6 +25,14 @@ function initSandboxTools() {
     </div>
 
     <div class="sandbox-action-group">
+      <button class="sandbox-action-btn" id="sb-restore-original-btn" style="background:rgba(0,212,170,0.15);border:1px solid var(--accent);">
+        <span class="sandbox-icon">🔄</span>
+        <div>
+          <div style="font-weight:700;color:var(--accent);">Restore Original Workspace</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.85);">Recover all 42 real tasks & 11 sections</div>
+        </div>
+      </button>
+
       <button class="sandbox-action-btn" id="sb-reset-account-btn">
         <span class="sandbox-icon">✨</span>
         <div>
@@ -82,6 +90,16 @@ function initSandboxTools() {
 
   document.getElementById('sandbox-close-btn')?.addEventListener('click', () => {
     panel.classList.add('hidden');
+  });
+
+  // Action: Restore Original Workspace
+  document.getElementById('sb-restore-original-btn')?.addEventListener('click', async () => {
+    panel.classList.add('hidden');
+    if (typeof window.restoreOriginalWorkspace === 'function') {
+      await window.restoreOriginalWorkspace();
+    } else {
+      showToast('Recovery function not ready. Please refresh the page.', 'error');
+    }
   });
 
   // Action: Reset Account Setup
