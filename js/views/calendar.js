@@ -226,9 +226,31 @@ function renderCalendarEvents() {
     let endDate = evt.endDate || evt.date;
     const isPureAllDay = Boolean(evt.isAllDay || !evt.startTime);
 
-    // Overnight timed event: has start and end times, and either spans past midnight (endDate > startDate) or endTime <= startTime
-    const isOvernight = !isPureAllDay && Boolean(
-      (endDate > startDate) || (evt.endTime && evt.endTime <= evt.startTime)
+    // Check if timed event ends at 12am midnight (00:00 or 24:00)
+    const isEndTimeMidnight = Boolean(
+      !isPureAllDay && evt.endTime && (evt.endTime === '00:00' || evt.endTime === '24:00') && evt.startTime !== evt.endTime
+    );
+
+    let effectiveEndTime = evt.endTime;
+
+    if (isEndTimeMidnight) {
+      effectiveEndTime = '24:00';
+      // If endDate was set to the following day because of 00:00 midnight end time, adjust it back by 1 day
+      if (endDate > startDate && evt.endTime === '00:00') {
+        const parts = endDate.split('-').map(Number);
+        const prevD = new Date(parts[0], parts[1] - 1, parts[2] - 1);
+        const py = prevD.getFullYear();
+        const pm = String(prevD.getMonth() + 1).padStart(2, '0');
+        const pd = String(prevD.getDate()).padStart(2, '0');
+        endDate = `${py}-${pm}-${pd}`;
+        if (endDate < startDate) endDate = startDate;
+      }
+    }
+
+    // Overnight timed event: has start and end times, and either spans past midnight (endDate > startDate) or endTime <= startTime.
+    // Events ending at 12am midnight conclude at the boundary of that day and do NOT continue into the next day.
+    const isOvernight = !isPureAllDay && !isEndTimeMidnight && Boolean(
+      (endDate > startDate) || (effectiveEndTime && effectiveEndTime <= evt.startTime)
     );
 
     if (isOvernight && endDate <= startDate) {
@@ -300,10 +322,10 @@ function renderCalendarEvents() {
             id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
             date: dStr, originalStartDate: startDate, originalEndDate: endDate,
             startTime: evt.startTime || null,
-            endTime: evt.endTime || null,
+            endTime: effectiveEndTime || evt.endTime || null,
             location: evt.location || '',
             dayIdx, isAllDay: false,
-            isMultiDay: false, isMultiDayStart: true, isMultiDayEnd: true, isMultiDayMiddle: false
+            isMultiDay, isMultiDayStart: isStart, isMultiDayEnd: isEnd, isMultiDayMiddle: isMiddle
           });
         }
       }
@@ -572,11 +594,15 @@ function renderCalendarEvents() {
         item.endMinutes = item.startMinutes + 30;
       } else if (item.endTime) {
         const [eh, em] = item.endTime.split(':').map(Number);
-        item.endMinutes = eh * 60 + (em || 0);
+        if (eh === 24 || item.endTime === '24:00') {
+          item.endMinutes = 1440;
+        } else {
+          item.endMinutes = eh * 60 + (em || 0);
+        }
       } else {
         item.endMinutes = item.startMinutes + 45;
       }
-      if (item.endMinutes <= item.startMinutes) item.endMinutes = item.startMinutes + 15;
+      if (item.endMinutes <= item.startMinutes && item.endTime !== '24:00') item.endMinutes = item.startMinutes + 15;
     });
 
     dayItems.sort((a, b) => {

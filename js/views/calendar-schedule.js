@@ -46,8 +46,29 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
     let endDate = evt.endDate || evt.date;
     const isPureAllDay = Boolean(evt.isAllDay || !evt.startTime);
 
-    const isOvernight = !isPureAllDay && Boolean(
-      (endDate > startDate) || (evt.endTime && evt.endTime <= evt.startTime)
+    // Check if timed event ends at 12am midnight (00:00 or 24:00)
+    const isEndTimeMidnight = Boolean(
+      !isPureAllDay && evt.endTime && (evt.endTime === '00:00' || evt.endTime === '24:00') && evt.startTime !== evt.endTime
+    );
+
+    let effectiveEndTime = evt.endTime;
+
+    if (isEndTimeMidnight) {
+      effectiveEndTime = '24:00';
+      // If endDate was set to the following day because of 00:00 midnight end time, adjust it back by 1 day
+      if (endDate > startDate && evt.endTime === '00:00') {
+        const parts = endDate.split('-').map(Number);
+        const prevD = new Date(parts[0], parts[1] - 1, parts[2] - 1);
+        const py = prevD.getFullYear();
+        const pm = String(prevD.getMonth() + 1).padStart(2, '0');
+        const pd = String(prevD.getDate()).padStart(2, '0');
+        endDate = `${py}-${pm}-${pd}`;
+        if (endDate < startDate) endDate = startDate;
+      }
+    }
+
+    const isOvernight = !isPureAllDay && !isEndTimeMidnight && Boolean(
+      (endDate > startDate) || (effectiveEndTime && effectiveEndTime <= evt.startTime)
     );
 
     if (isOvernight && endDate <= startDate) {
@@ -95,7 +116,7 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
         } else {
           itemsByDate[dStr].push({
             id: evt.id, originalId: evt.id, type, title: evt.title || 'Untitled Event', color,
-            date: dStr, startTime: evt.startTime || null, endTime: evt.endTime || null,
+            date: dStr, startTime: evt.startTime || null, endTime: effectiveEndTime || evt.endTime || null,
             location: evt.location || '', isAllDay: false
           });
         }

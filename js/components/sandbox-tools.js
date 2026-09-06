@@ -41,6 +41,14 @@ function initSandboxTools() {
         </div>
       </button>
 
+      <button class="sandbox-action-btn" id="sb-inject-midnight-btn">
+        <span class="sandbox-icon">🕛</span>
+        <div>
+          <div style="font-weight:600;">Inject Midnight End Event (8pm-12am)</div>
+          <div style="font-size:11px;opacity:0.7;">Ends at 12am (should NOT show on next day)</div>
+        </div>
+      </button>
+
       <button class="sandbox-action-btn" id="sb-launch-onboarding-btn">
         <span class="sandbox-icon">🚀</span>
         <div>
@@ -116,6 +124,33 @@ function initSandboxTools() {
     state.currentView = 'calendar';
     renderView();
     showToast('Injected 8:00 PM – 4:00 AM overnight event into Calendar!', 'success');
+  });
+
+  // Action: Inject Event Ending at 12am Midnight
+  document.getElementById('sb-inject-midnight-btn')?.addEventListener('click', async () => {
+    const todayStr = getTodayStr();
+
+    const midnightEvent = {
+      id: `evt-midnight-${Date.now()}`,
+      title: 'Late Study Session (8pm–12am)',
+      date: todayStr,
+      endDate: todayStr,
+      startTime: '20:00',
+      endTime: '00:00',
+      color: '#3b82f6',
+      location: 'Main Library',
+      isAllDay: false,
+      isMultiDay: false
+    };
+
+    if (!Array.isArray(state.events)) state.events = [];
+    state.events.push(midnightEvent);
+    if (window.api.saveEvents) await window.api.saveEvents(state.events);
+
+    panel.classList.add('hidden');
+    state.currentView = 'calendar';
+    renderView();
+    showToast('Injected 8:00 PM – 12:00 AM midnight event! Check that it does not show tomorrow.', 'success');
   });
 
   // Action: Launch Onboarding Wizard

@@ -328,19 +328,32 @@ async function fetchEvents(calendarId, timeMin, timeMax) {
         const dd = String(startD.getDate()).padStart(2, '0');
         date = `${yyyy}-${mm}-${dd}`;
 
-        const endY = endD.getFullYear();
-        const endM = String(endD.getMonth() + 1).padStart(2, '0');
-        const endDay = String(endD.getDate()).padStart(2, '0');
-        endDate = `${endY}-${endM}-${endDay}`;
-        if (endDate < date) endDate = date;
-
         const stH = String(startD.getHours()).padStart(2, '0');
         const stM = String(startD.getMinutes()).padStart(2, '0');
         startTime = `${stH}:${stM}`;
 
-        const etH = String(endD.getHours()).padStart(2, '0');
-        const etM = String(endD.getMinutes()).padStart(2, '0');
-        endTime = `${etH}:${etM}`;
+        if (endD > startD && endD.getHours() === 0 && endD.getMinutes() === 0 && endD.getSeconds() === 0) {
+          // Event ends at exactly midnight (12:00 AM) at the day boundary.
+          // Google Calendar places end.dateTime at 00:00:00 of the following day.
+          // The event has 0 duration on the following day, so adjust endDate back to the day of endD - 1 second.
+          const adjEnd = new Date(endD.getTime() - 1000);
+          const endY = adjEnd.getFullYear();
+          const endM = String(adjEnd.getMonth() + 1).padStart(2, '0');
+          const endDay = String(adjEnd.getDate()).padStart(2, '0');
+          endDate = `${endY}-${endM}-${endDay}`;
+          if (endDate < date) endDate = date;
+          endTime = '24:00';
+        } else {
+          const endY = endD.getFullYear();
+          const endM = String(endD.getMonth() + 1).padStart(2, '0');
+          const endDay = String(endD.getDate()).padStart(2, '0');
+          endDate = `${endY}-${endM}-${endDay}`;
+          if (endDate < date) endDate = date;
+
+          const etH = String(endD.getHours()).padStart(2, '0');
+          const etM = String(endD.getMinutes()).padStart(2, '0');
+          endTime = `${etH}:${etM}`;
+        }
       }
 
       let location = item.location || '';

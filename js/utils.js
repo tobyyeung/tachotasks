@@ -174,8 +174,8 @@ function formatDateShort(dateVal) {
 function formatTime12(timeStr) {
   if (!timeStr) return '';
   const [h, m] = timeStr.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const ampm = (h >= 12 && h < 24) ? 'PM' : 'AM';
+  const h12 = (h === 0 || h === 24) ? 12 : (h > 12 ? h - 12 : h);
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
