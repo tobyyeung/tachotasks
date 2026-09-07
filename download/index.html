@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tacho Tasks brings your tasks, projects, and calendar into one calm command center.">
+  <meta name="theme-color" content="#101525">
+  <link rel="icon" href="../assets/brand/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../landing.css">
+  <style>
+    .hero { overflow: visible; }
+    .product-diagram { position: relative; max-width: 1200px; margin: 59px auto 0; }
+    .product-diagram .app-preview { margin: 0 auto; overflow: visible; }
+    .app-preview img { display: block; width: 100%; height: auto; border-radius: 15px; }
+    .preview-bar { border-radius: 15px 15px 0 0; }
+    .preview-layout { position: relative; border-radius: 0 0 15px 15px; }
+    .preview-nav { display: flex; align-items: center; gap: 8px; }
+    .preview-nav img { width: 15px; height: 15px; object-fit: contain; opacity: .8; }
+    .preview-nav.active img { opacity: 1; }
+    .walkthrough-label { position: absolute; z-index: 5; display: flex; gap: 11px; align-items: flex-start; width: 238px; padding: 14px 15px; border: 1px solid rgba(72,219,251,.65); border-radius: 10px; background: rgba(15,17,23,.96); box-shadow: 0 13px 28px rgba(0,0,0,.42), 0 0 24px rgba(72,219,251,.1); color: #aab4c9; font: 500 10px/1.55 'DM Mono', monospace; text-align: left; }
+    .walkthrough-label::after { position: absolute; width: 124px; height: 1px; content: ''; background: rgba(72,219,251,.8); }
+    .walkthrough-label b { display: grid; flex: 0 0 29px; width: 29px; height: 29px; border-radius: 50%; background: var(--cyan); color: #0f1117; font-size: 10px; place-items: center; }
+    .walkthrough-label strong { display: block; margin-bottom: 4px; color: #e5faff; font-size: 11px; }
+    .label-nav { top: 48px; left: 0; }.label-nav::after { top: 50%; left: 100%; transform: rotate(-10deg); transform-origin: left center; }
+    .label-focus { top: 34px; right: 0; border-color: #a892ff; background: #211a35; box-shadow: 0 13px 28px rgba(0,0,0,.42), 0 0 24px rgba(168,146,255,.28); }.label-focus::after { top: 50%; right: 100%; background: #a892ff; transform: rotate(-13deg); transform-origin: right center; }.label-focus b { background: #a892ff; }.label-focus strong { color: #eee9ff; }
+    .label-tasks { right: 0; bottom: 17px; border-color: #ff9b5c; background: #2a1b18; box-shadow: 0 13px 28px rgba(0,0,0,.42), 0 0 24px rgba(240,139,93,.25); }.label-tasks::after { top: 50%; right: 100%; bottom: auto; background: #ff9b5c; transform: rotate(12deg); transform-origin: right center; }.label-tasks b { background: #ff9b5c; }.label-tasks strong { color: #fff0e7; }
+    .feature-grid { grid-template-columns: repeat(4, 1fr); }
+    .feature-grid article:nth-child(4) { margin-top: 25px; border-color: rgba(168,146,255,.3); background: linear-gradient(145deg,rgba(168,146,255,.11),rgba(255,255,255,.018)); }
+    .feature-grid article:nth-child(4) .feature-icon { border-color: #a892ff; color: #a892ff; }
+    .product-gallery { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 16px; margin-top: 62px; }
+    .product-gallery article { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .product-gallery img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; transition: transform .35s ease; }
+    .product-gallery article:hover img { transform: scale(1.025); }
+    .product-gallery div { padding: 13px 15px; }.product-gallery span { color: var(--cyan); font-size: 12px; font-weight: 800; }.product-gallery p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    @media (max-width: 1050px) { .walkthrough-label { display: none; } .feature-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .feature-grid, .product-gallery { grid-template-columns: 1fr; } }
+  </style>
+  <title>Tacho Tasks — Your day, in focus</title>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../" aria-label="Tacho Tasks home"><img src="../assets/brand/logo.png" alt=""><span>Tacho Tasks</span></a>
+    <nav aria-label="Primary navigation"><a href="#features">Features</a><a href="#download">Download</a><a class="nav-open" href="../">Open web app</a></nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow"><span></span> A better kind of busy</p>
+      <h1>Give your day<br><em>a shape.</em></h1>
+      <p class="hero-copy">Tacho is a home for the loose ends, bright ideas, and real-life plans that make up your week.</p>
+      <div class="hero-actions">
+        <a class="button button-primary" id="hero-download" href="#download">Download for your desktop <span aria-hidden="true">↓</span></a>
+        <a class="button button-secondary" href="../">Use Tacho on the web <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="platform-note" id="platform-note">Windows, macOS, Linux, or your browser. Same day, wherever you are.</p>
+      <div class="product-diagram">
+      <div class="app-preview" aria-label="Screenshot of the Tacho Tasks dashboard"><img src="../assets/landing/dashboard-demo.png" alt="Tacho Tasks demo dashboard showing template upcoming tasks, a daily task checklist, schedule, and upcoming dates"></div>
+      <div class="walkthrough-label label-nav"><b>01</b><span><strong>Your workspace</strong>Projects and views stay within reach.</span></div>
+      <div class="walkthrough-label label-focus"><b>02</b><span><strong>Know the next move</strong>A focused snapshot of today.</span></div>
+      <div class="walkthrough-label label-tasks"><b>03</b><span><strong>Act, then clear it</strong>Tasks, context, and progress together.</span></div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <p class="eyebrow"><span></span> Everything in its place</p>
+      <h2>Built around the way<br>you actually plan.</h2>
+      <div class="feature-grid">
+        <article><div class="feature-icon violet">01</div><h3>Dashboard</h3><p>Start with what matters: today’s focus, completed work, upcoming tasks, and your current priorities in one clear view.</p></article>
+        <article><div class="feature-icon blue">02</div><h3>Tasks & projects</h3><p>Capture tasks quickly, give them priorities, organize them into global projects and sections, then keep momentum moving.</p></article>
+        <article><div class="feature-icon orange">03</div><h3>Calendar & planner</h3><p>See your task deadlines alongside Google Calendar events, then map out the week in a dedicated planning view.</p></article>
+        <article><div class="feature-icon violet">04</div><h3>Make it yours</h3><p>Choose your priority colors, preferences, profiles, and sync setup—so the workspace works the way you do.</p></article>
+      </div>
+      <div class="product-gallery" aria-label="Tacho Tasks views">
+        <article><img src="../assets/landing/tasks.png" alt="Tacho Tasks board view"><div><span>Tasks</span><p>Organize work in a visual board.</p></div></article>
+        <article><img src="../assets/landing/calendar.png" alt="Tacho Tasks weekly calendar"><div><span>Calendar</span><p>Plan tasks beside your events.</p></div></article>
+        <article><img src="../assets/landing/projects.png" alt="Tacho Tasks project view"><div><span>Projects</span><p>Track each project’s progress.</p></div></article>
+      </div>
+    </section>
+
+    <section class="download" id="download">
+      <div><p class="eyebrow"><span></span> Desktop app</p><h2>Put Tacho<br>on your desk.</h2><p>Install the desktop app for a roomier workspace, native notifications, local storage, and quiet automatic updates.</p></div>
+      <div class="download-card"><img src="../assets/brand/logo.png" alt="Tacho Tasks"><div><strong id="download-title">Download Tacho Tasks</strong><span id="download-subtitle">Choose your operating system</span></div><a class="button button-primary" id="download-button" href="../">Download <span aria-hidden="true">↓</span></a><div class="download-other"><a id="windows-download" href="#">Windows</a><a id="mac-download" href="#">macOS</a><a id="linux-download" href="#">Linux</a></div></div>
+    </section>
+  </main>
+  <footer><a class="brand" href="../"><img src="../assets/brand/logo.png" alt=""><span>Tacho Tasks</span></a><span>For days with a lot going on.</span><a href="../">Open web app →</a></footer>
+  <script src="../downloads.js"></script>
+  <script src="../landing.js"></script>
+</body>
+</html>

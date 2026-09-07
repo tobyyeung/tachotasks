@@ -34,7 +34,7 @@ export default defineConfig({
           const { copyFileSync } = require('fs');
           copyFileSync(resolve(root, 'auth.html'), resolve(dist, 'auth.html'));
         }
-        for (const file of ['downloads.js', 'landing.js']) {
+        for (const file of ['app.html', 'downloads.js', 'landing.js']) {
           if (!existsSync(resolve(root, file))) continue;
           const { copyFileSync } = require('fs');
           copyFileSync(resolve(root, file), resolve(dist, file));
@@ -52,7 +52,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        app: resolve(__dirname, 'app.html')
+        download: resolve(__dirname, 'download/index.html')
       }
     },
     // Don't hash asset filenames (needed for Electron static loading)

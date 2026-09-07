@@ -110,7 +110,7 @@ function startLocalServer(rootDirParam) {
         return;
       }
 
-      if (reqPath === '/' || reqPath === '') reqPath = '/app.html';
+      if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
       const relativePath = reqPath.replace(/^[/\\]+/, '');
       let filePath = path.resolve(serverDir, relativePath);
       const normalizedServerDir = path.resolve(serverDir) + path.sep;
@@ -198,14 +198,14 @@ async function createWindow() {
   const rootDir = fs.existsSync(distDir) ? distDir : path.join(__dirname, '..');
 
   if (process.env.VITE_DEV_SERVER === 'true') {
-    mainWindow.loadURL(`${VITE_DEV_URL}/app.html`);
+    mainWindow.loadURL(`${VITE_DEV_URL}/`);
   } else {
     try {
       const port = await startLocalServer(rootDir);
-      mainWindow.loadURL(`http://localhost:${port}/app.html`);
+      mainWindow.loadURL(`http://localhost:${port}/`);
     } catch (e) {
       console.warn('[server] Fallback to loadFile:', e);
-      mainWindow.loadFile(path.join(rootDir, 'app.html'));
+      mainWindow.loadFile(path.join(rootDir, 'index.html'));
     }
   }
 
