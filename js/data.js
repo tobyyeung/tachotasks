@@ -379,3 +379,56 @@ function showPostponeUndoToast(previousDates, count) {
   }, 4000);
 }
 
+// Do not lose a task that is midway through its completion animation when the
+// window is refreshed or closed. This is deliberately synchronous first so it
+// also works during the browser's short beforeunload lifecycle.
+window.addEventListener('beforeunload', () => {
+  const pendingTasks = (state.tasks || []).filter(task => task && task.isCompleting);
+  if (pendingTasks.length === 0) return;
+
+  const nowIso = new Date().toISOString();
+  const today = getTodayStr();
+  const archived = [...(state.archivedTasks || [])];
+
+  pendingTasks.forEach(task => {
+    task.isCompleting = false;
+    if (isTaskRecurring(task)) {
+      task.previousDueDate = task.dueDate || today;
+      task.previousPlannedDate = task.plannedDate || null;
+      const completedRecord = {
+        ...task,
+        id: `${task.id}-${task.dueDate || today}-${Date.now()}`,
+        completed: true,
+        completedAt: nowIso,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        originalTaskId: task.id,
+        isRecurringInstance: true
+      };
+      delete completedRecord.previousDueDate;
+      delete completedRecord.previousPlannedDate;
+      archived.push(completedRecord);
+      task.lastCompletedDate = today;
+      task.dueDate = getNextRecurringDate(task.dueDate || today, task.recurring);
+      if (task.plannedDate) task.plannedDate = getNextRecurringDate(task.plannedDate, task.recurring);
+      task.completed = false;
+    } else {
+      task.completed = true;
+      task.completedAt = nowIso;
+      archived.push(task);
+    }
+    task.updatedAt = nowIso;
+  });
+
+  state.tasks = (state.tasks || []).filter(task => !task.completed);
+  state.archivedTasks = archived;
+  try {
+    localStorage.setItem('tachotasks.tasks', JSON.stringify(state.tasks));
+    localStorage.setItem('tachotasks.archivedTasks', JSON.stringify(archived));
+    if (window.electronStorage) {
+      window.electronStorage.saveTasks(state.tasks);
+      window.electronStorage.saveArchivedTasks(archived);
+    }
+  } catch (_) {}
+});
+

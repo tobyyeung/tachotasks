@@ -153,10 +153,22 @@ function setSyncStatus(status) {
 
 function ensureTaskSchema(tasks) {
   if (!Array.isArray(tasks)) return [];
-  return tasks.map(t => ({
-    ...t,
-    plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
-  }));
+  const activeOnly = [];
+  tasks.forEach(t => {
+    if (!t) return;
+    const formatted = {
+      ...t,
+      plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
+    };
+    if (formatted.completed === true) {
+      if (state.archivedTasks && !state.archivedTasks.some(a => a.id === formatted.id)) {
+        state.archivedTasks.push(formatted);
+      }
+    } else {
+      activeOnly.push(formatted);
+    }
+  });
+  return activeOnly;
 }
 
 function restoreReferencedTaskSections(tasks, settings) {
@@ -183,11 +195,11 @@ function restoreReferencedTaskSections(tasks, settings) {
 }
 
 async function refreshDataFromStore() {
+  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
   state.projects = await window.api.getProjects() || [];
   state.events = [];
   state.floatingGoals = [];
-  state.archivedTasks = await window.api.getArchivedTasks() || [];
   state.settings = await window.api.getSettings() || {};
   state.profiles = typeof ensureDefaultProfiles === 'function' ? ensureDefaultProfiles(await window.api.getProfiles() || []) : (await window.api.getProfiles() || []);
 
