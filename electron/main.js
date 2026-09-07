@@ -24,6 +24,8 @@ const rootDir = fs.existsSync(distDir) ? distDir : path.join(__dirname, '..');
 // Determine if running in development or production
 const isDev = !app.isPackaged;
 const VITE_DEV_URL = 'http://localhost:5173';
+// Firebase auth persistence is origin-scoped. This must remain stable between launches.
+const ELECTRON_LOOPBACK_PORT = 51893;
 
 /**
  * Starts a lightweight local HTTP server serving app assets.
@@ -51,7 +53,14 @@ function startLocalServer(rootDirParam) {
     };
 
     localServer = http.createServer((req, res) => {
-      let reqPath = decodeURIComponent(req.url.split('?')[0]);
+      let reqPath;
+      try {
+        reqPath = decodeURIComponent(req.url.split('?')[0]);
+      } catch (_) {
+        res.writeHead(400);
+        res.end('Bad Request');
+        return;
+      }
 
       // CORS Preflight
       if (req.method === 'OPTIONS') {
@@ -101,13 +110,20 @@ function startLocalServer(rootDirParam) {
         return;
       }
 
-      if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
-      const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
-      let filePath = path.join(serverDir, safePath);
+      if (reqPath === '/' || reqPath === '') reqPath = '/app.html';
+      const relativePath = reqPath.replace(/^[/\\]+/, '');
+      let filePath = path.resolve(serverDir, relativePath);
+      const normalizedServerDir = path.resolve(serverDir) + path.sep;
+      if (filePath !== path.resolve(serverDir) && !filePath.startsWith(normalizedServerDir)) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
 
       if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-        const fallbackPath = path.join(__dirname, '..', safePath);
-        if (fs.existsSync(fallbackPath) && fs.statSync(fallbackPath).isFile()) {
+        const fallbackRoot = path.resolve(__dirname, '..');
+        const fallbackPath = path.resolve(fallbackRoot, relativePath);
+        if ((fallbackPath === fallbackRoot || fallbackPath.startsWith(fallbackRoot + path.sep)) && fs.existsSync(fallbackPath) && fs.statSync(fallbackPath).isFile()) {
           filePath = fallbackPath;
         }
       }
@@ -131,7 +147,7 @@ function startLocalServer(rootDirParam) {
       reject(err);
     });
 
-    localServer.listen(0, 'localhost', () => {
+    localServer.listen(ELECTRON_LOOPBACK_PORT, 'localhost', () => {
       localServerPort = localServer.address().port;
       console.log(`[server] Local app server running at http://localhost:${localServerPort}`);
       resolve(localServerPort);
@@ -167,8 +183,10 @@ async function createWindow() {
       sandbox: false
     },
     show: false, // Show after ready-to-show to avoid white flash
-    titleBarStyle: 'default'
+    titleBarStyle: 'default',
+    autoHideMenuBar: true
   });
+  mainWindow.setMenuBarVisibility(false);
 
   // Show window when content is ready (avoids white flash)
   mainWindow.once('ready-to-show', () => {
@@ -180,14 +198,14 @@ async function createWindow() {
   const rootDir = fs.existsSync(distDir) ? distDir : path.join(__dirname, '..');
 
   if (process.env.VITE_DEV_SERVER === 'true') {
-    mainWindow.loadURL(VITE_DEV_URL);
+    mainWindow.loadURL(`${VITE_DEV_URL}/app.html`);
   } else {
     try {
       const port = await startLocalServer(rootDir);
-      mainWindow.loadURL(`http://localhost:${port}`);
+      mainWindow.loadURL(`http://localhost:${port}/app.html`);
     } catch (e) {
       console.warn('[server] Fallback to loadFile:', e);
-      mainWindow.loadFile(path.join(rootDir, 'index.html'));
+      mainWindow.loadFile(path.join(rootDir, 'app.html'));
     }
   }
 
@@ -498,8 +516,15 @@ function setupIpcHandlers() {
   });
 
   // ---- Misc ----
-  ipcMain.handle('shell:openExternal', (_, url) => {
-    shell.openExternal(url);
+  ipcMain.handle('shell:openExternal', async (_, url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['https:', 'http:', 'mailto:'].includes(parsed.protocol)) return false;
+      await shell.openExternal(parsed.toString());
+      return true;
+    } catch (_) {
+      return false;
+    }
   });
 
   ipcMain.handle('app:getVersion', () => {
@@ -567,6 +592,9 @@ app.on('web-contents-created', (event, contents) => {
 });
 
 app.whenReady().then(async () => {
+  // The app uses the native window controls only; no Chromium File/Edit/View menu.
+  Menu.setApplicationMenu(null);
+  app.setName('Tacho Tasks');
   await initDatabase();
   setupIpcHandlers();
 
@@ -583,6 +611,9 @@ app.whenReady().then(async () => {
   } catch (e) {
     console.warn('[session] Could not configure session user-agent:', e);
   }
+
+  // The task app has no feature that needs arbitrary Chromium permissions.
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
   createWindow();
   createTray();

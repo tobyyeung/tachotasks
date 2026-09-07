@@ -91,8 +91,8 @@ async function init() {
   // Render initial view
   renderView();
 
-  // Trigger onboarding setup wizard for fresh accounts
-  if (!state.settings.accountSetupComplete && (!state.tasks || state.tasks.length === 0)) {
+  // An empty workspace is not proof of a new account. Only cloud-marked first runs may open setup.
+  if (state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
     setTimeout(() => {
       if (typeof showOnboardingModal === 'function') {
         showOnboardingModal();
@@ -261,8 +261,8 @@ function setupAuth() {
         console.error('refreshDataFromStore failed', e);
       }
 
-      // Trigger onboarding setup wizard for fresh accounts upon sign in
-      if (!state.settings.accountSetupComplete && (!state.tasks || state.tasks.length === 0)) {
+      // Do not alter returning empty workspaces; automatic setup is for brand-new cloud accounts only.
+      if (state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
         setTimeout(() => {
           if (typeof showOnboardingModal === 'function') {
             showOnboardingModal();

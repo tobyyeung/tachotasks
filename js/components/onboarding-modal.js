@@ -398,6 +398,7 @@ function attachOnboardingListeners() {
       applyPriorityColorsChoice();
 
       state.settings.accountSetupComplete = true;
+      state.settings.onboardingEligible = false;
       if (window.api && window.api.saveSettings) {
         await window.api.saveSettings(state.settings);
       }
@@ -440,6 +441,7 @@ function attachOnboardingListeners() {
       applyPriorityColorsChoice();
 
       state.settings.accountSetupComplete = true;
+      state.settings.onboardingEligible = false;
       if (window.api && window.api.saveSettings) {
         await window.api.saveSettings(state.settings);
       }

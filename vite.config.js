@@ -34,7 +34,12 @@ export default defineConfig({
           const { copyFileSync } = require('fs');
           copyFileSync(resolve(root, 'auth.html'), resolve(dist, 'auth.html'));
         }
-        console.log('[vite-copy] Copied js/, assets/, and auth.html to dist/');
+        for (const file of ['downloads.js', 'landing.js']) {
+          if (!existsSync(resolve(root, file))) continue;
+          const { copyFileSync } = require('fs');
+          copyFileSync(resolve(root, file), resolve(dist, file));
+        }
+        console.log('[vite-copy] Copied app assets, auth callback, and landing scripts to dist/.');
       }
     }
   ],
@@ -46,7 +51,8 @@ export default defineConfig({
     // Keep asset filenames stable for Electron
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(__dirname, 'index.html'),
+        app: resolve(__dirname, 'app.html')
       }
     },
     // Don't hash asset filenames (needed for Electron static loading)

@@ -1136,6 +1136,50 @@ window.TACHOTASKS_ORIGINAL_BACKUP = {
   "exportedAt": "2026-09-06T18:41:04.097Z"
 };
 
+// Repairs section metadata only. Unlike the full recovery action below, this never replaces tasks.
+window.restoreKnownTaskSectionMetadata = async function() {
+  const backup = window.TACHOTASKS_ORIGINAL_BACKUP;
+  if (!backup || !state || !state.settings) return false;
+
+  const backupSections = Array.isArray(backup.taskSections) ? backup.taskSections : [];
+  if (backupSections.length === 0) return false;
+
+  const referencedIds = new Set([...(state.tasks || []), ...(state.archivedTasks || [])]
+    .filter(task => task && !task.projectId && task.sectionId && task.sectionId !== 'unsectioned')
+    .map(task => task.sectionId));
+  if (referencedIds.size === 0) return false;
+
+  const backupById = new Map(backupSections.map(section => [section && section.id, section]).filter(([id]) => Boolean(id)));
+  const currentSections = Array.isArray(state.settings.taskSections) ? [...state.settings.taskSections] : [];
+  const currentById = new Map(currentSections.map(section => [section && section.id, section]).filter(([id]) => Boolean(id)));
+  let changed = false;
+
+  referencedIds.forEach(id => {
+    const recovered = backupById.get(id);
+    if (!recovered) return;
+    const existing = currentById.get(id);
+    const hasPlaceholderName = existing && /^Recovered section \d+$/i.test(existing.name || '');
+    if (!existing || hasPlaceholderName) {
+      const replacement = { ...recovered };
+      if (existing) {
+        const index = currentSections.findIndex(section => section && section.id === id);
+        currentSections[index] = replacement;
+      } else {
+        currentSections.push(replacement);
+      }
+      currentById.set(id, replacement);
+      changed = true;
+    }
+  });
+
+  if (!changed) return false;
+  state.settings.taskSections = currentSections;
+  state.settings.taskSectionsInitialized = true;
+  state.settings.updatedAt = new Date().toISOString();
+  if (window.api && window.api.saveSettings) await window.api.saveSettings(state.settings);
+  return true;
+};
+
 window.restoreOriginalWorkspace = async function() {
   if (!window.TACHOTASKS_ORIGINAL_BACKUP) return;
   const backup = window.TACHOTASKS_ORIGINAL_BACKUP;

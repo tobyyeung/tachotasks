@@ -159,6 +159,29 @@ function ensureTaskSchema(tasks) {
   }));
 }
 
+function restoreReferencedTaskSections(tasks, settings) {
+  if (!settings || typeof settings !== 'object') return false;
+  const referencedIds = [...new Set((tasks || [])
+    .filter(task => task && !task.projectId && task.sectionId && task.sectionId !== 'unsectioned')
+    .map(task => task.sectionId))];
+  if (referencedIds.length === 0) return false;
+
+  const sections = Array.isArray(settings.taskSections) ? [...settings.taskSections] : [];
+  const knownIds = new Set(sections.map(section => section && section.id).filter(Boolean));
+  const missingIds = referencedIds.filter(id => !knownIds.has(id));
+  if (missingIds.length === 0) return false;
+
+  // Preserve grouping even if a previous sync lost the section metadata. Names can be edited later.
+  const startingCount = sections.length;
+  missingIds.forEach((id, index) => {
+    sections.push({ id, name: `Recovered section ${startingCount + index + 1}` });
+  });
+  settings.taskSections = sections;
+  settings.taskSectionsInitialized = true;
+  settings.updatedAt = new Date().toISOString();
+  return true;
+}
+
 async function refreshDataFromStore() {
   state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
   state.projects = await window.api.getProjects() || [];
@@ -171,7 +194,7 @@ async function refreshDataFromStore() {
   if (!state.settings.defaultProfileId) {
     state.settings.defaultProfileId = 'profile-personal';
   }
-  if (!Array.isArray(state.settings.taskSections) && !state.settings.taskSectionsInitialized) {
+  if (!Array.isArray(state.settings.taskSections) && state.settings.onboardingEligible === true && !state.settings.taskSectionsInitialized) {
     state.settings.taskSections = [
       { id: 'sec-todo', name: 'To Do' },
       { id: 'sec-in-progress', name: 'In Progress' },
@@ -181,7 +204,14 @@ async function refreshDataFromStore() {
   } else if (!Array.isArray(state.settings.taskSections)) {
     state.settings.taskSections = [];
   }
-  if (!Array.isArray(state.settings.projectSections)) {
+  const restoredSections = restoreReferencedTaskSections(state.tasks, state.settings);
+  if (restoredSections) {
+    await window.api.saveSettings(state.settings);
+  }
+  if (typeof window.restoreKnownTaskSectionMetadata === 'function') {
+    await window.restoreKnownTaskSectionMetadata();
+  }
+  if (!Array.isArray(state.settings.projectSections) && state.settings.onboardingEligible === true) {
     state.settings.projectSections = [
       { id: 'psec-todo', name: 'To Do' },
       { id: 'psec-in-progress', name: 'In Progress' },

@@ -81,7 +81,14 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 
 ---
 
+## Web and desktop entry points
+
+- **Public site:** `index.html` is the landing page with desktop downloads and a link to the browser app.
+- **Web app:** `app.html` is the full Tacho Tasks workspace.
+- **Electron:** opens `app.html` directly, so the packaged desktop app never shows the marketing page.
+
+When publishing a new Electron release, update the version and artifact names in `downloads.js`, then upload the generated installers to the configured `https://tasks.tobyyeung.com/releases/` endpoint.
+
 ## Pending Updates & Roadmap
 
-- [ ] add electron
 - [ ] add mobile app capability

@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { ensureGsiClient, resetGsiClient } from './gcal-api.js';
 
@@ -21,6 +21,9 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+// Explicitly retain the Firebase session on this device (including Electron's stable localhost origin).
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence)
+  .catch(error => console.warn('[auth] Could not configure local persistence:', error));
 
 let _currentUser = null;
 const _authCallbacks = [];
@@ -132,6 +135,7 @@ export async function getFirebaseIdToken() {
 }
 export function onAuthChange(cb) { _authCallbacks.push(cb); if (_currentUser) cb(_currentUser); }
 export async function signInWithGoogle() {
+  await authPersistenceReady;
   const provider = new GoogleAuthProvider();
   provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
   provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
@@ -156,6 +160,7 @@ export async function signInWithGoogle() {
 }
 
 export async function completeBrowserSignIn({ googleIdToken, idToken, accessToken, user, expiresIn }) {
+  await authPersistenceReady;
   // Extract Google OAuth ID token (ensure we never pass a Firebase ID token to GoogleAuthProvider)
   let realGoogleIdToken = googleIdToken || null;
   if (!realGoogleIdToken && idToken) {
@@ -549,6 +554,31 @@ function mergeEntitiesWithTimestamps(collName, localItems = [], remoteItems = []
 }
 
 /**
+ * Prevent a partial settings document from orphaning task section assignments.
+ * Section metadata is stored in settings, while every task stores only sectionId.
+ */
+function preserveReferencedTaskSections(settings, fallbackSettings, tasks) {
+  const result = { ...(settings || {}) };
+  const currentSections = Array.isArray(result.taskSections) ? result.taskSections : [];
+  const fallbackSections = Array.isArray(fallbackSettings && fallbackSettings.taskSections)
+    ? fallbackSettings.taskSections
+    : [];
+  const referencedIds = new Set((tasks || [])
+    .filter(task => task && !task.projectId && task.sectionId && task.sectionId !== 'unsectioned')
+    .map(task => task.sectionId));
+  const knownIds = new Set(currentSections.map(section => section && section.id).filter(Boolean));
+  const fallbackById = new Map(fallbackSections.map(section => [section && section.id, section]).filter(([id]) => Boolean(id)));
+  const missing = [...referencedIds].filter(id => !knownIds.has(id) && fallbackById.has(id));
+
+  if (missing.length === 0) return { settings: result, repaired: false };
+
+  result.taskSections = [...currentSections, ...missing.map(id => fallbackById.get(id))];
+  result.taskSectionsInitialized = true;
+  result.updatedAt = new Date().toISOString();
+  return { settings: result, repaired: true };
+}
+
+/**
  * Core bidirectional synchronization and conflict resolution engine.
  */
 async function syncCollectionsBidirectional(uid) {
@@ -704,6 +734,10 @@ async function syncCollectionsBidirectional(uid) {
       ];
       finalSettings.taskSectionsInitialized = true;
     }
+    // Only an account with no settings document is eligible for automatic first-run setup.
+    if (finalSettings.accountSetupComplete !== true) {
+      finalSettings.onboardingEligible = true;
+    }
     pushSettings = true;
   } else {
     const localTime = new Date(localSettings.updatedAt || 0).getTime();
@@ -717,6 +751,11 @@ async function syncCollectionsBidirectional(uid) {
       finalSettings = { ...remoteSettings, ...localSettings };
     }
   }
+
+  // A remote settings update must never remove metadata for sectionIds still used by tasks.
+  const sectionRepair = preserveReferencedTaskSections(finalSettings, localSettings, newData.tasks);
+  finalSettings = sectionRepair.settings;
+  if (sectionRepair.repaired) pushSettings = true;
 
   await localStoreSet('settings', finalSettings);
   newData.settings = finalSettings;
