@@ -1,6 +1,6 @@
 {
   "name": "tachotasks",
-  "version": "1.18.2",
+  "version": "1.19.4",
   "description": "Tacho Tasks — A unified daily command center for schedule, tasks, and life events",
   "main": "electron/main.js",
   "scripts": {
@@ -38,17 +38,23 @@
     ],
     "win": {
       "artifactName": "Tacho-Tasks-Setup.${ext}",
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "assets/brand/logo.png"
     },
     "mac": {
       "artifactName": "Tacho-Tasks.${ext}",
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "assets/brand/logo.png"
     },
     "linux": {
       "artifactName": "Tacho-Tasks.${ext}",
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "assets/brand/logo.png"
     },
     "nsis": {
