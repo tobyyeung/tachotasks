@@ -11,6 +11,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronStorage', {
   // ---- Tasks CRUD ----
+  getTaskCollections: () => ipcRenderer.invoke('db:getTaskCollections'),
+  saveTaskCollections: (data) => ipcRenderer.invoke('db:saveTaskCollections', data),
   getTasks: () => ipcRenderer.invoke('db:getTasks'),
   saveTasks: (tasks) => ipcRenderer.invoke('db:saveTasks', tasks),
   getArchivedTasks: () => ipcRenderer.invoke('db:getArchivedTasks'),

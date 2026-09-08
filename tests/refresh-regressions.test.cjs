@@ -11,6 +11,7 @@ function storageContext() {
     localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
     triggerSyncToCloud() {}
   });
+  vm.runInContext(read('js/api/task-state.js').replace(/export /g, ''), context);
   vm.runInContext(read('js/browser-api.js').replace(/^import .*;\r?\n/gm, ''), context);
   return context;
 }

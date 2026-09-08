@@ -1,8 +1,9 @@
 // ===== INITIALIZATION =====
 async function init() {
   // Load all data from store
-  state.archivedTasks = await window.api.getArchivedTasks() || [];
-  state.tasks = ensureTaskSchema(await window.api.getTasks());
+  const taskData = await window.api.getTaskCollections();
+  state.archivedTasks = taskData.archivedTasks || [];
+  state.tasks = ensureTaskSchema(taskData.tasks);
   state.projects = await window.api.getProjects();
   state.events = [];
   state.floatingGoals = [];

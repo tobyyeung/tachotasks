@@ -25,6 +25,26 @@ async function toggleTask(taskId) {
   const task = state.tasks.find(t => t.id === taskId);
   const today = getTodayStr();
 
+  if (task && !isTaskRecurring(task)) {
+    // Persist completion immediately; a remote refresh must not replace the
+    // object captured by a delayed animation before it can be archived.
+    const nowIso = nextTaskChangeTimestamp(taskId);
+    const completed = { ...task, completed: true, completedAt: nowIso, updatedAt: nowIso };
+    delete completed.isCompleting;
+    delete completed.completionTimeout;
+    state.tasks = state.tasks.filter(item => item.id !== taskId);
+    state.archivedTasks = state.archivedTasks.filter(item => item.id !== taskId).concat(completed);
+    const saved = window.api.saveTaskCollections({ tasks: state.tasks, archivedTasks: state.archivedTasks });
+    renderView();
+    showUndoToast(taskId, 'Task completed');
+    await saved;
+    return;
+  }
+  if (!task && state.archivedTasks.some(item => item.id === taskId && !item.originalTaskId)) {
+    await undoTaskCompletion(taskId);
+    return;
+  }
+
   if (task) {
     // If it's a recurring task that was completed today, clicking it uncompletes it for today
     if (isTaskRecurring(task) && task.lastCompletedDate === today) {
@@ -142,7 +162,26 @@ async function toggleTask(taskId) {
  * Reverts pending or archived task completion.
  * @param {string} taskId - ID of task to uncomplete.
  */
-function undoTaskCompletion(taskId) {
+function nextTaskChangeTimestamp(taskId) {
+  const latest = [...state.tasks, ...state.archivedTasks]
+    .filter(task => task.id === taskId)
+    .reduce((time, task) => Math.max(time, Date.parse(task.updatedAt || task.createdAt) || 0), 0);
+  return new Date(Math.max(Date.now(), latest + 1)).toISOString();
+}
+
+async function undoTaskCompletion(taskId) {
+  const ordinary = state.archivedTasks.find(task => task.id === taskId && !task.originalTaskId);
+  if (ordinary) {
+    const restored = { ...ordinary, completed: false, completedAt: null, updatedAt: nextTaskChangeTimestamp(taskId) };
+    delete restored.isCompleting;
+    delete restored.completionTimeout;
+    state.archivedTasks = state.archivedTasks.filter(task => task.id !== taskId);
+    state.tasks = state.tasks.filter(task => task.id !== taskId).concat(restored);
+    const saved = window.api.saveTaskCollections({ tasks: state.tasks, archivedTasks: state.archivedTasks });
+    renderView();
+    await saved;
+    return;
+  }
   const task = state.tasks.find(t => t.id === taskId);
   const today = getTodayStr();
 

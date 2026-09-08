@@ -14,6 +14,7 @@ test('startup waits for Firebase restoration instead of trusting a cached profil
     waitForAuthReady: () => ready,
     getCurrentUser: () => user
   });
+  vm.runInContext(read('js/api/task-state.js').replace(/export /g, ''), context);
   vm.runInContext(read('js/browser-api.js').replace(/^import .*;\r?\n/gm, ''), context);
   let settled = false;
   const result = context.window.api.getUser().then(value => { settled = true; return value; });

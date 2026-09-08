@@ -343,6 +343,22 @@ function setupIpcHandlers() {
   const db = getDb();
 
   // ---- Tasks ----
+  ipcMain.handle('db:getTaskCollections', () => ({
+    tasks: db.prepare('SELECT data FROM tasks').all().map(row => JSON.parse(row.data)),
+    archivedTasks: db.prepare('SELECT data FROM archived_tasks').all().map(row => JSON.parse(row.data))
+  }));
+  ipcMain.handle('db:saveTaskCollections', (_, data) => {
+    db.transaction(() => {
+      for (const [key, table] of [['tasks', 'tasks'], ['archivedTasks', 'archived_tasks']]) {
+        db.prepare(`DELETE FROM ${table}`).run();
+        const insert = db.prepare(`INSERT OR REPLACE INTO ${table} (id, data, updatedAt) VALUES (?, ?, ?)`);
+        for (const task of data[key]) {
+          if (task.id) insert.run(task.id, JSON.stringify(task), task.updatedAt || task.createdAt || new Date().toISOString());
+        }
+      }
+    })();
+    return true;
+  });
   ipcMain.handle('db:getTasks', () => {
     const rows = db.prepare('SELECT data FROM tasks').all();
     return rows.map(r => JSON.parse(r.data));

@@ -3,7 +3,6 @@
  * Google Calendar REST API & Google Identity Services (GSI) OAuth token manager.
  */
 
-import { reauthenticateWithFirebasePopup, extractAndSaveClientId } from './cloud-sync.js?v=82';
 
 // ===== GOOGLE CALENDAR API =====
 const GCAL_BASE_URL = 'https://www.googleapis.com/calendar/v3';

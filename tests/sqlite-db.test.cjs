@@ -78,6 +78,20 @@ test('SQLite database initializes and executes CRUD operations', async () => {
   assert.ok(tombstone);
   assert.equal(tombstone.type, 'task');
 
+  // Exercise the same atomic IPC handlers used by desktop completion and undo.
+  const mainSource = fs.readFileSync(path.join(__dirname, '../electron/main.js'), 'utf8');
+  const start = mainSource.indexOf("  ipcMain.handle('db:getTaskCollections'");
+  const end = mainSource.indexOf("  ipcMain.handle('db:getTasks'", start);
+  const handlers = {};
+  require('node:vm').runInNewContext(mainSource.slice(start, end), { db, ipcMain: { handle: (name, fn) => { handlers[name] = fn; } } });
+  const completed = { ...sampleTask, completed: true, updatedAt: now };
+  handlers['db:saveTaskCollections'](null, { tasks: [], archivedTasks: [completed] });
+  assert.equal(handlers['db:getTaskCollections']().tasks.length, 0);
+  assert.equal(handlers['db:getTaskCollections']().archivedTasks.length, 1);
+  assert.throws(() => handlers['db:saveTaskCollections'](null, { tasks: [sampleTask], archivedTasks: null }));
+  assert.equal(handlers['db:getTaskCollections']().tasks.length, 0, 'failed archive write rolls back the active-task write');
+  assert.equal(handlers['db:getTaskCollections']().archivedTasks.length, 1);
+
   // 6. Persist to disk and verify file exists
   db.persistNow();
   const dbFile = path.join(tempDir, 'tachotasks.db');

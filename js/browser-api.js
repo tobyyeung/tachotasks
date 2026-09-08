@@ -7,6 +7,7 @@ import { getCurrentUser, waitForAuthReady, onAuthChange, signInWithGoogle, signO
 import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
 import { parseNaturalLanguage } from './api/nlp-quickadd.js';
 import { calendarBackendEnabled, disconnectCalendarBackend } from './api/calendar-backend.js';
+import { cleanTaskRecord, withTaskStoreLock, readTaskCollections, writeTaskCollections } from './api/task-state.js';
 
 // ===== LOCAL STORAGE HELPERS =====
 function lsGet(key, defaultValue = null) {
@@ -35,7 +36,10 @@ function ensureEntityTimestamps(items, key) {
   if (!Array.isArray(items)) return items;
   const stored = lsGet(key, []);
   const previous = new Map((Array.isArray(stored) ? stored : []).filter(Boolean).map(item => [item.id, item]));
-  const content = ({ updatedAt, ...fields }) => JSON.stringify(fields);
+  const content = item => {
+    const { updatedAt, ...fields } = (key === 'tasks' || key === 'archivedTasks') ? cleanTaskRecord(item) : item;
+    return JSON.stringify(fields);
+  };
   const now = new Date().toISOString();
   items.forEach(item => {
     if (item && typeof item === 'object') {
@@ -325,3 +329,27 @@ if (_isElectronEnv && window.electronStorage) {
   ..._buildAuthSyncGCalMethods()
   };
 }
+
+// Snapshot changes at invocation time; queued saves must not observe later UI mutations.
+function persistTaskChanges(changes) {
+  const snapshot = {};
+  for (const [key, items] of Object.entries(changes)) {
+    const stamped = ensureEntityTimestamps(items, key);
+    snapshot[key] = stamped.map(cleanTaskRecord);
+  }
+  const frozen = JSON.parse(JSON.stringify(snapshot));
+  return withTaskStoreLock(async () => {
+    const current = await readTaskCollections();
+    await writeTaskCollections({ ...current, ...frozen });
+    triggerSyncToCloud();
+    return true;
+  });
+}
+Object.assign(window.api, {
+  getTaskCollections: () => withTaskStoreLock(readTaskCollections),
+  getTasks: async () => (await withTaskStoreLock(readTaskCollections)).tasks,
+  getArchivedTasks: async () => (await withTaskStoreLock(readTaskCollections)).archivedTasks,
+  saveTasks: tasks => persistTaskChanges({ tasks }),
+  saveArchivedTasks: archivedTasks => persistTaskChanges({ archivedTasks }),
+  saveTaskCollections: data => persistTaskChanges(data)
+});

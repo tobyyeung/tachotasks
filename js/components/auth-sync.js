@@ -160,6 +160,9 @@ function ensureTaskSchema(tasks) {
       ...t,
       plannedTime: t.plannedTime !== undefined ? t.plannedTime : null
     };
+    // Legacy versions accidentally persisted animation flags and timer handles.
+    delete formatted.isCompleting;
+    delete formatted.completionTimeout;
     if (formatted.completed === true) {
       if (state.archivedTasks && !state.archivedTasks.some(a => a.id === formatted.id)) {
         state.archivedTasks.push(formatted);
@@ -195,8 +198,9 @@ function restoreReferencedTaskSections(tasks, settings) {
 }
 
 async function refreshDataFromStore() {
-  state.archivedTasks = await window.api.getArchivedTasks() || [];
-  state.tasks = ensureTaskSchema(await window.api.getTasks() || []);
+  const taskData = await window.api.getTaskCollections();
+  state.archivedTasks = taskData.archivedTasks || [];
+  state.tasks = ensureTaskSchema(taskData.tasks || []);
   state.projects = await window.api.getProjects() || [];
   state.events = [];
   state.floatingGoals = [];

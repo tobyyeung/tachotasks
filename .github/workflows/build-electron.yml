@@ -35,6 +35,7 @@ jobs:
           node tests/sqlite-db.test.cjs
           node tests/desktop-regressions.test.cjs
           node tests/google-auth-regressions.test.cjs
+          node tests/task-completion-sync.test.cjs
 
       - name: Build web assets
         run: npm run build:web

@@ -5,8 +5,9 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithCredential, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDocs, writeBatch, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { ensureGsiClient, resetGsiClient } from './gcal-api.js';
+import { reconcileTaskCollections, taskRecordsEqual, withTaskStoreLock, readTaskCollections, writeTaskCollections } from './task-state.js';
 
 // ===== FIREBASE INITIALIZATION =====
 const firebaseConfig = {
@@ -325,7 +326,7 @@ export function startRealtimeSync(uid) {
   stopRealtimeSync();
   if (!uid) return;
 
-  const collections = ['tasks', 'projects', 'profiles', 'archivedTasks', 'settings'];
+  const collections = ['tasks', 'projects', 'profiles', 'archivedTasks', 'settings', 'tombstones'];
   let isInitial = true;
   let initialCount = 0;
 
@@ -590,7 +591,7 @@ function preserveReferencedTaskSections(settings, fallbackSettings, tasks) {
  * Core bidirectional synchronization and conflict resolution engine.
  */
 async function syncCollectionsBidirectional(uid) {
-  const collections = ['tasks', 'projects', 'profiles', 'archivedTasks'];
+  const collections = ['projects', 'profiles'];
   const newData = {};
 
   // 1. Fetch Remote Tombstones
@@ -620,30 +621,77 @@ async function syncCollectionsBidirectional(uid) {
   let opCount = 0;
   const allTombstonesToClear = [];
 
+  // Fetch both locations before reading local state. A completion may happen while
+  // these requests are in flight; the local store lock includes that latest edit.
+  const taskKeys = ['tasks', 'archivedTasks'];
+  const taskSnapshots = await Promise.all(taskKeys.map(key => getDocs(collection(db, `users/${uid}/${key}`))));
+  const remoteTasks = {};
+  taskSnapshots.forEach((snapshot, index) => {
+    remoteTasks[taskKeys[index]] = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
+  });
+  const localTasks = await withTaskStoreLock(readTaskCollections);
+  for (const [id, tombstone] of Object.entries(lsGet('tombstones', {}))) {
+    if (!allTombstones[id] || Date.parse(tombstone.deletedAt) > Date.parse(allTombstones[id].deletedAt)) {
+      allTombstones[id] = tombstone;
+    }
+  }
+  const proposed = reconcileTaskCollections(localTasks, remoteTasks, allTombstones);
+  const changedIds = new Set();
+  for (const key of taskKeys) {
+    const desired = new Map(proposed[key].map(task => [task.id, task]));
+    const existing = new Map(remoteTasks[key].map(task => [task.id, task]));
+    for (const id of new Set([...desired.keys(), ...existing.keys()])) {
+      if (!taskRecordsEqual(desired.get(id), existing.get(id))) changedIds.add(id);
+    }
+  }
+  // Re-read both documents in a transaction. A second device may have completed
+  // or undone this task since getDocs; Firestore retries if either document changes.
+  const committedTasks = { tasks: [...remoteTasks.tasks], archivedTasks: [...remoteTasks.archivedTasks] };
+  // At most two writes per task, below Firestore's 500-write transaction limit.
+  const ids = [...changedIds];
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const chunk = ids.slice(offset, offset + 200);
+    const committed = await runTransaction(db, async transaction => {
+      const freshRemote = { tasks: [], archivedTasks: [] };
+      const documents = await Promise.all(chunk.flatMap(id => taskKeys.map(async key => {
+        const ref = doc(db, `users/${uid}/${key}`, id);
+        const snapshot = await transaction.get(ref);
+        const value = snapshot.exists() ? { ...snapshot.data(), id } : undefined;
+        if (value) freshRemote[key].push(value);
+        return { key, id, ref, value };
+      })));
+      const candidates = Object.fromEntries(taskKeys.map(key => [key, proposed[key].filter(task => chunk.includes(task.id))]));
+      const resolved = reconcileTaskCollections(candidates, freshRemote, allTombstones);
+      for (const { key, id, ref, value } of documents) {
+        const winner = resolved[key].find(task => task.id === id);
+        if (!winner && value) transaction.delete(ref);
+        else if (winner && !taskRecordsEqual(winner, value)) transaction.set(ref, cleanObjectForFirestore(winner));
+      }
+      return resolved;
+    });
+    for (const key of taskKeys) {
+      committedTasks[key] = committedTasks[key].filter(task => !chunk.includes(task.id)).concat(committed[key]);
+    }
+  }
+  await withTaskStoreLock(async () => {
+    // Preserve any local completion/undo made while the transaction was in flight.
+    const latestLocal = await readTaskCollections();
+    const merged = reconcileTaskCollections(latestLocal, committedTasks, { ...allTombstones, ...lsGet('tombstones', {}) });
+    await writeTaskCollections(merged);
+    Object.assign(newData, merged);
+  });
   // 3. Process each entity collection
   for (const collName of collections) {
-    let localItems = await localStoreGet(collName, []);
-    if (collName === 'profiles') {
-      localItems = ensureDefaultProfilesLocal(localItems);
-    }
-
     const collRef = collection(db, `users/${uid}/${collName}`);
     const snapshot = await getDocs(collRef);
+    let localItems = await localStoreGet(collName, []);
+    if (collName === 'profiles') localItems = ensureDefaultProfilesLocal(localItems);
     const remoteItems = [];
 
     snapshot.forEach(docSnap => {
       let item = docSnap.data();
       if (!item.id) item.id = docSnap.id;
 
-      // Sanitize deprecated fields from cloud documents (Persistence & Cloud Sync Verification Rule)
-      if (collName === 'tasks' || collName === 'archivedTasks') {
-        if ('scheduledStartTime' in item || 'scheduledEndTime' in item || 'scheduledDate' in item || 'isInbox' in item) {
-          delete item.scheduledStartTime;
-          delete item.scheduledEndTime;
-          delete item.scheduledDate;
-          delete item.isInbox;
-        }
-      }
       if (collName === 'projects') {
         if (item.categoryId) {
           item.profileId = item.categoryId;
@@ -785,6 +833,17 @@ async function syncCollectionsBidirectional(uid) {
   return { success: true, timestamp, data: newData };
 }
 
+// Pulls and pushes share one queue. Two overlapping merges must never overwrite
+// one another with snapshots taken before a completion or undo.
+let collectionSyncQueue = Promise.resolve();
+function queueCollectionSync(uid) {
+  const run = collectionSyncQueue.then(() => {
+    if (auth.currentUser?.uid !== uid) throw new Error('Account changed during sync');
+    return syncCollectionsBidirectional(uid);
+  });
+  collectionSyncQueue = run.catch(() => {});
+  return run;
+}
 async function performSyncToCloud() {
   if (!_currentUser) throw new Error('Not signed in with Google');
   // Wait for Firebase to actually be authenticated before hitting Firestore
@@ -812,7 +871,7 @@ async function performSyncToCloud() {
   _isSyncing = true;
 
   try {
-    const result = await syncCollectionsBidirectional(uid);
+    const result = await queueCollectionSync(uid);
     return result;
   } catch (err) {
     console.error('syncToCloud error:', err);
@@ -845,7 +904,7 @@ async function performSyncFromCloud() {
 
   try {
     try { localStorage.removeItem('tt_reminders'); } catch (e) {}
-    const result = await syncCollectionsBidirectional(uid);
+    const result = await queueCollectionSync(uid);
     _hasPulledForUid[uid] = true;
     return result;
   } catch (err) {
