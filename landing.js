@@ -12,7 +12,7 @@
   downloadButton.href = urls[key];
   downloadButton.setAttribute('download', '');
   title.textContent = `Download for ${labels[key]}`;
-  subtitle.textContent = `Tacho Tasks ${config.version} · ${labels[key]}`;
+  subtitle.textContent = key === 'windows' ? 'Windows installer (.exe)' : `Latest release · ${labels[key]}`;
   hero.href = urls[key];
   hero.setAttribute('download', '');
   document.getElementById('platform-note').textContent = `Free for ${labels[key]} · Also available on the web · Your data stays in sync.`;

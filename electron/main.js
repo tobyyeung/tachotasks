@@ -4,7 +4,7 @@
  * wires IPC handlers to the SQLite database and sync engine.
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification, session, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -26,6 +26,16 @@ const isDev = !app.isPackaged;
 const VITE_DEV_URL = 'http://localhost:5173';
 // Firebase auth persistence is origin-scoped. This must remain stable between launches.
 const ELECTRON_LOOPBACK_PORT = 51893;
+
+// A second process would contend for the stable auth origin and SQLite store.
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
 
 /**
  * Starts a lightweight local HTTP server serving app assets.
@@ -204,8 +214,10 @@ async function createWindow() {
       const port = await startLocalServer(rootDir);
       mainWindow.loadURL(`http://localhost:${port}/`);
     } catch (e) {
-      console.warn('[server] Fallback to loadFile:', e);
-      mainWindow.loadFile(path.join(rootDir, 'index.html'));
+      // Changing to file:// hides the saved Firebase session on a different origin.
+      dialog.showErrorBox('Unable to start Tacho Tasks', `The desktop server could not start on port ${ELECTRON_LOOPBACK_PORT}. Close any other app using this port and try again.\n\n${e.message}`);
+      app.quit();
+      return;
     }
   }
 
@@ -592,6 +604,7 @@ app.on('web-contents-created', (event, contents) => {
 });
 
 app.whenReady().then(async () => {
+  if (!hasSingleInstanceLock) return;
   // The app uses the native window controls only; no Chromium File/Edit/View menu.
   Menu.setApplicationMenu(null);
   app.setName('Tacho Tasks');
@@ -635,6 +648,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  // Commit Chromium localStorage (including Firebase auth) before shutdown.
+  if (app.isReady()) session.defaultSession.flushStorageData();
   if (localServer) {
     try { localServer.close(); } catch (e) { /* ignore */ }
   }

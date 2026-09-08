@@ -34,6 +34,8 @@ const ONBOARDING_PROFILE_DEFAULTS = [
 ];
 
 function showOnboardingModal(forceReset = false) {
+  // Desktop never opens the tutorial, including after a cloud pull or reload.
+  if (window.electronAPI?.isElectron) return;
   if (forceReset) {
     _onboardingStep = 0;
     _onboardingShowSkipConfirm = false;

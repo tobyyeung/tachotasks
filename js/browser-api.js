@@ -3,7 +3,7 @@
  * Main API bridge exporting window.api for storage, cloud-sync, gcal, and NLP.
  */
 
-import { getCurrentUser, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone, completeBrowserSignIn } from './api/cloud-sync.js';
+import { getCurrentUser, waitForAuthReady, onAuthChange, signInWithGoogle, signOutUser, triggerSyncToCloud, performSyncToCloud, performSyncFromCloud, syncFromCloud, recordTombstone, completeBrowserSignIn } from './api/cloud-sync.js';
 import { ensureGsiClient, requestGsiToken, fetchCalendars, fetchEvents, reconnectGoogleCalendar, refreshAccessToken, fetchGoogleCalendars, fetchGoogleCalendarEvents } from './api/gcal-api.js';
 import { parseNaturalLanguage } from './api/nlp-quickadd.js';
 import { calendarBackendEnabled, disconnectCalendarBackend } from './api/calendar-backend.js';
@@ -109,12 +109,8 @@ function _buildAuthSyncGCalMethods() {
       }
     },
     getUser: async () => {
-      const user = getCurrentUser();
-      if (user) return user;
-      try {
-        const stored = localStorage.getItem('auth.user');
-        return stored ? JSON.parse(stored) : null;
-      } catch (e) { return null; }
+      await waitForAuthReady();
+      return getCurrentUser();
     },
     onAuthStateChanged: (callback) => { onAuthChange(callback); },
     syncPull: async () => { return await performSyncFromCloud(); },

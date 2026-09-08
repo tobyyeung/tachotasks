@@ -321,13 +321,13 @@ function renderSettings() {
           </div>
         </label>
 
-        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
+        ${window.electronAPI?.isElectron ? '' : `        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--text-primary);">Account Setup Wizard</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Re-launch the initial account onboarding & workflow configuration wizard.</div>
           </div>
           <button id="settings-rerun-onboarding-btn" class="btn-secondary" style="font-size:13px;padding:7px 14px;white-space:nowrap;">Run Setup Wizard</button>
-        </div>
+        </div>`}
       </div>
 
         </div> <!-- /.settings-content -->

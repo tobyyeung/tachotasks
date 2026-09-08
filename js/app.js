@@ -92,7 +92,7 @@ async function init() {
   renderView();
 
   // An empty workspace is not proof of a new account. Only cloud-marked first runs may open setup.
-  if (state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
+  if (!window.electronAPI?.isElectron && state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
     setTimeout(() => {
       if (typeof showOnboardingModal === 'function') {
         showOnboardingModal();
@@ -262,7 +262,7 @@ function setupAuth() {
       }
 
       // Do not alter returning empty workspaces; automatic setup is for brand-new cloud accounts only.
-      if (state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
+      if (!window.electronAPI?.isElectron && state.settings.onboardingEligible === true && !state.settings.accountSetupComplete) {
         setTimeout(() => {
           if (typeof showOnboardingModal === 'function') {
             showOnboardingModal();

@@ -37,14 +37,17 @@
       "package.json"
     ],
     "win": {
+      "artifactName": "Tacho-Tasks-Setup.${ext}",
       "target": ["nsis"],
       "icon": "assets/brand/logo.png"
     },
     "mac": {
+      "artifactName": "Tacho-Tasks.${ext}",
       "target": ["dmg"],
       "icon": "assets/brand/logo.png"
     },
     "linux": {
+      "artifactName": "Tacho-Tasks.${ext}",
       "target": ["AppImage"],
       "icon": "assets/brand/logo.png"
     },
@@ -55,8 +58,9 @@
       "createStartMenuShortcut": true
     },
     "publish": {
-      "provider": "generic",
-      "url": "https://tasks.tobyyeung.com/releases/"
+      "provider": "github",
+      "owner": "tobyyeung",
+      "repo": "tachotasks"
     }
   }
 }

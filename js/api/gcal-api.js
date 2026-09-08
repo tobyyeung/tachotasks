@@ -123,35 +123,13 @@ function requestGsiToken(prompt = '') {
   });
 }
 
-/**
- * Refresh the Google access token with escalating strategies:
- * 1. Silent GSI refresh (no popup)
- * 2. If interactive=true: GSI consent popup
- * 3. If interactive=true: Firebase popup fallback
- */
+/** Calendar consent is interactive; background work must never open OAuth windows. */
 async function refreshAccessToken(interactive = false) {
-  if (_refreshPromise) {
-    return _refreshPromise;
-  }
-
+  if (!interactive) return getValidAccessToken();
+  if (_refreshPromise) return _refreshPromise;
   _refreshPromise = (async () => {
     try {
-      // 1. Try silent GSI refresh first
-      console.log('[gcal] Attempting silent token refresh...');
-      let token = await requestGsiToken('');
-      if (token) return token;
-
-      if (!interactive) return null;
-
-      // 2. Interactive: GSI consent popup
-      console.log('[gcal] Attempting interactive GSI token request...');
-      token = await requestGsiToken('consent');
-      if (token) return token;
-
-      // 3. Fallback: Firebase popup
-      console.log('[gcal] Attempting Firebase popup re-auth fallback...');
-      token = await reauthenticateWithFirebasePopup();
-      return token;
+      return await requestGsiToken('consent');
     } catch (err) {
       console.warn('[gcal] Token refresh failed:', err);
       return null;
@@ -159,64 +137,15 @@ async function refreshAccessToken(interactive = false) {
       _refreshPromise = null;
     }
   })();
-
   return _refreshPromise;
 }
 
-/**
- * Get a valid access token, refreshing proactively if near expiry.
- */
 async function getValidAccessToken() {
-  let token = localStorage.getItem('auth.googleAccessToken');
-  const expiresAt = parseInt(localStorage.getItem('auth.accessTokenExpiresAt') || '0', 10);
-
-  // If token exists and is not close to expiry (more than 5 mins remaining), use it directly
-  if (token && expiresAt && Date.now() < expiresAt - 300000) {
-    return token;
-  }
-
-  // Token is missing or within 5 minutes of expiry — try silent refresh
-  console.log('[gcal] Token expired or near expiry. Attempting silent refresh...');
-  const newToken = await refreshAccessToken(false);
-  if (newToken) return newToken;
-
-  // If we still have the old token and it hasn't fully expired yet, use it anyway as fallback
-  if (token && expiresAt && Date.now() < expiresAt + 60000) {
-    console.log('[gcal] Using existing token (recently expired, may still work)');
-    return token;
-  }
-
-  return null; // Caller handles missing/expired token
+  const token = localStorage.getItem('auth.googleAccessToken');
+  // The stored deadline already includes a five-minute safety margin.
+  const expiresAt = Number(localStorage.getItem('auth.accessTokenExpiresAt') || 0);
+  return token && Date.now() < expiresAt ? token : null;
 }
-
-// Proactively refresh Google Calendar access token every 45 minutes in background
-setInterval(async () => {
-  const isConnected = localStorage.getItem('auth.gcalConnected') === 'true';
-  const user = localStorage.getItem('auth.user');
-  if (user && isConnected) {
-    console.log('[gcal] Proactive background token refresh...');
-    const token = await refreshAccessToken(false);
-    if (token) {
-      console.log('[gcal] Background refresh successful');
-    } else {
-      console.warn('[gcal] Background refresh failed — token will expire soon');
-    }
-  }
-}, 45 * 60 * 1000);
-
-// Also refresh immediately when the page regains focus (user switches back to tab)
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState !== 'visible') return;
-  const isConnected = localStorage.getItem('auth.gcalConnected') === 'true';
-  const user = localStorage.getItem('auth.user');
-  const expiresAt = parseInt(localStorage.getItem('auth.accessTokenExpiresAt') || '0', 10);
-  // Only refresh if token is within 10 minutes of expiry or already expired
-  if (user && isConnected && expiresAt && Date.now() >= expiresAt - 600000) {
-    console.log('[gcal] Tab refocused with near-expiry token. Refreshing...');
-    await refreshAccessToken(false);
-  }
-});
-
 async function fetchWithToken(endpoint, options = {}) {
   let token = await getValidAccessToken();
   if (!token) throw new Error('No Google Access Token available. User must re-authenticate.');
@@ -231,24 +160,9 @@ async function fetchWithToken(endpoint, options = {}) {
   });
 
   if (res.status === 401) {
-    console.warn('[gcal] 401 received. Attempting silent refresh and retry...');
-    // Clear the expired token
     localStorage.removeItem('auth.googleAccessToken');
     localStorage.removeItem('auth.accessTokenExpiresAt');
-
-    const newToken = await refreshAccessToken(false);
-    if (newToken) {
-      res = await fetch(`${GCAL_BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          ...options.headers,
-          'Authorization': `Bearer ${newToken}`,
-          'Accept': 'application/json'
-        }
-      });
-    }
   }
-
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Google Calendar API Error: ${res.status} - ${errText}`);

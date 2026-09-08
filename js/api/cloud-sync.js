@@ -22,8 +22,9 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 // Explicitly retain the Firebase session on this device (including Electron's stable localhost origin).
-const authPersistenceReady = setPersistence(auth, browserLocalPersistence)
-  .catch(error => console.warn('[auth] Could not configure local persistence:', error));
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence);
+// Report failures without treating a memory-only session as a successful persistent login.
+authPersistenceReady.catch(error => console.error('[auth] Could not configure local persistence:', error));
 
 let _currentUser = null;
 const _authCallbacks = [];
@@ -128,12 +129,19 @@ export function extractAndSaveClientId(result, credential) {
 }
 
 export function getCurrentUser() { return _currentUser; }
+export async function waitForAuthReady() {
+  await authPersistenceReady;
+  await auth.authStateReady();
+}
 export async function getFirebaseIdToken() {
   await auth.authStateReady();
   if (!auth.currentUser) throw new Error('SIGN_IN_REQUIRED');
   return auth.currentUser.getIdToken();
 }
-export function onAuthChange(cb) { _authCallbacks.push(cb); if (_currentUser) cb(_currentUser); }
+export function onAuthChange(cb) {
+  _authCallbacks.push(cb);
+  if (_currentUser) cb(_currentUser);
+}
 export async function signInWithGoogle() {
   await authPersistenceReady;
   const provider = new GoogleAuthProvider();
