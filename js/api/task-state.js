@@ -57,20 +57,24 @@ export function withTaskStoreLock(operation) {
 }
 
 export async function readTaskCollections() {
-  if (window.electronStorage?.getTaskCollections) return window.electronStorage.getTaskCollections();
+  const normalize = data => reconcileTaskCollections(data, { tasks: [], archivedTasks: [] });
+  if (window.electronStorage?.getTaskCollections) return normalize(await window.electronStorage.getTaskCollections());
   if (window.electronStorage) {
     const [tasks, archivedTasks] = await Promise.all([
       window.electronStorage.getTasks(), window.electronStorage.getArchivedTasks()
     ]);
-    return { tasks, archivedTasks };
+    return normalize({ tasks, archivedTasks });
   }
-  return {
+  return normalize({
     tasks: JSON.parse(localStorage.getItem('tachotasks.tasks') || '[]'),
     archivedTasks: JSON.parse(localStorage.getItem('tachotasks.archivedTasks') || '[]')
-  };
+  });
 }
 
 export async function writeTaskCollections(data) {
+  // Deduplicate by stable ID before either persistence backend sees the data.
+  // Different tasks with the same title remain independent.
+  data = reconcileTaskCollections(data, { tasks: [], archivedTasks: [] });
   if (window.electronStorage?.saveTaskCollections) {
     await window.electronStorage.saveTaskCollections(data);
   } else if (window.electronStorage) {

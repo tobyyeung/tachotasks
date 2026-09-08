@@ -71,6 +71,7 @@ function device(cloud, electron = false, cached) {
   vm.runInContext(strip(read('js/api/task-state.js')), context);
   vm.runInContext(strip(read('js/api/cloud-sync.js')), context);
   vm.runInContext(strip(read('js/browser-api.js')), context);
+  vm.runInContext(read('js/utils.js'), context);
   vm.runInContext(read('js/data.js'), context);
   vm.runInContext("_currentUser = { uid: 'user' }; showUndoToast = () => {};", context);
   const load = async () => Object.assign(context.state, clone(await context.window.api.getTaskCollections()));
@@ -166,4 +167,32 @@ test('an immediate undo has a newer timestamp and is saved as one task-state cha
   assert.equal(data.tasks.length, 1);
   assert.equal(data.archivedTasks.length, 0);
   assert.ok(Date.parse(data.tasks[0].updatedAt) > Date.parse(completedAt));
+});
+
+test('repeated completion clicks during persistence do not undo completion', async () => {
+  const cloud = cloudStore(); const web = device(cloud); await web.sync();
+  await Promise.all([web.context.toggleTask('task-1'), web.context.toggleTask('task-1')]);
+  await web.sync(); assert.equal(web.data().tasks.length, 0); assert.equal(web.data().archivedTasks.length, 1);
+});
+test('local saves remove duplicate IDs but preserve independent same-title tasks', async () => {
+  const cloud = cloudStore(); const web = device(cloud); await web.sync();
+  await web.context.window.api.saveTaskCollections({ tasks: [initialTask, initialTask, { ...initialTask, id: 'another' }], archivedTasks: [] });
+  const stored = await web.context.window.api.getTaskCollections(); assert.equal(stored.tasks.length, 2);
+});
+test('restoring an archived recurring occurrence never rewinds or duplicates its series', async () => {
+  const cloud = cloudStore(); const web = device(cloud); await web.sync();
+  web.context.state.tasks[0].dueDate = '2026-09-10';
+  web.context.state.archivedTasks = [{ ...initialTask, id: 'occurrence', originalTaskId: initialTask.id, isRecurringInstance: true, recurring: 'daily', completed: true }];
+  await web.context.undoTaskCompletion('occurrence');
+  assert.equal(web.data().tasks.length, 2); assert.equal(web.data().tasks[0].dueDate, '2026-09-10');
+  const restored = web.data().tasks.find(t => t.id === 'occurrence'); assert.equal(restored.recurring, null); assert.equal(restored.originalTaskId, undefined);
+  await web.sync(); assert.equal(web.data().archivedTasks.length, 0);
+});
+test('undo restores the captured original deadline across cloud refresh', async () => {
+  const cloud=cloudStore(); const web=device(cloud); await web.sync();
+  web.context.state.tasks[0].dueDate='2026-09-08'; web.context.state.tasks[0].dueTime='15:00';
+  await web.context.toggleTask('task-1');
+  web.context.state.archivedTasks[0].dueDate='2030-01-01';
+  await web.context.undoTaskCompletion('task-1'); await web.sync();
+  assert.equal(web.data().tasks[0].dueDate,'2026-09-08'); assert.equal(web.data().tasks[0].dueTime,'15:00');
 });

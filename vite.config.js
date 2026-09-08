@@ -17,6 +17,12 @@ export default defineConfig({
 
   plugins: [
     {
+      name: 'app-version',
+      transformIndexHtml() {
+        return [{ tag: 'script', children: `window.TACHO_VERSION = ${JSON.stringify(require('./package.json').version)};`, injectTo: 'head' }];
+      }
+    },
+    {
       name: 'copy-static-assets',
       closeBundle() {
         const { cpSync, existsSync } = require('fs');

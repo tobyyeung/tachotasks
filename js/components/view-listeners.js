@@ -75,7 +75,7 @@ function attachViewListeners() {
   if (projPostponeBtn) {
     projPostponeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const projTasks = (state.tasks || []).filter(t => t.projectId === state.filterProject && t.dueDate && t.dueDate < getTodayStr() && !t.completed);
+      const projTasks = (state.tasks || []).filter(t => t.projectId === state.filterProject && isTaskOverdue(t));
       await postponeOverdueTasks(projTasks.map(t => t.id));
     });
   }

@@ -197,7 +197,7 @@ function restoreReferencedTaskSections(tasks, settings) {
   return true;
 }
 
-async function refreshDataFromStore() {
+async function refreshDataFromStore({ reloadCalendars = true } = {}) {
   const taskData = await window.api.getTaskCollections();
   state.archivedTasks = taskData.archivedTasks || [];
   state.tasks = ensureTaskSchema(taskData.tasks || []);
@@ -269,7 +269,7 @@ async function refreshDataFromStore() {
   
   // Attempt to load Google Calendars in background if signed in
   const user = await window.api.getUser();
-  if (user) {
+  if (user && reloadCalendars) {
     loadGoogleCalendars().catch(e => console.warn('GCal load in background:', e));
   }
 }

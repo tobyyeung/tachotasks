@@ -21,7 +21,15 @@ async function saveArchivedTasks() {
  * Toggles task completion state with a visual delay before archiving or advancing recurrence.
  * @param {string} taskId - ID of task to toggle.
  */
+const taskTogglesInFlight = new Set();
 async function toggleTask(taskId) {
+  if (taskTogglesInFlight.has(taskId)) return;
+  taskTogglesInFlight.add(taskId);
+  try { await performTaskToggle(taskId); }
+  finally { taskTogglesInFlight.delete(taskId); }
+}
+
+async function performTaskToggle(taskId) {
   const task = state.tasks.find(t => t.id === taskId);
   const today = getTodayStr();
 
@@ -29,7 +37,7 @@ async function toggleTask(taskId) {
     // Persist completion immediately; a remote refresh must not replace the
     // object captured by a delayed animation before it can be archived.
     const nowIso = nextTaskChangeTimestamp(taskId);
-    const completed = { ...task, completed: true, completedAt: nowIso, updatedAt: nowIso };
+    const completed = { ...task, ...captureTaskCompletionContext(task), completed: true, completedAt: nowIso, updatedAt: nowIso };
     delete completed.isCompleting;
     delete completed.completionTimeout;
     state.tasks = state.tasks.filter(item => item.id !== taskId);
@@ -90,6 +98,7 @@ async function toggleTask(taskId) {
           
           const completedRecord = {
             ...task,
+            ...captureTaskCompletionContext(task),
             id: task.id + '-' + (task.dueDate || today) + '-' + Date.now(),
             completed: true,
             completedAt: nowIso,
@@ -170,9 +179,21 @@ function nextTaskChangeTimestamp(taskId) {
 }
 
 async function undoTaskCompletion(taskId) {
-  const ordinary = state.archivedTasks.find(task => task.id === taskId && !task.originalTaskId);
+  const ordinary = state.archivedTasks.find(task => task.id === taskId);
   if (ordinary) {
     const restored = { ...ordinary, completed: false, completedAt: null, updatedAt: nextTaskChangeTimestamp(taskId) };
+    if ('completionDueDate' in ordinary) restored.dueDate = ordinary.completionDueDate;
+    if ('completionDueTime' in ordinary) restored.dueTime = ordinary.completionDueTime;
+    // Restoring an older recurring occurrence must not rewind its active series.
+    // Bring that occurrence back as a standalone task, preserving its stable ID.
+    if (restored.originalTaskId) {
+      delete restored.originalTaskId;
+      delete restored.isRecurringInstance;
+      delete restored.lastCompletedDate;
+      delete restored.previousDueDate;
+      delete restored.previousPlannedDate;
+      restored.recurring = null;
+    }
     delete restored.isCompleting;
     delete restored.completionTimeout;
     state.archivedTasks = state.archivedTasks.filter(task => task.id !== taskId);
@@ -345,10 +366,10 @@ async function postponeOverdueTasks(taskIds = null, targetDateStr = null) {
   const nowIso = new Date().toISOString();
 
   let affectedTasks = [];
-  if (Array.isArray(taskIds) && taskIds.length > 0) {
+  if (Array.isArray(taskIds)) {
     affectedTasks = state.tasks.filter(t => taskIds.includes(t.id) && !t.completed);
   } else {
-    affectedTasks = state.tasks.filter(t => t.dueDate && t.dueDate < today && !t.completed);
+    affectedTasks = state.tasks.filter(t => isTaskOverdue(t));
   }
 
   if (affectedTasks.length === 0) {
@@ -360,12 +381,13 @@ async function postponeOverdueTasks(taskIds = null, targetDateStr = null) {
   const previousDates = affectedTasks.map(t => ({
     id: t.id,
     dueDate: t.dueDate,
-    plannedDate: t.plannedDate
+    plannedDate: t.plannedDate, dueTime: t.dueTime
   }));
 
   affectedTasks.forEach(t => {
     t.previousDueDate = t.dueDate;
     t.dueDate = today;
+    if (isTaskOverdue(t)) t.dueTime = null;
     t.updatedAt = nowIso;
   });
 
@@ -397,6 +419,7 @@ function showPostponeUndoToast(previousDates, count) {
       const task = state.tasks.find(t => t.id === p.id);
       if (task) {
         task.dueDate = p.dueDate;
+        task.dueTime = p.dueTime;
         task.updatedAt = nowIso;
       }
     });
@@ -436,6 +459,7 @@ window.addEventListener('beforeunload', () => {
       task.previousPlannedDate = task.plannedDate || null;
       const completedRecord = {
         ...task,
+            ...captureTaskCompletionContext(task),
         id: `${task.id}-${task.dueDate || today}-${Date.now()}`,
         completed: true,
         completedAt: nowIso,

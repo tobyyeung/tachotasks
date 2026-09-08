@@ -196,10 +196,34 @@ function addMinutes(timeStr, mins) {
  * @param {Object} task - Task object.
  * @returns {Object|null} Label object with text and class properties.
  */
-function getDueLabel(task) {
+function getTaskDueTimestamp(task) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(task?.dueDate || '')) return null;
+  const [year, month, day] = task.dueDate.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  if (task.dueTime) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(task.dueTime)) return null;
+    const [hour, minute] = task.dueTime.split(':').map(Number);
+    date.setHours(hour, minute, 0, 0);
+  } else {
+    // Date-only tasks remain on time throughout their due day, in local time.
+    date.setHours(23, 59, 59, 999);
+  }
+  return date.getTime();
+}
+
+function isTaskOverdue(task, now = new Date()) {
+  if (!task || task.completed || task.isCompleting) return false;
+  const deadline = getTaskDueTimestamp(task);
+  return deadline !== null && deadline < Number(now);
+}
+
+function getDueLabel(task, now = new Date()) {
   if (!task.dueDate) return null;
-  const today = getTodayStr();
-  const tomorrow = toDateStr(new Date(Date.now() + 86400000));
+  if (task.completed) return { text: formatDateShort(task.dueDate), class: 'due-default default', color: 'var(--text-secondary)', showClock: false };
+  const today = toDateStr(now);
+  const tomorrowDate = new Date(now); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = toDateStr(tomorrowDate);
 
   // Calculate day difference from today
   const [ty, tm, td] = today.split('-').map(Number);
@@ -210,7 +234,7 @@ function getDueLabel(task) {
 
   const showClock = diffDays <= 5;
 
-  if (task.dueDate < today) return { text: 'Overdue', class: 'due-overdue overdue', color: '#ff5252', showClock: true };
+  if (isTaskOverdue(task, now)) return { text: 'Overdue', class: 'due-overdue overdue', color: '#ff5252', showClock: true };
   if (task.dueDate === today) return { text: 'Today', class: 'due-today today', color: '#ff5252', showClock: true };
   if (task.dueDate === tomorrow) return { text: 'Tomorrow', class: 'due-tomorrow tomorrow', color: '#ffa502', showClock: true };
 
@@ -312,6 +336,24 @@ function getTaskLocationHtml(task) {
  * Generates a unique string identifier.
  * @returns {string}
  */
+function captureTaskCompletionContext(task) {
+  const project = (state.projects || []).find(item => item.id === task.projectId);
+  const profile = (state.profiles || []).find(item => item.id === (task.profileId || state.settings?.defaultProfileId || 'profile-personal'));
+  const sections = task.projectId ? project?.sections : state.settings?.taskSections;
+  const section = (sections || []).find(item => item.id === task.sectionId);
+  return {
+    completionDueDate: task.dueDate || null,
+    completionDueTime: task.dueTime || null,
+    completionSource: {
+      kind: task.projectId ? 'project' : 'profile',
+      name: task.projectId ? project?.name || 'Unavailable project' : profile?.name || 'Personal',
+      section: section?.name || 'Uncategorized',
+      color: project?.color || null,
+      image: profile?.image || 'assets/profiles/personal.png'
+    }
+  };
+}
+
 function generateId() {
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }

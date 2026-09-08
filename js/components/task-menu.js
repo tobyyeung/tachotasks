@@ -49,7 +49,7 @@
         </div>
       </button>
 
-      ${task.dueDate && task.dueDate < getTodayStr() && !task.completed ? `
+      ${isTaskOverdue(task) ? `
         <button class="ctx-item" id="ctx-postpone-task" style="color:#ff5252;">
           <div class="ctx-item-left">
             <img src="assets/icons/Clock.png" alt="Postpone" style="width:18px;height:18px;object-fit:contain;filter:brightness(0.9) sepia(1) hue-rotate(310deg);" />

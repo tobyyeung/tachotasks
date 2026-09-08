@@ -1,5 +1,6 @@
 // ===== INITIALIZATION =====
 async function init() {
+  setupDesktopUpdates();
   // Load all data from store
   const taskData = await window.api.getTaskCollections();
   state.archivedTasks = taskData.archivedTasks || [];
@@ -146,6 +147,7 @@ async function init() {
 
   // Live Dashboard clock ticker (updates every 10 seconds)
   setInterval(() => {
+    refreshOverduePresentation();
     if (state.currentView === 'dashboard') {
       const dtBadge = document.getElementById('dashboard-datetime-badge');
       if (dtBadge && typeof getFormattedCurrentDateTime === 'function') {
@@ -153,6 +155,16 @@ async function init() {
       }
     }
   }, 10000);
+}
+
+let lastOverduePresentation = null;
+function refreshOverduePresentation() {
+  const signature = getTodayStr() + ':' + (state.tasks || []).filter(task => isTaskOverdue(task)).map(task => task.id).sort().join(',');
+  if (lastOverduePresentation === null) { lastOverduePresentation = signature; return; }
+  if (signature === lastOverduePresentation) return;
+  if (document.hidden || document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') || document.querySelector('.modal-overlay:not(.hidden)')) return;
+  lastOverduePresentation = signature;
+  if (['dashboard', 'tasks', 'project', 'calendar', 'planner'].includes(state.currentView)) renderView();
 }
 
 
@@ -346,6 +358,11 @@ function setupAuth() {
 
 function renderView() {
   const container = document.getElementById('view-container');
+  // Preserve archive controls, focus, expanded details, and scroll across syncs.
+  if (state.currentView === 'archive' && container.querySelector('.archive-view')) {
+    refreshArchiveView();
+    return;
+  }
   switch (state.currentView) {
     case 'dashboard': container.innerHTML = renderDashboard(); break;
     case 'tasks': container.innerHTML = renderTasks(); break;
@@ -356,6 +373,7 @@ function renderView() {
     case 'archive': container.innerHTML = renderArchive(); break;
   }
   attachViewListeners();
+  if (state.currentView === 'archive') attachArchiveListeners();
 
   const addBtn = document.getElementById('add-task-btn');
   if (addBtn) {

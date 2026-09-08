@@ -57,5 +57,13 @@ contextBridge.exposeInMainWorld('electronStorage', {
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+  getUpdateState: () => ipcRenderer.invoke('updater:getState'),
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateState: callback => {
+    const listener = (_, value) => callback(value);
+    ipcRenderer.on('updater:state', listener);
+    return () => ipcRenderer.removeListener('updater:state', listener);
+  },
   showNotification: (options) => ipcRenderer.invoke('notifications:show', options || {})
 });

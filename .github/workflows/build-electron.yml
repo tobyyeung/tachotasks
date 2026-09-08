@@ -36,6 +36,9 @@ jobs:
           node tests/desktop-regressions.test.cjs
           node tests/google-auth-regressions.test.cjs
           node tests/task-completion-sync.test.cjs
+          node tests/desktop-updater.test.cjs
+          node tests/archive.test.cjs
+          node tests/overdue.test.cjs
 
       - name: Build web assets
         run: npm run build:web

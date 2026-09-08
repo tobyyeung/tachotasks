@@ -424,10 +424,10 @@ function renderDashboard() {
             <span class="card-count" style="font-size:var(--fs-xs);color:var(--text-tertiary);background:var(--bg-glass);padding:2px 8px;border-radius:var(--radius-full);border:1px solid var(--border);">${upcomingTasks.length}</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
-            ${upcomingTasks.filter(t => t.dueDate && t.dueDate < today).length > 0 ? `
-              <button id="dash-postpone-overdue-btn" class="icon-btn" title="Postpone ${upcomingTasks.filter(t => t.dueDate && t.dueDate < today).length} overdue task(s) to Today" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:var(--radius-sm);background:rgba(255,82,82,0.12);border:1px solid rgba(255,82,82,0.25);color:#ff5252;font-size:11px;font-weight:600;cursor:pointer;transition:all var(--t-fast);">
+            ${upcomingTasks.filter(t => isTaskOverdue(t)).length > 0 ? `
+              <button id="dash-postpone-overdue-btn" class="icon-btn" title="Postpone ${upcomingTasks.filter(t => isTaskOverdue(t)).length} overdue task(s) to Today" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:var(--radius-sm);background:rgba(255,82,82,0.12);border:1px solid rgba(255,82,82,0.25);color:#ff5252;font-size:11px;font-weight:600;cursor:pointer;transition:all var(--t-fast);">
                 <img src="assets/icons/Clock.png" alt="Postpone" style="width:12px;height:12px;object-fit:contain;filter:brightness(0.9) sepia(1) hue-rotate(310deg);" />
-                <span>Postpone (${upcomingTasks.filter(t => t.dueDate && t.dueDate < today).length})</span>
+                <span>Postpone (${upcomingTasks.filter(t => isTaskOverdue(t)).length})</span>
               </button>
             ` : ''}
             <div class="sort-dropdown-wrapper" id="dash-upcoming-dropdown-wrapper">

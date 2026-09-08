@@ -76,8 +76,8 @@ function renderProject() {
   const activeDatedTasks = projTasks.filter(t => (t.dueDate || t.plannedDate) && !t.completed);
   
   // Categorize deadlines by urgency
-  const overdueTasks = activeDatedTasks.filter(t => t.dueDate && t.dueDate < today);
-  const todayTasks = activeDatedTasks.filter(t => t.dueDate === today || (!t.dueDate && t.plannedDate === today));
+  const overdueTasks = activeDatedTasks.filter(t => isTaskOverdue(t));
+  const todayTasks = activeDatedTasks.filter(t => !isTaskOverdue(t) && (t.dueDate === today || (!t.dueDate && t.plannedDate === today)));
   const tomorrowTasks = activeDatedTasks.filter(t => t.dueDate === tomorrow || (!t.dueDate && t.plannedDate === tomorrow));
   const thisWeekTasks = activeDatedTasks.filter(t => t.dueDate > tomorrow && t.dueDate <= weekAhead);
   const laterTasks = activeDatedTasks.filter(t => t.dueDate > weekAhead || (!t.dueDate && t.plannedDate > tomorrow && t.plannedDate > weekAhead));

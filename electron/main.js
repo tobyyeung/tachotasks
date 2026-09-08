@@ -589,16 +589,16 @@ function setupIpcHandlers() {
 }
 
 function setupAutoUpdater() {
-  if (app.isPackaged) {
-    try {
-      const { autoUpdater } = require('electron-updater');
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-        console.log('[updater] Check error:', err);
-      });
-    } catch (e) {
-      console.warn('[updater] Init error:', e);
+  const { setupDesktopUpdater } = require('./updater');
+  setupDesktopUpdater({
+    app, ipcMain,
+    autoUpdater: require('electron-updater').autoUpdater,
+    getWindow: () => mainWindow,
+    beforeInstall: async () => {
+      getDb().persistNow();
+      session.defaultSession.flushStorageData();
     }
-  }
+  });
 }
 
 // ===== APP LIFECYCLE =====

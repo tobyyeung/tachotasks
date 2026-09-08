@@ -285,8 +285,9 @@ function renderSettings() {
                 <div style="font-size:12px;color:var(--text-secondary);">Local SQLite Database &bull; Real-time Firestore Sync</div>
               </div>
             </div>
-            <span style="font-size:12px;color:var(--accent);font-weight:600;padding:2px 8px;background:rgba(255,107,0,0.15);border-radius:4px;">Desktop v1.16.1</span>
+            <span id="desktop-app-version" style="font-size:12px;color:var(--accent);font-weight:600;">${escHtml(desktopUpdateState.currentVersion ? `v${desktopUpdateState.currentVersion}` : 'Desktop')}</span>
           </div>
+          <div id="desktop-update-panel">${renderDesktopUpdateControls()}</div>
         ` : `
           <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -296,7 +297,7 @@ function renderSettings() {
                 <div style="font-size:12px;color:var(--text-secondary);">Native desktop app with offline SQLite, system tray, and notifications</div>
               </div>
             </div>
-            <a href="https://tasks.tobyyeung.com/releases/" target="_blank" class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none;display:inline-flex;align-items:center;">Download App</a>
+            <a href="https://tasks.tobyyeung.com/download/" target="_blank" class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none;display:inline-flex;align-items:center;">Download App</a>
           </div>
         `}
       </div>
