@@ -73,6 +73,12 @@ Open Settings and click **Connect Google Calendar**, using the same Google accou
 
 Transient backend outages retain stored credentials and do not initiate interactive login. Revoked grants require a manual reconnect. No client secret or refresh token should appear in browser storage or HTTP responses.
 
+### Verify browser access after deployment
+
+The HTTP function must use `invoker: 'public'`: browser OPTIONS preflight requests do not carry credentials. The handler still restricts allowed origins and verifies a Firebase ID token for every POST. Cloud Run IAM authentication must not block requests before this handler runs.
+
+Check OPTIONS on both `/token` and `/connect` with the website's Origin and the `Authorization, Content-Type, X-Requested-With` requested headers. Expect HTTP 204 and `Access-Control-Allow-Origin: https://tasks.tobyyeung.com`. A POST without authentication must return HTTP 401 with that same CORS header. A Google Frontend HTML 403 with no CORS headers indicates invocation is blocked before the handler; redeploy the public invoker setting and verify the service IAM policy.
+
 ## Rollback
 
 Set `enabled: false` and redeploy the static website to restore manual reconnect. This does not delete stored backend connections; disconnect first if they should be removed. Existing task data and cloud task synchronization use the same Firebase project and are separate from calendar renewal.

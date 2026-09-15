@@ -65,6 +65,9 @@ function getService() {
 
 exports.calendarAuth = onRequest({
   region: 'us-central1', timeoutSeconds: 30, maxInstances: 3,
+  // Browsers send unauthenticated OPTIONS requests. Authenticate POSTs below
+  // with Firebase tokens, rather than blocking them at Cloud Run's IAM layer.
+  invoker: 'public',
   secrets: [clientSecret, tokenKey], cors: false
 }, async (req, res) => {
   res.set('Cache-Control', 'no-store');
