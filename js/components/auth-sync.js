@@ -369,7 +369,7 @@ function updateGcalStatus() {
   if (!statusEl) return;
   
   const isConnected = localStorage.getItem('auth.gcalConnected') === 'true';
-  const hasToken = !!localStorage.getItem('auth.googleAccessToken');
+  const hasToken = window.api.calendarAutoRenewalEnabled?.() || !!localStorage.getItem('auth.googleAccessToken');
   
   if (state.sessionExpired) {
     statusEl.style.display = 'flex';

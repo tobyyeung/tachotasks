@@ -4,6 +4,8 @@
  */
 
 
+import { calendarBackendEnabled, getBackendCalendarToken, connectCalendarBackend, resetCalendarBackend } from './calendar-backend.js';
+
 // ===== GOOGLE CALENDAR API =====
 const GCAL_BASE_URL = 'https://www.googleapis.com/calendar/v3';
 
@@ -17,6 +19,7 @@ let _refreshPromise = null;
  * Reset GSI client instance when switching or signing out accounts.
  */
 function resetGsiClient() {
+  resetCalendarBackend();
   _gsiTokenClient = null;
   _gsiInitialized = false;
   if (_gsiPendingResolve) {
@@ -124,6 +127,7 @@ function requestGsiToken(prompt = '') {
 
 /** Calendar consent is interactive; background work must never open OAuth windows. */
 async function refreshAccessToken(interactive = false) {
+  if (calendarBackendEnabled()) return interactive ? connectCalendarBackend() : getBackendCalendarToken();
   if (!interactive) return getValidAccessToken();
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = (async () => {
@@ -140,6 +144,7 @@ async function refreshAccessToken(interactive = false) {
 }
 
 async function getValidAccessToken() {
+  if (calendarBackendEnabled()) return getBackendCalendarToken();
   const token = localStorage.getItem('auth.googleAccessToken');
   // The stored deadline already includes a five-minute safety margin.
   const expiresAt = Number(localStorage.getItem('auth.accessTokenExpiresAt') || 0);
@@ -149,16 +154,23 @@ async function fetchWithToken(endpoint, options = {}) {
   let token = await getValidAccessToken();
   if (!token) throw new Error('No Google Access Token available. User must re-authenticate.');
 
-  let res = await fetch(`${GCAL_BASE_URL}${endpoint}`, {
+  const send = accessToken => fetch(`${GCAL_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       ...options.headers,
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Accept': 'application/json'
     }
   });
+  let res = await send(token);
 
-  if (res.status === 401) {
+  if (res.status === 401 && calendarBackendEnabled()) {
+    token = await getBackendCalendarToken(token);
+    if (!token) throw new Error('No Google Access Token available. User must re-authenticate.');
+    res = await send(token);
+  }
+
+  if (res.status === 401 && !calendarBackendEnabled()) {
     localStorage.removeItem('auth.googleAccessToken');
     localStorage.removeItem('auth.accessTokenExpiresAt');
   }

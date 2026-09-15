@@ -67,3 +67,38 @@ test('closing reconnect does not launch a fallback popup', async () => {
   assert.equal(counts.popup, 1);
   assert.equal(counts.fallback, 0);
 });
+
+test('enabled renewal routes expired browser credentials and reconnect through the backend', async () => {
+  const { context, counts } = setup({ expired: true });
+  context.calendarBackendEnabled = () => true;
+  let renewals = 0;
+  context.getBackendCalendarToken = async () => { renewals++; return 'backend-access'; };
+  context.connectCalendarBackend = async () => 'backend-connected';
+  await context.fetchCalendars();
+  assert.equal(renewals, 1);
+  assert.equal(await context.refreshAccessToken(true), 'backend-connected');
+  assert.equal(counts.popup, 0);
+});
+
+test('backend Calendar 401 renews the rejected token and retries only once', async () => {
+  const { context, counts } = setup();
+  context.calendarBackendEnabled = () => true;
+  const rejected = [];
+  context.getBackendCalendarToken = async token => { rejected.push(token); return token ? 'renewed' : 'initial'; };
+  const sent = [];
+  context.fetch = async (url, options) => {
+    sent.push(options.headers.Authorization);
+    return { status: 401, ok: false, text: async () => 'Unauthorized' };
+  };
+  await assert.rejects(context.fetchCalendars(), /401/);
+  assert.deepEqual(rejected, [undefined, 'initial']);
+  assert.deepEqual(sent, ['Bearer initial', 'Bearer renewed']);
+  assert.equal(counts.popup, 0);
+});
+
+test('backend outage propagates without reporting expired legacy credentials', async () => {
+  const { context } = setup({ expired: true });
+  context.calendarBackendEnabled = () => true;
+  context.getBackendCalendarToken = async () => { throw new Error('GOOGLE_TEMPORARILY_UNAVAILABLE'); };
+  await assert.rejects(context.fetchCalendars(), /GOOGLE_TEMPORARILY_UNAVAILABLE/);
+});

@@ -3,6 +3,11 @@
  * Weekly and Daily 24h hourly time-grid layout, collision handling, and current-time line.
  */
 
+function isZeroDurationCalendarEvent(item) {
+  return Boolean(!item.isAllDay && item.startTime && item.startTime === item.endTime &&
+    (item.originalEndDate || item.endDate || item.date) === (item.originalStartDate || item.date));
+}
+
 function renderWeeklyDailyGrid(days, today) {
   let gridHtml = '';
   for (let hour = 0; hour <= 23; hour++) {
@@ -156,7 +161,7 @@ function renderWeeklyDailyEvents(days, items) {
       const [sh, sm] = sTime.split(':').map(Number);
       item.startMinutes = sh * 60 + (sm || 0);
 
-      if (item.type === 'task') {
+      if (item.type === 'task' || isZeroDurationCalendarEvent(item)) {
         item.endMinutes = item.startMinutes + 30;
       } else if (item.endTime) {
         const [eh, em] = item.endTime.split(':').map(Number);
@@ -214,7 +219,7 @@ function renderWeeklyDailyEvents(days, items) {
     // Layout algorithm: Column 0 takes wide left width, Column 1+ indents right and layers on top
     dayItems.forEach(item => {
       const top = (item.startMinutes / 60) * cellHeight;
-      const isTask = item.type === 'task';
+      const isTask = item.type === 'task' || isZeroDurationCalendarEvent(item);
       const height = isTask ? Math.max(((30 / 60) * cellHeight), 22) : Math.max(((item.endMinutes - item.startMinutes) / 60) * cellHeight, 22);
 
       // Find items starting at the exact same time (within 5 mins)

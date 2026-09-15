@@ -4,7 +4,7 @@
  */
 function formatScheduleTimeRange(startTime, endTime, isAllDay) {
   if (isAllDay || !startTime) return 'All day';
-  if (!endTime) return formatTimeShort(startTime);
+  if (!endTime || startTime === endTime) return formatTimeShort(startTime);
 
   const [sh, sm] = startTime.split(':').map(Number);
   const [eh, em] = endTime.split(':').map(Number);
@@ -68,7 +68,7 @@ function renderScheduleView(date, todayStr, sessionBanner, viewBtns, monthYear) 
     }
 
     const isOvernight = !isPureAllDay && !isEndTimeMidnight && Boolean(
-      (endDate > startDate) || (effectiveEndTime && effectiveEndTime <= evt.startTime)
+      (endDate > startDate) || (effectiveEndTime && effectiveEndTime < evt.startTime)
     );
 
     if (isOvernight && endDate <= startDate) {

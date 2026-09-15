@@ -92,3 +92,6 @@ When publishing a new Electron release, update the version and artifact names in
 ## Pending Updates & Roadmap
 
 - [ ] add mobile app capability
+- [ ] fix electron download
+- [ ] fix electron sign in
+- [ ] make tachotasks a perm app

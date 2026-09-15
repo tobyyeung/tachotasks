@@ -247,10 +247,10 @@ function renderCalendarEvents() {
       }
     }
 
-    // Overnight timed event: has start and end times, and either spans past midnight (endDate > startDate) or endTime <= startTime.
+    // Overnight timed event: has start and end times, and either spans past midnight (endDate > startDate) or endTime < startTime.
     // Events ending at 12am midnight conclude at the boundary of that day and do NOT continue into the next day.
     const isOvernight = !isPureAllDay && !isEndTimeMidnight && Boolean(
-      (endDate > startDate) || (effectiveEndTime && effectiveEndTime <= evt.startTime)
+      (endDate > startDate) || (effectiveEndTime && effectiveEndTime < evt.startTime)
     );
 
     if (isOvernight && endDate <= startDate) {
@@ -590,7 +590,7 @@ function renderCalendarEvents() {
       const [sh, sm] = sTime.split(':').map(Number);
       item.startMinutes = sh * 60 + (sm || 0);
 
-      if (item.type === 'task') {
+      if (item.type === 'task' || isZeroDurationCalendarEvent(item)) {
         item.endMinutes = item.startMinutes + 30;
       } else if (item.endTime) {
         const [eh, em] = item.endTime.split(':').map(Number);
@@ -646,7 +646,7 @@ function renderCalendarEvents() {
     // Layout algorithm: Column 0 takes wide left width, Column 1+ indents right and layers on top
     dayItems.forEach(item => {
       const top = (item.startMinutes / 60) * cellHeight;
-      const isTask = item.type === 'task';
+      const isTask = item.type === 'task' || isZeroDurationCalendarEvent(item);
       const height = isTask ? Math.max(((30 / 60) * cellHeight), 22) : Math.max(((item.endMinutes - item.startMinutes) / 60) * cellHeight, 22);
 
       // Find items starting at the exact same time (within 5 mins)
