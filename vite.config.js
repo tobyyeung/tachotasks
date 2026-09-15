@@ -58,7 +58,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        download: resolve(__dirname, 'download/index.html')
+        download: resolve(__dirname, 'download/index.html'),
+        privacy: resolve(__dirname, 'privacy-policy/index.html'),
+        terms: resolve(__dirname, 'terms-of-service/index.html')
       }
     },
     // Don't hash asset filenames (needed for Electron static loading)
