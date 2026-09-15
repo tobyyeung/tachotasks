@@ -39,7 +39,7 @@ jobs:
           node tests/desktop-updater.test.cjs
           node tests/archive.test.cjs
           node tests/overdue.test.cjs
-          node --test tests/calendar-browser.test.cjs tests/calendar-http.test.cjs tests/calendar-service.test.cjs tests/calendar-zero-duration.test.cjs
+          node --test tests/calendar-browser.test.cjs tests/calendar-http.test.cjs tests/calendar-service.test.cjs tests/calendar-zero-duration.test.cjs tests/calendar-status.test.cjs
 
       - name: Build web assets
         run: npm run build:web

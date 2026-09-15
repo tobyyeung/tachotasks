@@ -45,3 +45,21 @@ test('missing CSRF header or Firebase authentication is rejected', async () => {
   assert.equal(res.code, 401);
   assert.equal(verified(), 1);
 });
+
+test('packaged desktop origin passes preflight but still requires authentication', async () => {
+  const { handler, res } = setup();
+  await handler(request({ Origin: 'http://localhost:51893' }, 'OPTIONS'), res);
+  assert.equal(res.code, 204);
+  assert.equal(res.headers['Access-Control-Allow-Origin'], 'http://localhost:51893');
+  await handler(request({ Origin: 'http://localhost:51893', 'X-Requested-With': 'XmlHttpRequest' }), res);
+  assert.equal(res.code, 401);
+});
+
+test('other loopback ports and hosts are not implicitly trusted', async () => {
+  for (const origin of ['http://localhost:51894', 'http://127.0.0.1:51893', 'http://localhost:51893.evil.example']) {
+    const { handler, res } = setup();
+    await handler(request({ Origin: origin }, 'OPTIONS'), res);
+    assert.equal(res.code, 403);
+    assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
+  }
+});

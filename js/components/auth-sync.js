@@ -297,6 +297,22 @@ function setupRefreshButton() {
 }
 
 let _isLoadingGcals = false;
+let _gcalStatusRequest = 0;
+let _gcalStatusApplied = 0;
+
+// One verified status drives both the sidebar and the reconnect banners.
+function setGcalConnectionStatus(status, requestId = ++_gcalStatusRequest) {
+  if (requestId < _gcalStatusApplied) return;
+  _gcalStatusApplied = requestId;
+  const wasExpired = Boolean(state.sessionExpired);
+  state.gcalConnectionStatus = status;
+  state.sessionExpired = status === 'expired';
+  if (status === 'connected') localStorage.setItem('auth.gcalConnected', 'true');
+  if (status === 'expired' || status === 'disconnected') localStorage.removeItem('auth.gcalConnected');
+  updateGcalStatus();
+  // Updating event cards alone does not recreate the Calendar page's banner.
+  if (wasExpired !== state.sessionExpired) renderView();
+}
 
 async function loadGoogleCalendars() {
   const listContainer = document.getElementById('gcal-list');
@@ -310,15 +326,12 @@ async function loadGoogleCalendars() {
 
   if (_isLoadingGcals) return;
   _isLoadingGcals = true;
+  const requestId = ++_gcalStatusRequest;
   
   try {
     const calendars = await window.api.getGCalCalendars();
     if (calendars && calendars.error) {
-      if (calendars.error === 'SESSION_EXPIRED') {
-        state.sessionExpired = true;
-        updateGcalStatus();
-        renderView();
-      }
+      setGcalConnectionStatus(calendars.error === 'SESSION_EXPIRED' ? 'expired' : 'sync-error', requestId);
       // Fallback to cached calendars so UI doesn't break
       const cachedCals = await window.api.getGcalCalendarsCache();
       if (cachedCals && cachedCals.length > 0) {
@@ -328,7 +341,7 @@ async function loadGoogleCalendars() {
       return;
     }
     
-    state.sessionExpired = false;
+    setGcalConnectionStatus('connected', requestId);
     state.gcalCalendars = Array.isArray(calendars) ? calendars : [];
     await window.api.saveGcalCalendarsCache(state.gcalCalendars);
     
@@ -348,6 +361,7 @@ async function loadGoogleCalendars() {
     
   } catch (err) {
     console.error('Failed to load Google Calendars', err);
+    setGcalConnectionStatus('sync-error', requestId);
     const cachedCals = await window.api.getGcalCalendarsCache();
     if (cachedCals && cachedCals.length > 0) {
       state.gcalCalendars = cachedCals;
@@ -368,17 +382,20 @@ function updateGcalStatus() {
   const statusEl = document.getElementById('gcal-status');
   if (!statusEl) return;
   
-  const isConnected = localStorage.getItem('auth.gcalConnected') === 'true';
-  const hasToken = window.api.calendarAutoRenewalEnabled?.() || !!localStorage.getItem('auth.googleAccessToken');
+  const status = state.gcalConnectionStatus;
   
   if (state.sessionExpired) {
     statusEl.style.display = 'flex';
     statusEl.classList.add('disconnected');
     statusEl.querySelector('.gcal-status-text').textContent = 'GCal session expired';
-  } else if (isConnected && hasToken) {
+  } else if (status === 'connected') {
     statusEl.style.display = 'flex';
     statusEl.classList.remove('disconnected');
     statusEl.querySelector('.gcal-status-text').textContent = 'Google Calendar connected';
+  } else if (status === 'sync-error') {
+    statusEl.style.display = 'flex';
+    statusEl.classList.add('disconnected');
+    statusEl.querySelector('.gcal-status-text').textContent = 'Google Calendar sync unavailable';
   } else {
     statusEl.style.display = 'none';
   }
@@ -404,14 +421,12 @@ async function reloadGoogleEvents(force = false) {
 
   const timeMin = new Date(minYear, 0, 1, 0, 0, 0).toISOString();
   const timeMax = new Date(maxYear, 11, 31, 23, 59, 59).toISOString();
+  const requestId = ++_gcalStatusRequest;
   
   try {
     const newEvents = await window.api.getGCalEvents(toFetch, timeMin, timeMax);
     if (newEvents && newEvents.error) {
-      if (newEvents.error === 'SESSION_EXPIRED') {
-        state.sessionExpired = true;
-        renderView();
-      }
+      setGcalConnectionStatus(newEvents.error === 'SESSION_EXPIRED' ? 'expired' : 'sync-error', requestId);
       // Fallback to cached events
       const cachedEvents = await window.api.getGcalEventsCache();
       if (cachedEvents && cachedEvents.length > 0) {
@@ -421,7 +436,7 @@ async function reloadGoogleEvents(force = false) {
       return;
     }
     
-    state.sessionExpired = false;
+    setGcalConnectionStatus('connected', requestId);
     state.gcalEvents = state.gcalEvents.filter(e => !toFetch.includes(e.calendarId));
     state.gcalEvents.push(...newEvents);
     
@@ -429,6 +444,7 @@ async function reloadGoogleEvents(force = false) {
     await window.api.saveGcalEventsCache(state.gcalEvents);
   } catch (err) {
     console.error('Failed to load Google Events', err);
+    setGcalConnectionStatus('sync-error', requestId);
     const cachedEvents = await window.api.getGcalEventsCache();
     if (cachedEvents && cachedEvents.length > 0) {
       state.gcalEvents = cachedEvents;
@@ -442,8 +458,7 @@ window.reconnectGoogleCalendar = async () => {
   showToast('Reconnecting Google Calendar...', 'info');
   const res = await window.api.reconnectGCal();
   if (res && res.success) {
-    state.sessionExpired = false;
-    updateGcalStatus();
+    setGcalConnectionStatus('connected');
     showToast('Google Calendar reconnected!', 'success');
     await loadGoogleCalendars();
     renderView();

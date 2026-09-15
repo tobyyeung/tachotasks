@@ -1150,8 +1150,7 @@ function attachViewListeners() {
     try {
       const result = await window.api.disconnectGCal();
       if (result.error) throw new Error(result.error);
-      state.sessionExpired = true;
-      updateGcalStatus();
+      setGcalConnectionStatus('disconnected');
       renderView();
       showToast('Automatic calendar renewal stopped. Cached events remain available.', 'success');
     } catch (error) {

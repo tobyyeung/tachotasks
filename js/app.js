@@ -237,6 +237,7 @@ function setupAuth() {
 
   // Listen for auth state changes from main process
   window.api.onAuthStateChanged(async (user) => {
+    setGcalConnectionStatus('unknown');
     if (user) {
       // User is signed in
       signInBtn.classList.add('hidden');

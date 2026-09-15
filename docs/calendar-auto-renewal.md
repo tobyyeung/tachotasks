@@ -26,7 +26,7 @@ Create `functions/.env.tachotasks-d7c56` (ignored by Git) with the **public clie
 
 ```dotenv
 CALENDAR_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
-CALENDAR_ALLOWED_ORIGINS=https://tasks.tobyyeung.com
+CALENDAR_ALLOWED_ORIGINS=https://tasks.tobyyeung.com,http://localhost:51893
 ```
 
 Set the client secret through the interactive CLI prompt. Do not put it in browser JavaScript, Git, or chat:

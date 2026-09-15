@@ -11,7 +11,7 @@ const { CalendarError, tokenVault, createCalendarService } = require('./calendar
 
 initializeApp();
 const clientId = defineString('CALENDAR_CLIENT_ID');
-const allowedOrigins = defineString('CALENDAR_ALLOWED_ORIGINS', { default: 'https://tasks.tobyyeung.com' });
+const allowedOrigins = defineString('CALENDAR_ALLOWED_ORIGINS', { default: 'https://tasks.tobyyeung.com,http://localhost:51893' });
 const clientSecret = defineSecret('CALENDAR_CLIENT_SECRET');
 const tokenKey = defineSecret('CALENDAR_TOKEN_KEY');
 let service;
