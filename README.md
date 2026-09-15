@@ -87,7 +87,9 @@ A modern, high-performance desktop & web productivity app built with Vanilla Jav
 - **Public download page:** `download/index.html` is the landing page, served at `https://tasks.tobyyeung.com/download/`.
 - **Electron:** opens `index.html` directly, so the packaged desktop app never shows the marketing page.
 
-When publishing a new Electron release, update the version and artifact names in `downloads.js`, then upload the generated installers to the configured `https://tasks.tobyyeung.com/releases/` endpoint.
+When publishing a new Electron release, update the version in `package.json`, `package-lock.json`, and `downloads.js`. Commit the changes, then push a matching `vX.Y.Z` tag to run the desktop release workflow. It publishes installers and updater metadata to GitHub Releases. Pushing `main` alone does not publish a desktop update.
+
+Desktop v1.21.2 includes automatic update checks and downloads. Users on older installers without the updater must install this release once; subsequent published versions download automatically and install on quit or through the restart button.
 
 ## Pending Updates & Roadmap
 

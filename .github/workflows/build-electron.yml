@@ -39,6 +39,7 @@ jobs:
           node tests/desktop-updater.test.cjs
           node tests/archive.test.cjs
           node tests/overdue.test.cjs
+          node --test tests/calendar-browser.test.cjs tests/calendar-http.test.cjs tests/calendar-service.test.cjs tests/calendar-zero-duration.test.cjs
 
       - name: Build web assets
         run: npm run build:web
@@ -53,6 +54,7 @@ jobs:
           path: |
             release/*.exe
             release/*.dmg
+            release/*.zip
             release/*.AppImage
             release/*.yml
             release/*.blockmap
@@ -65,6 +67,7 @@ jobs:
           files: |
             release/*.exe
             release/*.dmg
+            release/*.zip
             release/*.AppImage
             release/*.yml
             release/*.blockmap
